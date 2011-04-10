@@ -3,6 +3,8 @@
 .appengine_java_sdk
 .appengine_python_sdk
 
+logo/logo.png
+
 # minified css/js files
 
 *.min.js
