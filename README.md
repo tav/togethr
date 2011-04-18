@@ -1,7 +1,7 @@
 ![togethr](https://github.com/downloads/tav/togethr/logo.small.png)
 
-This repository contains the code and documentation for the [togethr.at]  
-social action platform.
+This repository contains the code and documentation for the [togethr]  
+action platform.
 
 **Dev Community**
 
@@ -24,4 +24,4 @@ Enjoy, tav <<tav@espians.com>>
 
 
 [irc://irc.freenode.net/esp]: irc://irc.freenode.net/esp
-[togethr.at]: http://togethr.at
+[togethr]: https://togethr.at
