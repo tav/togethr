@@ -1,4 +1,4 @@
-![togethr](https://github.com/downloads/tav/togethr/logo.togethr.png)
+![togethr](https://github.com/downloads/tav/togethr/logo.small.png)
 
 This repository contains the code and documentation for the [togethr.at]  
 social action platform.
@@ -11,7 +11,8 @@ You can find some of the core developers on IRC:
 
 **Contribute**
 
-Simply fork this repository, make your change and send a pull request.
+Simply fork this repository, make your change and send a pull request  
+to myself <https://github.com/tav> or any of the other core developers.
 
 **License**
 
