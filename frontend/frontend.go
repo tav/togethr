@@ -42,11 +42,10 @@ const (
 
 var (
 	debugMode bool
-)
-
-var (
-	error502       = []byte(`Gateway Error`)
-	error502Length = fmt.Sprintf("%d", len(error502))
+	error502 []byte
+	error502Length string
+	error503 []byte
+	error503Length string
 )
 
 type Redirector struct {
@@ -207,8 +206,27 @@ func joinPath(instanceDirectory, path string) string {
 	return filepath.Join(instanceDirectory, filepath.Clean(path))
 }
 
+func getErrorInfo(directory, filename string) ([]byte, string) {
+	path := filepath.Join(directory, filename)
+	file, err := os.Open(path)
+	if err != nil {
+		runtime.StandardError(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		runtime.StandardError(err)
+	}
+	buffer := make([]byte, info.Size)
+	_, err = file.Read(buffer[:])
+	if err != nil && err != os.EOF {
+		runtime.StandardError(err)
+	}
+	return buffer, fmt.Sprintf("%d", info.Size)
+}
+
 func main() {
 
+	// Define the options for the command line and config file options parser.
 	opts := optparse.Parser(
 		"Usage: frontend <config.yaml> [options]\n",
 		"frontend 0.0.0")
@@ -271,6 +289,9 @@ func main() {
 	var configPath string
 	var err os.Error
 
+	// If a config file is provided, assume its parent directory as the instance
+	// directory, otherwise assume the current working directory as the instance
+	// directory.
 	if len(args) >= 1 {
 		if args[0] == "help" {
 			opts.PrintUsage()
@@ -278,30 +299,44 @@ func main() {
 		}
 		configPath, err = filepath.Abs(filepath.Clean(args[0]))
 		if err != nil {
-			runtime.Error("ERROR: %s\n", err)
+			runtime.StandardError(err)
 		}
 		err = opts.ParseConfig(configPath, os.Args)
 		if err != nil {
-			runtime.Error("ERROR: %s\n", err)
+			runtime.StandardError(err)
 		}
 		instanceDirectory, _ = filepath.Split(configPath)
 	} else {
 		instanceDirectory, err = os.Getwd()
 		if err != nil {
-			runtime.Error("ERROR: %s\n", err)
+			runtime.StandardError(err)
 		}
 	}
+
+	// Fail fast if the directory containing the 50x.html files isn't present.
+	errorPath := joinPath(instanceDirectory, *errorDirectory)
+	dirInfo, err := os.Stat(errorPath)
+	if err == nil {
+		if !dirInfo.IsDirectory() {
+			runtime.Error("ERROR: %q is not a directory\n", errorPath)
+		}
+	} else {
+		runtime.StandardError(err)
+	}
+
+	error502, error502Length = getErrorInfo(errorPath, "502.html")
+	error503, error503Length = getErrorInfo(errorPath, "503.html")
 
 	logPath := joinPath(instanceDirectory, "log")
 	err = os.MkdirAll(logPath, 0755)
 	if err != nil {
-		runtime.Error("ERROR: %s\n", err)
+		runtime.StandardError(err)
 	}
 
 	runPath := joinPath(instanceDirectory, "run")
 	err = os.MkdirAll(runPath, 0755)
 	if err != nil {
-		runtime.Error("ERROR: %s\n", err)
+		runtime.StandardError(err)
 	}
 
 	_, err = runtime.GetLock(runPath, "frontend")
@@ -376,7 +411,7 @@ func main() {
 
 	if !*noRedirect {
 		if *redirectURL == "" {
-			*redirectURL = frontendURL
+			*redirectURL = "https://" + *officialHost
 		}
 		httpAddr = fmt.Sprintf("%s:%d", *httpHost, *httpPort)
 		httpListener, err = net.Listen("tcp", httpAddr)
