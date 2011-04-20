@@ -4,6 +4,7 @@
 cert-file: /etc/togethr/frontend.cert
 key-file: /etc/togethr/frontend.key
 official-host: togethr.at
+enable-hsts: true
 gae-host: togethrat.appspot.com
 gae-port: 443
 gae-tls: true

@@ -41,15 +41,16 @@ const (
 )
 
 var (
-	debugMode bool
-	error502 []byte
+	debugMode      bool
+	error502       []byte
 	error502Length string
-	error503 []byte
+	error503       []byte
 	error503Length string
 )
 
 type Redirector struct {
-	url string
+	hsts bool
+	url  string
 }
 
 func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
@@ -63,6 +64,10 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 
 	if len(url) == 0 {
 		url = "/"
+	}
+
+	if redirector.hsts {
+		conn.Header().Set("Strict-Transport-Security", "max-age=50000000")
 	}
 
 	conn.Header().Set("Location", url)
@@ -267,6 +272,9 @@ func main() {
 	redirectURL := opts.StringConfig("redirect-url", "",
 		"the URL that the HTTP Redirector redirects to")
 
+	enableHSTS := opts.BoolConfig("enable-hsts", false,
+		"enable HTTP Strict Transport Security on redirects [false]")
+
 	gaeHost := opts.StringConfig("gae-host", "localhost",
 		"the App Engine host to connect to [localhost]")
 
@@ -398,7 +406,6 @@ func main() {
 	redirectHTML := []byte(fmt.Sprintf(redirectHTML, frontendURL))
 
 	_ = staticDirectory
-	_ = errorDirectory
 
 	if *httpHost == "" {
 		*httpHost = "localhost"
@@ -446,7 +453,7 @@ func main() {
 	fmt.Printf("Running frontend with %d CPUs:\n", runtime.CPUCount)
 
 	if !*noRedirect {
-		redirector := &Redirector{url: *redirectURL}
+		redirector := &Redirector{url: *redirectURL, hsts: *enableHSTS}
 		go func() {
 			err = http.Serve(httpListener, redirector)
 			if err != nil {
