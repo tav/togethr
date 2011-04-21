@@ -50,7 +50,7 @@ var (
 )
 
 type Redirector struct {
-	hsts bool
+	hsts string
 	url  string
 }
 
@@ -67,8 +67,8 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 		url = "/"
 	}
 
-	if redirector.hsts {
-		conn.Header().Set("Strict-Transport-Security", "max-age=50000000")
+	if redirector.hsts != "" {
+		conn.Header().Set("Strict-Transport-Security", redirector.hsts)
 	}
 
 	conn.Header().Set("Location", url)
@@ -336,6 +336,9 @@ func main() {
 	enableHSTS := opts.BoolConfig("enable-hsts", false,
 		"enable HTTP Strict Transport Security on redirects [false]")
 
+	hstsMaxAge := opts.IntConfig("hsts-max-age", 50000000,
+		"max-age value of HSTS in number of seconds [50000000]")
+
 	gaeHost := opts.StringConfig("gae-host", "localhost",
 		"the App Engine host to connect to [localhost]")
 
@@ -528,7 +531,11 @@ func main() {
 	fmt.Printf("Running frontend with %d CPUs:\n", runtime.CPUCount)
 
 	if !*noRedirect {
-		redirector := &Redirector{url: *redirectURL, hsts: *enableHSTS}
+		hsts := ""
+		if *enableHSTS {
+			hsts = fmt.Sprintf("max-age=%d", *hstsMaxAge)
+		}
+		redirector := &Redirector{url: *redirectURL, hsts: hsts}
 		go func() {
 			err = http.Serve(httpListener, redirector)
 			if err != nil {
