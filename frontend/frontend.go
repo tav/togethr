@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"http"
 	"io/ioutil"
+	"mime"
 	"net"
 	"os"
 	"path/filepath"
@@ -43,8 +44,8 @@ const (
 var (
 	debugMode      bool
 	error502       []byte
-	error502Length string
 	error503       []byte
+	error502Length string
 	error503Length string
 )
 
@@ -82,8 +83,9 @@ type Frontend struct {
 	gaeHost      string
 	gaeTLS       bool
 	officialHost string
-	redirectURL  string
 	redirectHTML []byte
+	redirectURL  string
+	staticFiles  map[string]*StaticFile
 }
 
 func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
@@ -93,6 +95,17 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
 		logRequest(http.StatusMovedPermanently, req.Host, conn, req)
+		return
+	}
+
+	staticFile, ok := frontend.staticFiles[req.URL.Path]
+	if ok {
+		headers := conn.Header()
+		headers.Set(contentType, staticFile.mimetype)
+		headers.Set(contentLength, staticFile.size)
+		conn.WriteHeader(http.StatusOK)
+		conn.Write(staticFile.content)
+		logRequest(http.StatusOK, req.Host, conn, req)
 		return
 	}
 
@@ -229,6 +242,54 @@ func getErrorInfo(directory, filename string) ([]byte, string) {
 	return buffer, fmt.Sprintf("%d", info.Size)
 }
 
+type StaticFile struct {
+	content  []byte
+	mimetype string
+	size     string
+}
+
+func getFiles(directory string, mapping map[string]*StaticFile, root string) {
+	if debugMode {
+		fmt.Printf("Caching static files in: %s\n", directory)
+	}
+	path, err := os.Open(directory)
+	if err != nil {
+		runtime.StandardError(err)
+	}
+	for {
+		items, err := path.Readdir(100)
+		if err != nil || len(items) == 0 {
+			break
+		}
+		for _, item := range items {
+			name := item.Name
+			key := fmt.Sprintf("%s/%s", root, name)
+			if item.IsDirectory() {
+				getFiles(filepath.Join(directory, name), mapping, key)
+			} else {
+				content := make([]byte, item.Size)
+				file, err := os.Open(filepath.Join(directory, name))
+				if err != nil {
+					runtime.StandardError(err)
+				}
+				_, err = file.Read(content[:])
+				if err != nil && err != os.EOF {
+					runtime.StandardError(err)
+				}
+				mimetype := mime.TypeByExtension(filepath.Ext(name))
+				if mimetype == "" {
+					mimetype = "application/octet-stream"
+				}
+				mapping[key] = &StaticFile{
+					content:  content,
+					mimetype: mimetype,
+					size:     fmt.Sprintf("%d", len(content)),
+				}
+			}
+		}
+	}
+}
+
 func main() {
 
 	// Define the options for the command line and config file options parser.
@@ -292,6 +353,8 @@ func main() {
 
 	os.Args[0] = "frontend"
 	args := opts.Parse(os.Args)
+
+	debugMode = *debug
 
 	var instanceDirectory string
 	var configPath string
@@ -371,14 +434,26 @@ func main() {
 		runtime.Exit(1)
 	}
 
+	staticPath := joinPath(instanceDirectory, *staticDirectory)
+	dirInfo, err = os.Stat(staticPath)
+	if err == nil {
+		if !dirInfo.IsDirectory() {
+			runtime.Error("ERROR: %q is not a directory\n", staticPath)
+		}
+	} else {
+		runtime.StandardError(err)
+	}
+
+	// Load up all static files into a mapping.
+	staticFiles := make(map[string]*StaticFile)
+	getFiles(staticPath, staticFiles, "")
+
 	// Initialise the Ampify runtime -- which will run ``frontend`` on multiple
 	// processors if possible.
 	runtime.Init()
 
 	// Initialise the TLS config.
 	tlsconf.Init()
-
-	debugMode = *debug
 	gaeAddr := fmt.Sprintf("%s:%d", *gaeHost, *gaePort)
 
 	frontendAddr := fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
@@ -402,7 +477,7 @@ func main() {
 	}
 
 	frontendListener := tls.NewListener(frontendConn, tlsConfig)
-	frontendURL := "https://" + *officialHost + "/"
+	frontendURL := "https://" + *officialHost
 	redirectHTML := []byte(fmt.Sprintf(redirectHTML, frontendURL))
 
 	_ = staticDirectory
@@ -418,7 +493,7 @@ func main() {
 
 	if !*noRedirect {
 		if *redirectURL == "" {
-			*redirectURL = "https://" + *officialHost
+			*redirectURL = frontendURL
 		}
 		httpAddr = fmt.Sprintf("%s:%d", *httpHost, *httpPort)
 		httpListener, err = net.Listen("tcp", httpAddr)
@@ -468,8 +543,9 @@ func main() {
 		gaeHost:      *gaeHost,
 		gaeTLS:       *gaeTLS,
 		officialHost: *officialHost,
-		redirectURL:  frontendURL,
 		redirectHTML: redirectHTML,
+		redirectURL:  frontendURL,
+		staticFiles:  staticFiles,
 	}
 
 	fmt.Printf("* Frontend Server running on %s\n", frontendURL)
