@@ -121,7 +121,15 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	var clientIP string
 	var gae net.Conn
+
+	splitPoint := strings.LastIndex(req.RemoteAddr, ":")
+	if splitPoint == -1 {
+		clientIP = req.RemoteAddr
+	} else {
+		clientIP = req.RemoteAddr[0:splitPoint]
+	}
 
 	if frontend.gaeTLS {
 		gae = tls.Client(gaeConn, tlsconf.Config)
@@ -132,6 +140,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	// Modify the request Host: header.
 	req.Host = frontend.gaeHost
+	req.UserAgent = fmt.Sprintf("%s, %s", req.UserAgent, clientIP)
 
 	// Send the request to the App Engine server.
 	err = req.Write(gae)
