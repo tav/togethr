@@ -39,6 +39,9 @@ const (
 	redirectURL      = "%s%s"
 	redirectURLQuery = "%s%s?%s"
 	textHTML         = "text/html; charset=utf-8"
+	HTTP             = 0
+	HTTPS            = 1
+	WEBSOCKET        = 2
 )
 
 var (
@@ -74,7 +77,7 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 	conn.Header().Set("Location", url)
 	conn.WriteHeader(http.StatusMovedPermanently)
 	fmt.Fprintf(conn, redirectHTML, url)
-	logRequest(http.StatusMovedPermanently, req.Host, conn, req)
+	logRequest(HTTP, http.StatusMovedPermanently, req.Host, conn, req)
 
 }
 
@@ -94,18 +97,20 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		conn.Header().Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
-		logRequest(http.StatusMovedPermanently, req.Host, conn, req)
+		logRequest(HTTPS, http.StatusMovedPermanently, req.Host, conn, req)
 		return
 	}
 
-	staticFile, ok := frontend.staticFiles[req.URL.Path]
+	reqPath := req.URL.Path
+
+	staticFile, ok := frontend.staticFiles[reqPath]
 	if ok {
 		headers := conn.Header()
 		headers.Set(contentType, staticFile.mimetype)
 		headers.Set(contentLength, staticFile.size)
 		conn.WriteHeader(http.StatusOK)
 		conn.Write(staticFile.content)
-		logRequest(http.StatusOK, req.Host, conn, req)
+		logRequest(HTTPS, http.StatusOK, req.Host, conn, req)
 		return
 	}
 
@@ -188,11 +193,11 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	conn.WriteHeader(resp.StatusCode)
 	conn.Write(body)
 
-	logRequest(resp.StatusCode, originalHost, conn, req)
+	logRequest(HTTPS, resp.StatusCode, originalHost, conn, req)
 
 }
 
-func logRequest(status int, host string, conn http.ResponseWriter, request *http.Request) {
+func logRequest(proto, status int, host string, conn http.ResponseWriter, request *http.Request) {
 	var ip string
 	splitPoint := strings.LastIndex(request.RemoteAddr, ":")
 	if splitPoint == -1 {
@@ -200,7 +205,7 @@ func logRequest(status int, host string, conn http.ResponseWriter, request *http
 	} else {
 		ip = request.RemoteAddr[0:splitPoint]
 	}
-	logging.Info("fe", status, request.Method, host, request.RawURL,
+	logging.Info("fe", proto, status, request.Method, host, request.RawURL,
 		ip, request.UserAgent, request.Referer)
 }
 
@@ -223,7 +228,7 @@ func serveError502(conn http.ResponseWriter, host string, request *http.Request)
 	headers.Set(contentLength, error502Length)
 	conn.WriteHeader(http.StatusBadGateway)
 	conn.Write(error502)
-	logRequest(http.StatusBadGateway, host, conn, request)
+	logRequest(HTTPS, http.StatusBadGateway, host, conn, request)
 }
 
 func joinPath(instanceDirectory, path string) string {
@@ -491,8 +496,6 @@ func main() {
 	frontendListener := tls.NewListener(frontendConn, tlsConfig)
 	frontendURL := "https://" + *officialHost
 	redirectHTML := []byte(fmt.Sprintf(redirectHTML, frontendURL))
-
-	_ = staticDirectory
 
 	if *httpHost == "" {
 		*httpHost = "localhost"
