@@ -104,15 +104,17 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 }
 
 type Frontend struct {
-	upstreamAddr string
-	upstreamHost string
-	upstreamTLS  bool
+	cometPrefix  string
 	maintenance  bool
 	officialHost string
 	redirectHTML []byte
 	redirectURL  string
 	sensor       bool
 	staticFiles  map[string]*StaticFile
+	upstreamAddr string
+	upstreamHost string
+	upstreamTLS  bool
+	wsPrefix     string
 }
 
 func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
@@ -155,13 +157,13 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	if frontend.sensor {
 
 		// Handle WebSocket requests.
-		if strings.HasPrefix(reqPath, "/.ws/") {
+		if strings.HasPrefix(reqPath, frontend.wsPrefix) {
 			websocket.Handler(handleWebSocket).ServeHTTP(conn, req)
 			return
 		}
 
 		// Handle long-polling Comet requests.
-		if strings.HasPrefix(reqPath, "/.live/") {
+		if strings.HasPrefix(reqPath, frontend.cometPrefix) {
 			logRequest(HTTPS_COMET, http.StatusOK, originalHost, req)
 			return
 		}
@@ -383,17 +385,23 @@ func main() {
 	frontendPort := opts.IntConfig("frontend-port", 9040,
 		"the port to bind the HTTPS Frontend to [9040]")
 
+	officialHost := opts.StringConfig("official-host", "",
+		"limit the HTTPS Frontend to the specified host")
+
 	certFile := opts.StringConfig("cert-file", "cert/live-server.cert",
 		"the path to the TLS certificate [cert/live-server.cert]")
 
 	keyFile := opts.StringConfig("key-file", "cert/live-server.key",
 		"the path to the TLS key [cert/live-server.key]")
 
-	officialHost := opts.StringConfig("official-host", "",
-		"limit the HTTPS Frontend to the specified host")
-
 	disableSensor := opts.BoolConfig("disable-live", false,
 		"disable the WebSockets and Comet-driven live sensor [false]")
+
+	wsPrefix := opts.StringConfig("ws-prefix", "/.ws/",
+		"URL path prefix for WebSocket requests [/.ws/]")
+
+	cometPrefix := opts.StringConfig("comet-prefix", "/.live/",
+		"URL path prefix for Comet requests [/.live/]")
 
 	redisConfig := opts.StringConfig("redis-conf", "redis.conf",
 		"path to the redis config file [redis.conf]")
@@ -441,10 +449,10 @@ func main() {
 		"specify one of 'hourly', 'daily' or 'never' [never]")
 
 	noConsoleLog := opts.BoolConfig("no-console-log", false,
-		"disable logging to stdout/stderr [false]")
+		"disable server requests being logged to the console [false]")
 
 	maintenanceMode := opts.BoolConfig("maintenance", false,
-		"enable maintenance mode [false]")
+		"start up in maintenance mode [false]")
 
 	os.Args[0] = "live-server"
 	args := opts.Parse(os.Args)
@@ -629,15 +637,17 @@ func main() {
 	}
 
 	frontend := &Frontend{
-		upstreamAddr: upstreamAddr,
-		upstreamHost: *upstreamHost,
-		upstreamTLS:  *upstreamTLS,
+		cometPrefix:  *cometPrefix,
 		maintenance:  *maintenanceMode,
 		officialHost: *officialHost,
 		redirectHTML: redirectHTML,
 		redirectURL:  frontendURL,
 		sensor:       sensor,
 		staticFiles:  staticFiles,
+		upstreamAddr: upstreamAddr,
+		upstreamHost: *upstreamHost,
+		upstreamTLS:  *upstreamTLS,
+		wsPrefix:     *wsPrefix,
 	}
 
 	maintenanceChannel := make(chan bool, 1)
