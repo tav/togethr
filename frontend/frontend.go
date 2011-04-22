@@ -4,13 +4,6 @@
 // Web Frontend
 // ============
 //
-// The ``frontend`` app proxies requests to:
-//
-// 1. Google App Engine -- this is needed as App Engine doesn't yet support
-//    HTTPS requests on custom domains.
-//
-// 2. The ``redstream`` app -- which, in turn, interacts with Redis.
-//
 package main
 
 import (
@@ -85,10 +78,10 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 }
 
 type Frontend struct {
-	gaeAddr      string
-	gaeHost      string
-	gaeTLS       bool
-    maintenance  bool
+	upstreamAddr string
+	upstreamHost string
+	upstreamTLS  bool
+	maintenance  bool
 	officialHost string
 	redirectHTML []byte
 	redirectURL  string
@@ -150,18 +143,18 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	}
 
-	// Open a connection to the App Engine server.
-	gaeConn, err := net.Dial("tcp", frontend.gaeAddr)
+	// Open a connection to the upstream server.
+	upstreamConn, err := net.Dial("tcp", frontend.upstreamAddr)
 	if err != nil {
 		if debugMode {
-			fmt.Printf("Couldn't connect to remote %s: %v\n", frontend.gaeHost, err)
+			fmt.Printf("Couldn't connect to remote %s: %v\n", frontend.upstreamHost, err)
 		}
 		serveError502(conn, originalHost, req)
 		return
 	}
 
 	var clientIP string
-	var gae net.Conn
+	var upstream net.Conn
 
 	splitPoint := strings.LastIndex(req.RemoteAddr, ":")
 	if splitPoint == -1 {
@@ -170,32 +163,32 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		clientIP = req.RemoteAddr[0:splitPoint]
 	}
 
-	if frontend.gaeTLS {
-		gae = tls.Client(gaeConn, tlsconf.Config)
-		defer gae.Close()
+	if frontend.upstreamTLS {
+		upstream = tls.Client(upstreamConn, tlsconf.Config)
+		defer upstream.Close()
 	} else {
-		gae = gaeConn
+		upstream = upstreamConn
 	}
 
 	// Modify the request Host: and User-Agent: headers.
-	req.Host = frontend.gaeHost
+	req.Host = frontend.upstreamHost
 	req.UserAgent = fmt.Sprintf("%s, %s, %s", req.UserAgent, clientIP, originalHost)
 
-	// Send the request to the App Engine server.
-	err = req.Write(gae)
+	// Send the request to the upstream server.
+	err = req.Write(upstream)
 	if err != nil {
 		if debugMode {
-			fmt.Printf("Error writing to App Engine: %v\n", err)
+			fmt.Printf("Error writing to the upstream server: %v\n", err)
 		}
 		serveError502(conn, originalHost, req)
 		return
 	}
 
-	// Parse the response from App Engine.
-	resp, err := http.ReadResponse(bufio.NewReader(gae), req.Method)
+	// Parse the response from upstream.
+	resp, err := http.ReadResponse(bufio.NewReader(upstream), req.Method)
 	if err != nil {
 		if debugMode {
-			fmt.Printf("Error parsing response from App Engine: %v\n", err)
+			fmt.Printf("Error parsing response from upstream: %v\n", err)
 		}
 		serveError502(conn, originalHost, req)
 		return
@@ -205,7 +198,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		if debugMode {
-			fmt.Printf("Error reading response from App Engine: %v\n", err)
+			fmt.Printf("Error reading response from upstream: %v\n", err)
 		}
 		serveError502(conn, originalHost, req)
 		resp.Body.Close()
@@ -373,11 +366,14 @@ func main() {
 	officialHost := opts.StringConfig("official-host", "localhost:9040",
 		"limit Frontend Server to specified host [localhost:9040]")
 
-	enableSensor := opts.BoolConfig("enable-sensor", false,
-		"enable support for the live sensor [false]")
+	disableSensor := opts.BoolConfig("disable-sensor", false,
+		"disable the redis-based live sensor [false]")
 
 	redisConfig := opts.StringConfig("redis-conf", "redis.conf",
 		"path to the redis config file [redis.conf]")
+
+	redisSocket := opts.StringConfig("redis-socket", "run/redis.sock",
+		"path to the redis Unix domain socket [run/redis.sock]")
 
 	staticDirectory := opts.StringConfig("static-dir", "www",
 		"the path to serve static files from [www]")
@@ -403,14 +399,14 @@ func main() {
 	hstsMaxAge := opts.IntConfig("hsts-max-age", 50000000,
 		"max-age value of HSTS in number of seconds [50000000]")
 
-	gaeHost := opts.StringConfig("gae-host", "localhost",
-		"the App Engine host to connect to [localhost]")
+	upstreamHost := opts.StringConfig("upstream-host", "localhost",
+		"the upstream host to connect to [localhost]")
 
-	gaePort := opts.IntConfig("gae-port", 8080,
-		"the App Engine port to connect to [8080]")
+	upstreamPort := opts.IntConfig("upstream-port", 8080,
+		"the upstream port to connect to [8080]")
 
-	gaeTLS := opts.BoolConfig("gae-tls", false,
-		"use TLS when connecting to App Engine [false]")
+	upstreamTLS := opts.BoolConfig("upstream-tls", false,
+		"use TLS when connecting to upstream [false]")
 
 	logRotate := opts.StringConfig("log-rotate", "never",
 		"specify one of 'hourly', 'daily' or 'never' [never]")
@@ -520,7 +516,7 @@ func main() {
 
 	// Initialise the TLS config.
 	tlsconf.Init()
-	gaeAddr := fmt.Sprintf("%s:%d", *gaeHost, *gaePort)
+	upstreamAddr := fmt.Sprintf("%s:%d", *upstreamHost, *upstreamPort)
 
 	frontendAddr := fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
 	frontendConn, err := net.Listen("tcp", frontendAddr)
@@ -581,7 +577,7 @@ func main() {
 
 	if !*noConsoleLog {
 		logging.AddConsoleLogger()
-		logging.AddFilter(filterRequestLog)
+		logging.AddConsoleFilter(filterRequestLog)
 	}
 
 	_, err = logging.AddFileLogger("frontend", logPath, rotate)
@@ -606,27 +602,31 @@ func main() {
 		fmt.Printf("* HTTP Redirector running on %s -> %s\n", httpAddrURL, *redirectURL)
 	}
 
-	if *enableSensor {
+	var sensor bool
+
+	if !*disableSensor {
 		_ = *redisConfig
+		_ = *redisSocket
+		sensor = true
 	}
 
 	frontend := &Frontend{
-		gaeAddr:      gaeAddr,
-		gaeHost:      *gaeHost,
-		gaeTLS:       *gaeTLS,
+		upstreamAddr: upstreamAddr,
+		upstreamHost: *upstreamHost,
+		upstreamTLS:  *upstreamTLS,
 		maintenance:  *maintenanceMode,
 		officialHost: *officialHost,
 		redirectHTML: redirectHTML,
 		redirectURL:  frontendURL,
-		sensor:       *enableSensor,
+		sensor:       sensor,
 		staticFiles:  staticFiles,
 	}
 
-	runtime.RegisterSignalHandler(signal.SIGUSR1, func () {
+	runtime.RegisterSignalHandler(signal.SIGUSR1, func() {
 		frontend.maintenance = true
 	})
 
-	runtime.RegisterSignalHandler(signal.SIGUSR2, func () {
+	runtime.RegisterSignalHandler(signal.SIGUSR2, func() {
 		frontend.maintenance = false
 	})
 
