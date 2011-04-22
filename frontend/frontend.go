@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"websocket"
 )
 
 const (
@@ -79,7 +80,7 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 	conn.Header().Set("Location", url)
 	conn.WriteHeader(http.StatusMovedPermanently)
 	fmt.Fprintf(conn, redirectHTML, url)
-	logRequest(HTTP, http.StatusMovedPermanently, req.Host, conn, req)
+	logRequest(HTTP, http.StatusMovedPermanently, req.Host, req)
 
 }
 
@@ -91,6 +92,7 @@ type Frontend struct {
 	officialHost string
 	redirectHTML []byte
 	redirectURL  string
+	sensor       bool
 	staticFiles  map[string]*StaticFile
 }
 
@@ -98,13 +100,13 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	originalHost := req.Host
 
-	// Redirect all requests to the official host if they the Host header
-	// doesn't match.
+	// Redirect all requests to the official host if the Host header doesn't
+	// match.
 	if originalHost != frontend.officialHost {
 		conn.Header().Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
-		logRequest(HTTPS, http.StatusMovedPermanently, originalHost, conn, req)
+		logRequest(HTTPS, http.StatusMovedPermanently, originalHost, req)
 		return
 	}
 
@@ -114,7 +116,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		headers.Set(contentLength, error503Length)
 		conn.WriteHeader(http.StatusServiceUnavailable)
 		conn.Write(error503)
-		logRequest(HTTPS, http.StatusServiceUnavailable, originalHost, conn, req)
+		logRequest(HTTPS, http.StatusServiceUnavailable, originalHost, req)
 		return
 	}
 
@@ -128,8 +130,24 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		headers.Set(contentLength, staticFile.size)
 		conn.WriteHeader(http.StatusOK)
 		conn.Write(staticFile.content)
-		logRequest(HTTPS, http.StatusOK, originalHost, conn, req)
+		logRequest(HTTPS, http.StatusOK, originalHost, req)
 		return
+	}
+
+	if frontend.sensor {
+
+		// Handle WebSocket requests.
+		if strings.HasPrefix(reqPath, "/.ws/") {
+			websocket.Handler(handleWebSocket).ServeHTTP(conn, req)
+			return
+		}
+
+		// Handle long-polling Comet requests.
+		if strings.HasPrefix(reqPath, "/.sensor/") {
+			logRequest(LONGPOLL, http.StatusOK, originalHost, req)
+			return
+		}
+
 	}
 
 	// Open a connection to the App Engine server.
@@ -209,11 +227,21 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	conn.WriteHeader(resp.StatusCode)
 	conn.Write(body)
 
-	logRequest(HTTPS, resp.StatusCode, originalHost, conn, req)
+	logRequest(HTTPS, resp.StatusCode, originalHost, req)
 
 }
 
-func logRequest(proto, status int, host string, conn http.ResponseWriter, request *http.Request) {
+func handleWebSocket(conn *websocket.Conn) {
+	defer func() {
+		conn.Close()
+		logRequest(WEBSOCKET, http.StatusOK, conn.Request.Host, conn.Request)
+	}()
+	if conn.Request.Header.Get("User-Agent") == "Safari" {
+		fmt.Printf("boo")
+	}
+}
+
+func logRequest(proto, status int, host string, request *http.Request) {
 	var ip string
 	splitPoint := strings.LastIndex(request.RemoteAddr, ":")
 	if splitPoint == -1 {
@@ -244,7 +272,7 @@ func serveError502(conn http.ResponseWriter, host string, request *http.Request)
 	headers.Set(contentLength, error502Length)
 	conn.WriteHeader(http.StatusBadGateway)
 	conn.Write(error502)
-	logRequest(HTTPS, http.StatusBadGateway, host, conn, request)
+	logRequest(HTTPS, http.StatusBadGateway, host, request)
 }
 
 func joinPath(instanceDirectory, path string) string {
@@ -345,6 +373,12 @@ func main() {
 	officialHost := opts.StringConfig("official-host", "localhost:9040",
 		"limit Frontend Server to specified host [localhost:9040]")
 
+	enableSensor := opts.BoolConfig("enable-sensor", false,
+		"enable support for the live sensor [false]")
+
+	redisConfig := opts.StringConfig("redis-conf", "redis.conf",
+		"path to the redis config file [redis.conf]")
+
 	staticDirectory := opts.StringConfig("static-dir", "www",
 		"the path to serve static files from [www]")
 
@@ -396,9 +430,7 @@ func main() {
 	var configPath string
 	var err os.Error
 
-	// If a config file is provided, assume its parent directory as the instance
-	// directory, otherwise assume the current working directory as the instance
-	// directory.
+	// Assume the parent directory of the config as the instance directory.
 	if len(args) >= 1 {
 		if args[0] == "help" {
 			opts.PrintUsage()
@@ -414,10 +446,8 @@ func main() {
 		}
 		instanceDirectory, _ = filepath.Split(configPath)
 	} else {
-		instanceDirectory, err = os.Getwd()
-		if err != nil {
-			runtime.StandardError(err)
-		}
+		opts.PrintUsage()
+		runtime.Exit(0)
 	}
 
 	// Fail fast if the directory containing the 50x.html files isn't present.
@@ -520,7 +550,7 @@ func main() {
 		*httpHost = "localhost"
 	}
 
-	httpAddrURL := fmt.Sprintf("http://%s:%d/", *httpHost, *httpPort)
+	httpAddrURL := fmt.Sprintf("http://%s:%d", *httpHost, *httpPort)
 
 	var httpAddr string
 	var httpListener net.Listener
@@ -576,6 +606,10 @@ func main() {
 		fmt.Printf("* HTTP Redirector running on %s -> %s\n", httpAddrURL, *redirectURL)
 	}
 
+	if *enableSensor {
+		_ = *redisConfig
+	}
+
 	frontend := &Frontend{
 		gaeAddr:      gaeAddr,
 		gaeHost:      *gaeHost,
@@ -584,6 +618,7 @@ func main() {
 		officialHost: *officialHost,
 		redirectHTML: redirectHTML,
 		redirectURL:  frontendURL,
+		sensor:       *enableSensor,
 		staticFiles:  staticFiles,
 	}
 
