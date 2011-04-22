@@ -27,6 +27,7 @@ import (
 	"mime"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
@@ -86,6 +87,7 @@ type Frontend struct {
 	gaeAddr      string
 	gaeHost      string
 	gaeTLS       bool
+    maintenance  bool
 	officialHost string
 	redirectHTML []byte
 	redirectURL  string
@@ -103,6 +105,16 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
 		logRequest(HTTPS, http.StatusMovedPermanently, originalHost, conn, req)
+		return
+	}
+
+	if frontend.maintenance {
+		headers := conn.Header()
+		headers.Set(contentType, textHTML)
+		headers.Set(contentLength, error503Length)
+		conn.WriteHeader(http.StatusServiceUnavailable)
+		conn.Write(error503)
+		logRequest(HTTPS, http.StatusServiceUnavailable, originalHost, conn, req)
 		return
 	}
 
@@ -372,6 +384,9 @@ func main() {
 	noConsoleLog := opts.BoolConfig("no-console-log", false,
 		"disable logging to stdout/stderr [false]")
 
+	maintenanceMode := opts.BoolConfig("maintenance", false,
+		"enable maintenance mode [false]")
+
 	os.Args[0] = "frontend"
 	args := opts.Parse(os.Args)
 
@@ -565,11 +580,20 @@ func main() {
 		gaeAddr:      gaeAddr,
 		gaeHost:      *gaeHost,
 		gaeTLS:       *gaeTLS,
+		maintenance:  *maintenanceMode,
 		officialHost: *officialHost,
 		redirectHTML: redirectHTML,
 		redirectURL:  frontendURL,
 		staticFiles:  staticFiles,
 	}
+
+	runtime.RegisterSignalHandler(signal.SIGUSR1, func () {
+		frontend.maintenance = true
+	})
+
+	runtime.RegisterSignalHandler(signal.SIGUSR2, func () {
+		frontend.maintenance = false
+	})
 
 	fmt.Printf("* Frontend Server running on %s\n", frontendURL)
 
