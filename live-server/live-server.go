@@ -631,12 +631,25 @@ func main() {
 		staticFiles:  staticFiles,
 	}
 
+	maintenanceChannel := make(chan bool, 1)
+
+	go func() {
+		for {
+			enabledState := <-maintenanceChannel
+			if enabledState {
+				frontend.maintenance = true
+			} else {
+				frontend.maintenance = false
+			}
+		}
+	}()
+
 	runtime.RegisterSignalHandler(signal.SIGUSR1, func() {
-		frontend.maintenance = true
+		maintenanceChannel <- true
 	})
 
 	runtime.RegisterSignalHandler(signal.SIGUSR2, func() {
-		frontend.maintenance = false
+		maintenanceChannel <- false
 	})
 
 	fmt.Printf("* HTTPS Frontend running on %s\n", frontendURL)
