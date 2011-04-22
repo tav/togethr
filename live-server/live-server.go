@@ -389,8 +389,8 @@ func main() {
 	keyFile := opts.StringConfig("key-file", "cert/live-server.key",
 		"the path to the TLS key [cert/live-server.key]")
 
-	officialHost := opts.StringConfig("official-host", "localhost:9040",
-		"limit the HTTPS Frontend to specified host [localhost:9040]")
+	officialHost := opts.StringConfig("official-host", "",
+		"limit the HTTPS Frontend to the specified host")
 
 	disableSensor := opts.BoolConfig("disable-live", false,
 		"disable the WebSockets and Comet-driven live sensor [false]")
@@ -517,12 +517,18 @@ func main() {
 		fmt.Printf("ERROR: The key-file config value hasn't been specified.\n")
 		exitProcess = true
 	}
-	if *officialHost == "" {
-		fmt.Printf("ERROR: The official-host config value hasn't been specified.\n")
-		exitProcess = true
-	}
 	if exitProcess {
 		runtime.Exit(1)
+	}
+
+	// If ``--official-host`` hasn't been specified, generate it from the given
+	// frontend host and port values -- assuming ``localhost`` for a blank host.
+	if *officialHost == "" {
+		if *frontendHost == "" {
+			*officialHost = fmt.Sprintf("localhost:%d", *frontendPort)
+		} else {
+			*officialHost = fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
+		}
 	}
 
 	staticPath := joinPath(instanceDirectory, *staticDirectory)
