@@ -33,12 +33,14 @@ const (
 	redirectHTML     = `Please <a href="%s">click here if your browser doesn't redirect</a> automatically.`
 	redirectURL      = "%s%s"
 	redirectURLQuery = "%s%s?%s"
+	textPlain        = "text/plain"
 	textHTML         = "text/html; charset=utf-8"
 )
 
 // Constants for the different log event types.
 const (
-	HTTP_REDIRECT = iota
+	HTTP_PING = iota
+	HTTP_REDIRECT
 	HTTPS_COMET
 	HTTPS_MAINTENANCE
 	HTTPS_PROXY_ERROR
@@ -56,12 +58,28 @@ var (
 	error503Length string
 )
 
+var (
+	pingResponse       = []byte("pong")
+	pingResponseLength = fmt.Sprintf("%d", len(pingResponse))
+)
+
 type Redirector struct {
-	hsts string
-	url  string
+	hsts     string
+	pingPath string
+	url      string
 }
 
 func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
+
+	if req.URL.Path == redirector.pingPath {
+		headers := conn.Header()
+		headers.Set(contentType, textPlain)
+		headers.Set(contentLength, pingResponseLength)
+		conn.WriteHeader(http.StatusOK)
+		conn.Write(pingResponse)
+		logRequest(HTTP_PING, http.StatusOK, req.Host, req)
+		return
+	}
 
 	var url string
 	if len(req.URL.RawQuery) > 0 {
@@ -124,8 +142,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	reqPath := req.URL.Path
 
 	// Handle requests for any files exposed within the static directory.
-	staticFile, ok := frontend.staticFiles[reqPath]
-	if ok {
+	if staticFile, ok := frontend.staticFiles[reqPath]; ok {
 		headers := conn.Header()
 		headers.Set(contentType, staticFile.mimetype)
 		headers.Set(contentLength, staticFile.size)
@@ -402,6 +419,9 @@ func main() {
 	redirectURL := opts.StringConfig("redirect-url", "",
 		"the URL that the HTTP Redirector redirects to")
 
+	pingPath := opts.StringConfig("ping-path", "/.ping",
+		`URL path for a "ping" request [/.ping]`)
+
 	enableHSTS := opts.BoolConfig("enable-hsts", false,
 		"enable HTTP Strict Transport Security on redirects [false]")
 
@@ -594,23 +614,6 @@ func main() {
 		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
 	}
 
-	fmt.Printf("Running frontend with %d CPUs:\n", runtime.CPUCount)
-
-	if !*noRedirect {
-		hsts := ""
-		if *enableHSTS {
-			hsts = fmt.Sprintf("max-age=%d", *hstsMaxAge)
-		}
-		redirector := &Redirector{url: *redirectURL, hsts: hsts}
-		go func() {
-			err = http.Serve(httpListener, redirector)
-			if err != nil {
-				runtime.Error("ERROR serving HTTP Redirector: %s\n", err)
-			}
-		}()
-		fmt.Printf("* HTTP Redirector running on %s -> %s\n", httpAddrURL, *redirectURL)
-	}
-
 	var sensor bool
 
 	if !*disableSensor {
@@ -651,6 +654,27 @@ func main() {
 	runtime.RegisterSignalHandler(signal.SIGUSR2, func() {
 		maintenanceChannel <- false
 	})
+
+	fmt.Printf("Running live-server with %d CPUs:\n", runtime.CPUCount)
+
+	if !*noRedirect {
+		hsts := ""
+		if *enableHSTS {
+			hsts = fmt.Sprintf("max-age=%d", *hstsMaxAge)
+		}
+		redirector := &Redirector{
+			hsts:     hsts,
+			pingPath: *pingPath,
+			url:      *redirectURL,
+		}
+		go func() {
+			err = http.Serve(httpListener, redirector)
+			if err != nil {
+				runtime.Error("ERROR serving HTTP Redirector: %s\n", err)
+			}
+		}()
+		fmt.Printf("* HTTP Redirector running on %s -> %s\n", httpAddrURL, *redirectURL)
+	}
 
 	fmt.Printf("* HTTPS Frontend running on %s\n", frontendURL)
 
