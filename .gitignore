@@ -3,12 +3,12 @@
 .appengine_java_sdk
 .appengine_python_sdk
 
-frontend/frontend
-instance/log
-instance/run
+live-server/instance/log
+live-server/instance/run
+live-server/live-server
 
-logo/logo.small.png
-logo/logo.png
+scripts/logo.small.png
+scripts/logo.png
 
 # minified css/js files
 

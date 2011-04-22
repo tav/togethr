@@ -3,8 +3,8 @@
 
 include $(GOROOT)/src/Make.inc
 
-TARG=frontend
+TARG=live-server
 GOFILES=\
-	frontend.go\
+	live-server.go\
 
 include $(GOROOT)/src/Make.cmd

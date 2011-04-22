@@ -1,8 +1,8 @@
 // Public Domain (-) 2010-2011 The Ampify Authors.
 // See the Ampify UNLICENSE file for details.
 
-// Web Frontend
-// ============
+// Live Server
+// ===========
 //
 package main
 
@@ -354,29 +354,29 @@ func main() {
 
 	// Define the options for the command line and config file options parser.
 	opts := optparse.Parser(
-		"Usage: frontend <config.yaml> [options]\n",
-		"frontend 0.0.0")
+		"Usage: live-server <config.yaml> [options]\n",
+		"live-server 0.0.0")
 
 	debug := opts.Bool([]string{"-d", "--debug"}, false,
 		"enable debug mode")
 
 	frontendHost := opts.StringConfig("frontend-host", "",
-		"the host to bind the Frontend Server to")
+		"the host to bind the HTTPS Frontend to")
 
 	frontendPort := opts.IntConfig("frontend-port", 9040,
-		"the port to bind the Frontend Server to [9040]")
+		"the port to bind the HTTPS Frontend to [9040]")
 
-	certFile := opts.StringConfig("cert-file", "cert/frontend.cert",
-		"the path to the TLS certificate [cert/frontend.cert]")
+	certFile := opts.StringConfig("cert-file", "cert/live-server.cert",
+		"the path to the TLS certificate [cert/live-server.cert]")
 
-	keyFile := opts.StringConfig("key-file", "cert/frontend.key",
-		"the path to the TLS key [cert/frontend.key]")
+	keyFile := opts.StringConfig("key-file", "cert/live-server.key",
+		"the path to the TLS key [cert/live-server.key]")
 
 	officialHost := opts.StringConfig("official-host", "localhost:9040",
-		"limit Frontend Server to specified host [localhost:9040]")
+		"limit the HTTPS Frontend to specified host [localhost:9040]")
 
-	disableSensor := opts.BoolConfig("disable-sensor", false,
-		"disable the redis-based live sensor [false]")
+	disableSensor := opts.BoolConfig("disable-live", false,
+		"disable the WebSockets and Comet-driven live sensor [false]")
 
 	redisConfig := opts.StringConfig("redis-conf", "redis.conf",
 		"path to the redis config file [redis.conf]")
@@ -426,7 +426,7 @@ func main() {
 	maintenanceMode := opts.BoolConfig("maintenance", false,
 		"enable maintenance mode [false]")
 
-	os.Args[0] = "frontend"
+	os.Args[0] = "live-server"
 	args := opts.Parse(os.Args)
 
 	debugMode = *debug
@@ -481,12 +481,12 @@ func main() {
 		runtime.StandardError(err)
 	}
 
-	_, err = runtime.GetLock(runPath, "frontend")
+	_, err = runtime.GetLock(runPath, "live-server")
 	if err != nil {
 		runtime.Error("ERROR: Couldn't successfully acquire a process lock:\n\n\t%s\n\n", err)
 	}
 
-	go runtime.CreatePidFile(filepath.Join(runPath, "frontend.pid"))
+	go runtime.CreatePidFile(filepath.Join(runPath, "live-server.pid"))
 
 	var exitProcess bool
 	if *certFile == "" {
@@ -519,8 +519,8 @@ func main() {
 	staticFiles := make(map[string]*StaticFile)
 	getFiles(staticPath, staticFiles, "")
 
-	// Initialise the Ampify runtime -- which will run ``frontend`` on multiple
-	// processors if possible.
+	// Initialise the Ampify runtime -- which will run ``live-server`` on
+	// multiple processors if possible.
 	runtime.Init()
 
 	// Initialise the TLS config.
@@ -639,11 +639,11 @@ func main() {
 		frontend.maintenance = false
 	})
 
-	fmt.Printf("* Frontend Server running on %s\n", frontendURL)
+	fmt.Printf("* HTTPS Frontend running on %s\n", frontendURL)
 
 	err = http.Serve(frontendListener, frontend)
 	if err != nil {
-		runtime.Error("ERROR serving Frontend Server: %s\n", err)
+		runtime.Error("ERROR serving HTTPS Frontend: %s\n", err)
 	}
 
 }
