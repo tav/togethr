@@ -34,10 +34,18 @@ const (
 	redirectURL      = "%s%s"
 	redirectURLQuery = "%s%s?%s"
 	textHTML         = "text/html; charset=utf-8"
-	HTTP             = 0
-	HTTPS            = 1
-	LONGPOLL         = 2
-	WEBSOCKET        = 3
+)
+
+// Constants for the different log event types.
+const (
+	HTTP_REDIRECT = iota
+	HTTPS_COMET
+	HTTPS_MAINTENANCE
+	HTTPS_PROXY_ERROR
+	HTTPS_REDIRECT
+	HTTPS_STATIC
+	HTTPS_UPSTREAM
+	HTTPS_WEBSOCKET
 )
 
 var (
@@ -73,7 +81,7 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 	conn.Header().Set("Location", url)
 	conn.WriteHeader(http.StatusMovedPermanently)
 	fmt.Fprintf(conn, redirectHTML, url)
-	logRequest(HTTP, http.StatusMovedPermanently, req.Host, req)
+	logRequest(HTTP_REDIRECT, http.StatusMovedPermanently, req.Host, req)
 
 }
 
@@ -99,7 +107,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		conn.Header().Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
-		logRequest(HTTPS, http.StatusMovedPermanently, originalHost, req)
+		logRequest(HTTPS_REDIRECT, http.StatusMovedPermanently, originalHost, req)
 		return
 	}
 
@@ -109,7 +117,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		headers.Set(contentLength, error503Length)
 		conn.WriteHeader(http.StatusServiceUnavailable)
 		conn.Write(error503)
-		logRequest(HTTPS, http.StatusServiceUnavailable, originalHost, req)
+		logRequest(HTTPS_MAINTENANCE, http.StatusServiceUnavailable, originalHost, req)
 		return
 	}
 
@@ -123,7 +131,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		headers.Set(contentLength, staticFile.size)
 		conn.WriteHeader(http.StatusOK)
 		conn.Write(staticFile.content)
-		logRequest(HTTPS, http.StatusOK, originalHost, req)
+		logRequest(HTTPS_STATIC, http.StatusOK, originalHost, req)
 		return
 	}
 
@@ -136,8 +144,8 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		}
 
 		// Handle long-polling Comet requests.
-		if strings.HasPrefix(reqPath, "/.sensor/") {
-			logRequest(LONGPOLL, http.StatusOK, originalHost, req)
+		if strings.HasPrefix(reqPath, "/.live/") {
+			logRequest(HTTPS_COMET, http.StatusOK, originalHost, req)
 			return
 		}
 
@@ -220,14 +228,14 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	conn.WriteHeader(resp.StatusCode)
 	conn.Write(body)
 
-	logRequest(HTTPS, resp.StatusCode, originalHost, req)
+	logRequest(HTTPS_UPSTREAM, resp.StatusCode, originalHost, req)
 
 }
 
 func handleWebSocket(conn *websocket.Conn) {
 	defer func() {
 		conn.Close()
-		logRequest(WEBSOCKET, http.StatusOK, conn.Request.Host, conn.Request)
+		logRequest(HTTPS_WEBSOCKET, http.StatusOK, conn.Request.Host, conn.Request)
 	}()
 	if conn.Request.Header.Get("User-Agent") == "Safari" {
 		fmt.Printf("boo")
@@ -247,12 +255,13 @@ func logRequest(proto, status int, host string, request *http.Request) {
 }
 
 func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
-	itemLength := len(record.Items)
+	items := record.Items
+	itemLength := len(items)
 	if itemLength > 1 {
-		switch record.Items[0].(type) {
+		switch items[0].(type) {
 		case string:
-			if record.Items[0].(string) == "fe" {
-				return true, record.Items[1 : itemLength-2]
+			if items[0].(string) == "fe" {
+				return true, items[1 : itemLength-2]
 			}
 		}
 	}
@@ -265,7 +274,7 @@ func serveError502(conn http.ResponseWriter, host string, request *http.Request)
 	headers.Set(contentLength, error502Length)
 	conn.WriteHeader(http.StatusBadGateway)
 	conn.Write(error502)
-	logRequest(HTTPS, http.StatusBadGateway, host, request)
+	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
 }
 
 func joinPath(instanceDirectory, path string) string {
