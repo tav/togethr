@@ -41,7 +41,8 @@ const (
 	textHTML         = "text/html; charset=utf-8"
 	HTTP             = 0
 	HTTPS            = 1
-	WEBSOCKET        = 2
+	LONGPOLL         = 2
+	WEBSOCKET        = 3
 )
 
 var (
@@ -93,16 +94,21 @@ type Frontend struct {
 
 func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
 
-	if req.Host != frontend.officialHost {
+	originalHost := req.Host
+
+	// Redirect all requests to the official host if they the Host header
+	// doesn't match.
+	if originalHost != frontend.officialHost {
 		conn.Header().Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
-		logRequest(HTTPS, http.StatusMovedPermanently, req.Host, conn, req)
+		logRequest(HTTPS, http.StatusMovedPermanently, originalHost, conn, req)
 		return
 	}
 
 	reqPath := req.URL.Path
 
+	// Handle requests for any files exposed within the static directory.
 	staticFile, ok := frontend.staticFiles[reqPath]
 	if ok {
 		headers := conn.Header()
@@ -110,11 +116,9 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		headers.Set(contentLength, staticFile.size)
 		conn.WriteHeader(http.StatusOK)
 		conn.Write(staticFile.content)
-		logRequest(HTTPS, http.StatusOK, req.Host, conn, req)
+		logRequest(HTTPS, http.StatusOK, originalHost, conn, req)
 		return
 	}
-
-	originalHost := req.Host
 
 	// Open a connection to the App Engine server.
 	gaeConn, err := net.Dial("tcp", frontend.gaeAddr)
@@ -143,9 +147,9 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		gae = gaeConn
 	}
 
-	// Modify the request Host: header.
+	// Modify the request Host: and User-Agent: headers.
 	req.Host = frontend.gaeHost
-	req.UserAgent = fmt.Sprintf("%s, %s", req.UserAgent, clientIP)
+	req.UserAgent = fmt.Sprintf("%s, %s, %s", req.UserAgent, clientIP, originalHost)
 
 	// Send the request to the App Engine server.
 	err = req.Write(gae)
