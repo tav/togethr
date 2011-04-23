@@ -122,11 +122,13 @@ $(document).ready(
                     window.setTimeout(
                       function () {
                         var marker = new google.maps.Marker(options);
-                        // hacking the damn thing to be visible in FF4
-                        marker.setVisible(false);
-                        marker.setVisible(true);
-                        var z = parseInt(google.maps.Marker.MAX_ZINDEX) + 2000;
-                        marker.setZIndex(z);
+                        if ($.browser.mozilla && $.browser.version.match(/^2/)) {
+                          // hacking the damn thing to be visible in FF4
+                          marker.setVisible(false);
+                          marker.setVisible(true);
+                          var z = parseInt(google.maps.Marker.MAX_ZINDEX) + 2000;
+                          marker.setZIndex(z);
+                        }
                         // open the info window on click
                         google.maps.event.addListener(
                           marker, 
@@ -143,10 +145,7 @@ $(document).ready(
                             // hack the damn thing to show the content
                             $(info.Ua.l).attr(
                               'style',
-                              $(info.Ua.l).attr('style').replace(
-                                'overflow: auto', 
-                                'overflow: show'
-                              )
+                              $(info.Ua.l).attr('style').replace(/auto/g, 'show')
                             );
                             // hack the damn thing to display ontop
                             var z = info.getZIndex();
@@ -174,8 +173,6 @@ $(document).ready(
         'center_changed', 
         function () {
           
-          console.log('*');
-          
           // stop any pending call to refresh tweets
           window.clearTimeout(timeout);
           // start looking for tweets again since whenever
@@ -184,13 +181,9 @@ $(document).ready(
           // find out where we are now
           var position = map.getCenter();
           
-          console.log(position.toString());
-          
           // if we haven't already just handled a dragend to this position
           // (i.e.: prevent duplicate events)
           if (!position.equals(drag_position)) {
-            
-            console.log('**');
             
             // get tweets for the current location
             var location = {

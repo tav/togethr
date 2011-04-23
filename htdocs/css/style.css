@@ -189,10 +189,14 @@ img.bg,  {
 }
 .infowindow .content, .infowindow .when {
   width: 240px;
+  word-wrap: break-word;
 }
 .infowindow a {
   color: black;
   font-weight: bold;
+}
+.infowindow .when {
+  margin-top: 2px;
 }
 .infowindow .when a {
   font-weight: normal;
