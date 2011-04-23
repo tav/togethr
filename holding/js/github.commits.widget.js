@@ -1,3 +1,28 @@
+/**
+ * Date.parse with progressive enhancement for ISO-8601, version 2
+ * © 2010 Colin Snover <http://zetafleet.com>
+ * Released under MIT license.
+ */
+(function () {
+    var origParse = Date.parse;
+    Date.parse = function (date) {
+        var timestamp = origParse(date), minutesOffset = 0, struct;
+        if (isNaN(timestamp) && (struct = /^(\d{4}|[+\-]\d{6})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{3,}))?)?(?:(Z)|([+\-])(\d{2})(?::?(\d{2}))?))?/.exec(date))) {
+            if (struct[8] !== 'Z') {
+                minutesOffset = +struct[10] * 60 + (+struct[11]);
+                
+                if (struct[9] === '+') {
+                    minutesOffset = 0 - minutesOffset;
+                }
+            }
+            
+            timestamp = Date.UTC(+struct[1], +struct[2] - 1, +struct[3], +struct[4], +struct[5] + minutesOffset, +struct[6], +struct[7].substr(0, 3));
+        }
+        
+        return timestamp;
+    };
+}());
+
 (function ($) {
   function widget(element, options) {
     this.element = element;
@@ -19,7 +44,7 @@
       var last = widget.options.last == undefined ? 0 : widget.options.last;
       var limitMessage = widget.options.limitMessageTo == undefined ? 0 : widget.options.limitMessageTo;
       
-      element.append('<h3>Widget intitalization, please wait...</h3>');
+      // element.append('<h3>Widget intitalization, please wait...</h3>');
       gh.commit.forBranch(user, repo, branch, function (data) {
         var commits = data.commits;
         var totalCommits = (last < commits.length ? last : commits.length);
@@ -44,7 +69,7 @@
               '</div>' +
               '<div class="update">' +
                 '<div class="user">' + author(commits[c].author.login) + '</div>' +
-                '<div class="message">' + msg + '</div>' +
+                '<div class="message">' + $('<div />').text(msg).html() + '</div>' +
                 '<div class="when">' + when(commits[c].committed_date) + '</div>' +
               '</div>' +
               '<div class="clear"></div>' +
@@ -70,7 +95,9 @@
         }
         
         function when(commitDate) {
-          var commitTime = new Date(commitDate).getTime();
+          
+          var commitTime = Date.parse(commitDate);
+          // var commitTime = new Date(commitDate).getTime();
           var todayTime = new Date().getTime();
           
           var differenceInDays = Math.floor(((todayTime - commitTime)/(24*3600*1000)));

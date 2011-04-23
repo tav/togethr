@@ -180,6 +180,26 @@ img.bg,  {
   outline: none;
 }
 
+.infowindow {
+  width: 260px;
+  color: #4D4D4D;
+  font-size: 60%;
+  min-height: 150px;
+  line-height: 1.25em;
+}
+.infowindow .content, .infowindow .when {
+  width: 240px;
+}
+.infowindow a {
+  color: black;
+  font-weight: bold;
+}
+.infowindow .when a {
+  font-weight: normal;
+  font-size: 80%;
+  font-style: italic;
+}
+
 .stream {
   width: 464px;
   border: 3px solid #a5a6a7;
@@ -215,11 +235,11 @@ img.bg,  {
   padding: 10px 0px;
   clear: both;
 }
-.coding .avatar-box {
+.avatar-box {
   float: left;
   margin-right: 10px;
 }
-.coding .avatar-box img {
+.avatar-box img {
   border: 1px solid #dddcdd;
   padding: 1px;
 }
