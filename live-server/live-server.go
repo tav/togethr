@@ -104,17 +104,17 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 }
 
 type Frontend struct {
-	cometPrefix  string
-	maintenance  bool
-	officialHost string
-	redirectHTML []byte
-	redirectURL  string
-	sensor       bool
-	staticFiles  map[string]*StaticFile
-	upstreamAddr string
-	upstreamHost string
-	upstreamTLS  bool
-	wsPrefix     string
+	cometPrefix     string
+	maintenance     bool
+	officialHost    string
+	redirectHTML    []byte
+	redirectURL     string
+	live            bool
+	staticFiles     map[string]*StaticFile
+	upstreamAddr    string
+	upstreamHost    string
+	upstreamTLS     bool
+	websocketPrefix string
 }
 
 func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
@@ -131,6 +131,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	// Return the HTTP 503 error page if we're in maintenance mode.
 	if frontend.maintenance {
 		headers := conn.Header()
 		headers.Set(contentType, textHTML)
@@ -154,10 +155,10 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	if frontend.sensor {
+	if frontend.live {
 
 		// Handle WebSocket requests.
-		if strings.HasPrefix(reqPath, frontend.wsPrefix) {
+		if strings.HasPrefix(reqPath, frontend.websocketPrefix) {
 			websocket.Handler(handleWebSocket).ServeHTTP(conn, req)
 			return
 		}
@@ -269,7 +270,7 @@ func logRequest(proto, status int, host string, request *http.Request) {
 	} else {
 		ip = request.RemoteAddr[0:splitPoint]
 	}
-	logging.Info("fe", proto, status, request.Method, host, request.RawURL,
+	logging.Info("ls", proto, status, request.Method, host, request.RawURL,
 		ip, request.UserAgent, request.Referer)
 }
 
@@ -279,7 +280,7 @@ func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
 	if itemLength > 1 {
 		switch items[0].(type) {
 		case string:
-			if items[0].(string) == "fe" {
+			if items[0].(string) == "ls" {
 				return true, items[1 : itemLength-2]
 			}
 		}
@@ -296,6 +297,9 @@ func serveError502(conn http.ResponseWriter, host string, request *http.Request)
 	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
 }
 
+// The ``joinPath`` utility function joins the given ``path`` with the
+// ``instanceDirectory`` unless it happens to be an absolute path, in which case
+// it returns the path exactly as it was given.
 func joinPath(instanceDirectory, path string) string {
 	if filepath.IsAbs(path) {
 		return path
@@ -303,6 +307,8 @@ func joinPath(instanceDirectory, path string) string {
 	return filepath.Join(instanceDirectory, filepath.Clean(path))
 }
 
+// The ``getErrorInfo`` utility function loads the specified error file from the
+// given directory and returns its content and file size.
 func getErrorInfo(directory, filename string) ([]byte, string) {
 	path := filepath.Join(directory, filename)
 	file, err := os.Open(path)
@@ -321,12 +327,16 @@ func getErrorInfo(directory, filename string) ([]byte, string) {
 	return buffer, fmt.Sprintf("%d", info.Size)
 }
 
+// The ``StaticFile`` type holds the data needed to serve a static file via the
+// HTTPS Frontend.
 type StaticFile struct {
 	content  []byte
 	mimetype string
 	size     string
 }
 
+// The ``getFiles`` utility function populates the given ``mapping`` with
+// ``StaticFile`` instances for all files found within a given ``directory``.
 func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 	if debugMode {
 		fmt.Printf("Caching static files in: %s\n", directory)
@@ -374,10 +384,13 @@ func main() {
 	// Define the options for the command line and config file options parser.
 	opts := optparse.Parser(
 		"Usage: live-server <config.yaml> [options]\n",
-		"live-server 0.0.0")
+		"live-server 0.0.1")
 
 	debug := opts.Bool([]string{"-d", "--debug"}, false,
 		"enable debug mode")
+
+	genConfig := opts.Bool([]string{"-g", "--gen-config"}, false,
+		"show the default yaml config")
 
 	frontendHost := opts.StringConfig("frontend-host", "",
 		"the host to bind the HTTPS Frontend to")
@@ -394,26 +407,44 @@ func main() {
 	keyFile := opts.StringConfig("key-file", "cert/live-server.key",
 		"the path to the TLS key [cert/live-server.key]")
 
-	disableSensor := opts.BoolConfig("disable-live", false,
-		"disable the WebSockets and Comet-driven live sensor [false]")
+	staticDirectory := opts.StringConfig("static-dir", "www",
+		"the path to the static files directory [www]")
 
-	wsPrefix := opts.StringConfig("ws-prefix", "/.ws/",
+	errorDirectory := opts.StringConfig("error-dir", "error",
+		"the path to the HTTP error files directory [error]")
+
+	disableLive := opts.BoolConfig("disable-live", false,
+		"disable the live Keyspace and WebSockets/Comet support [false]")
+
+	websocketPrefix := opts.StringConfig("websocket-prefix", "/.ws/",
 		"URL path prefix for WebSocket requests [/.ws/]")
 
 	cometPrefix := opts.StringConfig("comet-prefix", "/.live/",
 		"URL path prefix for Comet requests [/.live/]")
 
 	redisConfig := opts.StringConfig("redis-conf", "redis.conf",
-		"path to the redis config file [redis.conf]")
+		"the path to the Redis config file [redis.conf]")
 
 	redisSocket := opts.StringConfig("redis-socket", "run/redis.sock",
-		"path to the redis Unix domain socket [run/redis.sock]")
+		"the path to the Redis Unix domain socket [run/redis.sock]")
 
-	staticDirectory := opts.StringConfig("static-dir", "www",
-		"the path to serve static files from [www]")
+	keyspaceHost := opts.StringConfig("keyspace-host", "",
+		"the host to bind the Keyspace node to")
 
-	errorDirectory := opts.StringConfig("error-dir", "error",
-		"the path for HTTP error files [error]")
+	keyspacePort := opts.IntConfig("keyspace-port", 9060,
+		"the port to bind the Keyspace node to [9050]")
+
+	keyspaceKey := opts.StringConfig("keyspace-keyfile", "cert/keyspace.key",
+		"the path to the Keyspace shared secret key [cert/keyspace.key]")
+
+	acceptors := opts.StringConfig("acceptor-nodes", "localhost:9060",
+		"comma-separated list of Keyspace acceptor addresses [localhost:9060]")
+
+	runAcceptor := opts.BoolConfig("run-as-acceptor", false,
+		"run this node as a Keyspace acceptor [false]")
+
+	acceptorIndex := opts.IntConfig("acceptor-index", 0,
+		"this node's index in the Keyspace acceptor addresses list [0]")
 
 	noRedirect := opts.BoolConfig("no-redirect", false,
 		"disable the HTTP Redirector [false]")
@@ -431,7 +462,7 @@ func main() {
 		`URL path for a "ping" request [/.ping]`)
 
 	enableHSTS := opts.BoolConfig("enable-hsts", false,
-		"enable HTTP Strict Transport Security on redirects [false]")
+		"enable HTTP Strict Transport Security (HSTS) on redirects [false]")
 
 	hstsMaxAge := opts.IntConfig("hsts-max-age", 50000000,
 		"max-age value of HSTS in number of seconds [50000000]")
@@ -454,9 +485,20 @@ func main() {
 	maintenanceMode := opts.BoolConfig("maintenance", false,
 		"start up in maintenance mode [false]")
 
+	extraConfig := opts.StringConfig("extra-config", "",
+		"path to a YAML config file with additional options")
+
+	// Parse the command line options.
 	os.Args[0] = "live-server"
 	args := opts.Parse(os.Args)
 
+	// Print the default YAML config file if the ``-g`` flag was specified.
+	if *genConfig {
+		opts.PrintDefaultConfigFile()
+		runtime.Exit(0)
+	}
+
+	// Set the debug mode flag if the ``-d`` flag was specified.
 	debugMode = *debug
 
 	var instanceDirectory string
@@ -483,39 +525,80 @@ func main() {
 		runtime.Exit(0)
 	}
 
-	// Fail fast if the directory containing the 50x.html files isn't present.
-	errorPath := joinPath(instanceDirectory, *errorDirectory)
-	dirInfo, err := os.Stat(errorPath)
-	if err == nil {
-		if !dirInfo.IsDirectory() {
-			runtime.Error("ERROR: %q is not a directory\n", errorPath)
+	// Load the extra config file with additional options if one has been
+	// specified.
+	if *extraConfig != "" {
+		extraConfigPath, err := filepath.Abs(filepath.Clean(*extraConfig))
+		if err != nil {
+			runtime.StandardError(err)
 		}
-	} else {
-		runtime.StandardError(err)
+		extraConfigPath = joinPath(instanceDirectory, extraConfigPath)
+		err = opts.ParseConfig(extraConfigPath, os.Args)
+		if err != nil {
+			runtime.StandardError(err)
+		}
 	}
 
-	error502, error502Length = getErrorInfo(errorPath, "502.html")
-	error503, error503Length = getErrorInfo(errorPath, "503.html")
-
+	// Create the log directory if it doesn't exist.
 	logPath := joinPath(instanceDirectory, "log")
 	err = os.MkdirAll(logPath, 0755)
 	if err != nil {
 		runtime.StandardError(err)
 	}
 
+	// Create the run directory if it doesn't exist.
 	runPath := joinPath(instanceDirectory, "run")
 	err = os.MkdirAll(runPath, 0755)
 	if err != nil {
 		runtime.StandardError(err)
 	}
 
+	// Get the runtime lock to ensure we only have one live-server process
+	// running within the same instance directory at any time.
 	_, err = runtime.GetLock(runPath, "live-server")
 	if err != nil {
 		runtime.Error("ERROR: Couldn't successfully acquire a process lock:\n\n\t%s\n\n", err)
 	}
 
+	// Write the process ID into a file for use by external scripts.
 	go runtime.CreatePidFile(filepath.Join(runPath, "live-server.pid"))
 
+	// Handle running as a Keyspace acceptor node if ``--run-acceptor`` was
+	// specified.
+	if *runAcceptor {
+
+		// Exit if the `--acceptor-index`` is negative.
+		if *acceptorIndex < 0 {
+			runtime.Error("ERROR: The --acceptor-index cannot be negative.\n")
+		}
+
+		var index int
+		var selfAddress string
+		var acceptorNodes []string
+
+		// Generate a list of all the acceptor node addresses and exit if we
+		// couldn't find the address four ourselves at the given index.
+		for _, acceptor := range strings.Split(*acceptors, ",", -1) {
+			acceptor = strings.TrimSpace(acceptor)
+			if acceptor != "" {
+				if index == *acceptorIndex {
+					selfAddress = acceptor
+				} else {
+					acceptorNodes = append(acceptorNodes, acceptor)
+				}
+			}
+			index += 1
+		}
+		if selfAddress == "" {
+			runtime.Error("ERROR: Couldn't determine the address for the acceptor.\n")
+		}
+
+		return
+
+	}
+
+	// Exit if the ``cert-file`` or ``key-file`` config values haven't been
+	// specified.
 	var exitProcess bool
 	if *certFile == "" {
 		fmt.Printf("ERROR: The cert-file config value hasn't been specified.\n")
@@ -539,8 +622,9 @@ func main() {
 		}
 	}
 
+	// Ensure that the directory containing static files exists.
 	staticPath := joinPath(instanceDirectory, *staticDirectory)
-	dirInfo, err = os.Stat(staticPath)
+	dirInfo, err := os.Stat(staticPath)
 	if err == nil {
 		if !dirInfo.IsDirectory() {
 			runtime.Error("ERROR: %q is not a directory\n", staticPath)
@@ -553,32 +637,49 @@ func main() {
 	staticFiles := make(map[string]*StaticFile)
 	getFiles(staticPath, staticFiles, "")
 
+	// Exit if the directory containing the 50x.html files isn't present.
+	errorPath := joinPath(instanceDirectory, *errorDirectory)
+	dirInfo, err = os.Stat(errorPath)
+	if err == nil {
+		if !dirInfo.IsDirectory() {
+			runtime.Error("ERROR: %q is not a directory\n", errorPath)
+		}
+	} else {
+		runtime.StandardError(err)
+	}
+
+	// Load the content for the HTTP ``502`` and ``503`` errors.
+	error502, error502Length = getErrorInfo(errorPath, "502.html")
+	error503, error503Length = getErrorInfo(errorPath, "503.html")
+
 	// Initialise the Ampify runtime -- which will run ``live-server`` on
 	// multiple processors if possible.
 	runtime.Init()
 
 	// Initialise the TLS config.
 	tlsconf.Init()
-	upstreamAddr := fmt.Sprintf("%s:%d", *upstreamHost, *upstreamPort)
-
-	frontendAddr := fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
-	frontendConn, err := net.Listen("tcp", frontendAddr)
-	if err != nil {
-		runtime.Error("ERROR: Cannot listen on %s: %v\n", frontendAddr, err)
-	}
-
-	certPath := joinPath(instanceDirectory, *certFile)
-	keyPath := joinPath(instanceDirectory, *keyFile)
 	tlsConfig := &tls.Config{
 		NextProtos: []string{"http/1.1"},
 		Rand:       rand.Reader,
 		Time:       time.Seconds,
 	}
 
+	// Load the certificate and private key into the TLS config.
+	certPath := joinPath(instanceDirectory, *certFile)
+	keyPath := joinPath(instanceDirectory, *keyFile)
 	tlsConfig.Certificates = make([]tls.Certificate, 1)
 	tlsConfig.Certificates[0], err = tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		runtime.Error("ERROR: Couldn't load certificate/key pair: %s\n", err)
+	}
+
+	// Instantiate the associated variables and listeners for the HTTPS Frontend
+	// and HTTP Redirector.
+	upstreamAddr := fmt.Sprintf("%s:%d", *upstreamHost, *upstreamPort)
+	frontendAddr := fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
+	frontendConn, err := net.Listen("tcp", frontendAddr)
+	if err != nil {
+		runtime.Error("ERROR: Cannot listen on %s: %v\n", frontendAddr, err)
 	}
 
 	frontendListener := tls.NewListener(frontendConn, tlsConfig)
@@ -605,6 +706,7 @@ func main() {
 		}
 	}
 
+	// Setup the file and console logging.
 	var rotate int
 
 	switch *logRotate {
@@ -623,35 +725,44 @@ func main() {
 		logging.AddConsoleFilter(filterRequestLog)
 	}
 
-	_, err = logging.AddFileLogger("frontend", logPath, rotate)
+	_, err = logging.AddFileLogger("live-server", logPath, rotate)
 	if err != nil {
 		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
 	}
 
-	var sensor bool
+	var live bool
 
-	if !*disableSensor {
+	// Setup the live support as long as it hasn't been disabled.
+	if !*disableLive {
+		_ = *keyspaceHost
+		_ = *keyspacePort
+		_ = *keyspaceKey
 		_ = *redisConfig
 		_ = *redisSocket
-		sensor = true
+		live = true
 	}
 
+	// Instantiate a ``Frontend`` object for use by the HTTPS Frontend.
 	frontend := &Frontend{
-		cometPrefix:  *cometPrefix,
-		maintenance:  *maintenanceMode,
-		officialHost: *officialHost,
-		redirectHTML: redirectHTML,
-		redirectURL:  frontendURL,
-		sensor:       sensor,
-		staticFiles:  staticFiles,
-		upstreamAddr: upstreamAddr,
-		upstreamHost: *upstreamHost,
-		upstreamTLS:  *upstreamTLS,
-		wsPrefix:     *wsPrefix,
+		cometPrefix:     *cometPrefix,
+		live:            live,
+		maintenance:     *maintenanceMode,
+		officialHost:    *officialHost,
+		redirectHTML:    redirectHTML,
+		redirectURL:     frontendURL,
+		staticFiles:     staticFiles,
+		upstreamAddr:    upstreamAddr,
+		upstreamHost:    *upstreamHost,
+		upstreamTLS:     *upstreamTLS,
+		websocketPrefix: *websocketPrefix,
 	}
 
+	// Create a channel which is used to toggle the state of the live-server's
+	// maintenance mode based on process signals.
 	maintenanceChannel := make(chan bool, 1)
 
+	// Fork a goroutine which toggles the maintenance mode in a single place and
+	// thus ensures "thread safety".
 	go func() {
 		for {
 			enabledState := <-maintenanceChannel
@@ -663,6 +774,7 @@ func main() {
 		}
 	}()
 
+	// Register the signal handlers for SIGUSR1 and SIGUSR2.
 	runtime.RegisterSignalHandler(signal.SIGUSR1, func() {
 		maintenanceChannel <- true
 	})
@@ -671,8 +783,11 @@ func main() {
 		maintenanceChannel <- false
 	})
 
+	// Let the user know how many CPUs we're currently running on.
 	fmt.Printf("Running live-server with %d CPUs:\n", runtime.CPUCount)
 
+	// Start a goroutine which runs the HTTP redirector as long as it hasn't
+	// been disabled.
 	if !*noRedirect {
 		hsts := ""
 		if *enableHSTS {
@@ -692,8 +807,8 @@ func main() {
 		fmt.Printf("* HTTP Redirector running on %s -> %s\n", httpAddrURL, *redirectURL)
 	}
 
+	// Start the HTTPS Frontend.
 	fmt.Printf("* HTTPS Frontend running on %s\n", frontendURL)
-
 	err = http.Serve(frontendListener, frontend)
 	if err != nil {
 		runtime.Error("ERROR serving HTTPS Frontend: %s\n", err)
