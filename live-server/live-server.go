@@ -1,15 +1,8 @@
 // Public Domain (-) 2010-2011 The Ampify Authors.
 // See the Ampify UNLICENSE file for details.
 
-// Web Frontend
-// ============
-//
-// The ``frontend`` app proxies requests to:
-//
-// 1. Google App Engine -- this is needed as App Engine doesn't yet support
-//    HTTPS requests on custom domains.
-//
-// 2. The ``redstream`` app -- which, in turn, interacts with Redis.
+// Live Server
+// ===========
 //
 package main
 
@@ -27,9 +20,11 @@ import (
 	"mime"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
+	"websocket"
 )
 
 const (
@@ -38,10 +33,21 @@ const (
 	redirectHTML     = `Please <a href="%s">click here if your browser doesn't redirect</a> automatically.`
 	redirectURL      = "%s%s"
 	redirectURLQuery = "%s%s?%s"
+	textPlain        = "text/plain"
 	textHTML         = "text/html; charset=utf-8"
-	HTTP             = 0
-	HTTPS            = 1
-	WEBSOCKET        = 2
+)
+
+// Constants for the different log event types.
+const (
+	HTTP_PING = iota
+	HTTP_REDIRECT
+	HTTPS_COMET
+	HTTPS_MAINTENANCE
+	HTTPS_PROXY_ERROR
+	HTTPS_REDIRECT
+	HTTPS_STATIC
+	HTTPS_UPSTREAM
+	HTTPS_WEBSOCKET
 )
 
 var (
@@ -52,12 +58,28 @@ var (
 	error503Length string
 )
 
+var (
+	pingResponse       = []byte("pong")
+	pingResponseLength = fmt.Sprintf("%d", len(pingResponse))
+)
+
 type Redirector struct {
-	hsts string
-	url  string
+	hsts     string
+	pingPath string
+	url      string
 }
 
 func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
+
+	if req.URL.Path == redirector.pingPath {
+		headers := conn.Header()
+		headers.Set(contentType, textPlain)
+		headers.Set(contentLength, pingResponseLength)
+		conn.WriteHeader(http.StatusOK)
+		conn.Write(pingResponse)
+		logRequest(HTTP_PING, http.StatusOK, req.Host, req)
+		return
+	}
 
 	var url string
 	if len(req.URL.RawQuery) > 0 {
@@ -77,57 +99,89 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 	conn.Header().Set("Location", url)
 	conn.WriteHeader(http.StatusMovedPermanently)
 	fmt.Fprintf(conn, redirectHTML, url)
-	logRequest(HTTP, http.StatusMovedPermanently, req.Host, conn, req)
+	logRequest(HTTP_REDIRECT, http.StatusMovedPermanently, req.Host, req)
 
 }
 
 type Frontend struct {
-	gaeAddr      string
-	gaeHost      string
-	gaeTLS       bool
+	cometPrefix  string
+	maintenance  bool
 	officialHost string
 	redirectHTML []byte
 	redirectURL  string
+	sensor       bool
 	staticFiles  map[string]*StaticFile
+	upstreamAddr string
+	upstreamHost string
+	upstreamTLS  bool
+	wsPrefix     string
 }
 
 func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
 
-	if req.Host != frontend.officialHost {
+	originalHost := req.Host
+
+	// Redirect all requests to the official host if the Host header doesn't
+	// match.
+	if originalHost != frontend.officialHost {
 		conn.Header().Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
-		logRequest(HTTPS, http.StatusMovedPermanently, req.Host, conn, req)
+		logRequest(HTTPS_REDIRECT, http.StatusMovedPermanently, originalHost, req)
+		return
+	}
+
+	if frontend.maintenance {
+		headers := conn.Header()
+		headers.Set(contentType, textHTML)
+		headers.Set(contentLength, error503Length)
+		conn.WriteHeader(http.StatusServiceUnavailable)
+		conn.Write(error503)
+		logRequest(HTTPS_MAINTENANCE, http.StatusServiceUnavailable, originalHost, req)
 		return
 	}
 
 	reqPath := req.URL.Path
 
-	staticFile, ok := frontend.staticFiles[reqPath]
-	if ok {
+	// Handle requests for any files exposed within the static directory.
+	if staticFile, ok := frontend.staticFiles[reqPath]; ok {
 		headers := conn.Header()
 		headers.Set(contentType, staticFile.mimetype)
 		headers.Set(contentLength, staticFile.size)
 		conn.WriteHeader(http.StatusOK)
 		conn.Write(staticFile.content)
-		logRequest(HTTPS, http.StatusOK, req.Host, conn, req)
+		logRequest(HTTPS_STATIC, http.StatusOK, originalHost, req)
 		return
 	}
 
-	originalHost := req.Host
+	if frontend.sensor {
 
-	// Open a connection to the App Engine server.
-	gaeConn, err := net.Dial("tcp", frontend.gaeAddr)
+		// Handle WebSocket requests.
+		if strings.HasPrefix(reqPath, frontend.wsPrefix) {
+			websocket.Handler(handleWebSocket).ServeHTTP(conn, req)
+			return
+		}
+
+		// Handle long-polling Comet requests.
+		if strings.HasPrefix(reqPath, frontend.cometPrefix) {
+			logRequest(HTTPS_COMET, http.StatusOK, originalHost, req)
+			return
+		}
+
+	}
+
+	// Open a connection to the upstream server.
+	upstreamConn, err := net.Dial("tcp", frontend.upstreamAddr)
 	if err != nil {
 		if debugMode {
-			fmt.Printf("Couldn't connect to remote %s: %v\n", frontend.gaeHost, err)
+			fmt.Printf("Couldn't connect to remote %s: %v\n", frontend.upstreamHost, err)
 		}
 		serveError502(conn, originalHost, req)
 		return
 	}
 
 	var clientIP string
-	var gae net.Conn
+	var upstream net.Conn
 
 	splitPoint := strings.LastIndex(req.RemoteAddr, ":")
 	if splitPoint == -1 {
@@ -136,32 +190,32 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		clientIP = req.RemoteAddr[0:splitPoint]
 	}
 
-	if frontend.gaeTLS {
-		gae = tls.Client(gaeConn, tlsconf.Config)
-		defer gae.Close()
+	if frontend.upstreamTLS {
+		upstream = tls.Client(upstreamConn, tlsconf.Config)
+		defer upstream.Close()
 	} else {
-		gae = gaeConn
+		upstream = upstreamConn
 	}
 
-	// Modify the request Host: header.
-	req.Host = frontend.gaeHost
-	req.UserAgent = fmt.Sprintf("%s, %s", req.UserAgent, clientIP)
+	// Modify the request Host: and User-Agent: headers.
+	req.Host = frontend.upstreamHost
+	req.UserAgent = fmt.Sprintf("%s, %s, %s", req.UserAgent, clientIP, originalHost)
 
-	// Send the request to the App Engine server.
-	err = req.Write(gae)
+	// Send the request to the upstream server.
+	err = req.Write(upstream)
 	if err != nil {
 		if debugMode {
-			fmt.Printf("Error writing to App Engine: %v\n", err)
+			fmt.Printf("Error writing to the upstream server: %v\n", err)
 		}
 		serveError502(conn, originalHost, req)
 		return
 	}
 
-	// Parse the response from App Engine.
-	resp, err := http.ReadResponse(bufio.NewReader(gae), req.Method)
+	// Parse the response from upstream.
+	resp, err := http.ReadResponse(bufio.NewReader(upstream), req.Method)
 	if err != nil {
 		if debugMode {
-			fmt.Printf("Error parsing response from App Engine: %v\n", err)
+			fmt.Printf("Error parsing response from upstream: %v\n", err)
 		}
 		serveError502(conn, originalHost, req)
 		return
@@ -171,7 +225,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		if debugMode {
-			fmt.Printf("Error reading response from App Engine: %v\n", err)
+			fmt.Printf("Error reading response from upstream: %v\n", err)
 		}
 		serveError502(conn, originalHost, req)
 		resp.Body.Close()
@@ -193,11 +247,21 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	conn.WriteHeader(resp.StatusCode)
 	conn.Write(body)
 
-	logRequest(HTTPS, resp.StatusCode, originalHost, conn, req)
+	logRequest(HTTPS_UPSTREAM, resp.StatusCode, originalHost, req)
 
 }
 
-func logRequest(proto, status int, host string, conn http.ResponseWriter, request *http.Request) {
+func handleWebSocket(conn *websocket.Conn) {
+	defer func() {
+		conn.Close()
+		logRequest(HTTPS_WEBSOCKET, http.StatusOK, conn.Request.Host, conn.Request)
+	}()
+	if conn.Request.Header.Get("User-Agent") == "Safari" {
+		fmt.Printf("boo")
+	}
+}
+
+func logRequest(proto, status int, host string, request *http.Request) {
 	var ip string
 	splitPoint := strings.LastIndex(request.RemoteAddr, ":")
 	if splitPoint == -1 {
@@ -210,12 +274,13 @@ func logRequest(proto, status int, host string, conn http.ResponseWriter, reques
 }
 
 func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
-	itemLength := len(record.Items)
+	items := record.Items
+	itemLength := len(items)
 	if itemLength > 1 {
-		switch record.Items[0].(type) {
+		switch items[0].(type) {
 		case string:
-			if record.Items[0].(string) == "fe" {
-				return true, record.Items[1 : itemLength-2]
+			if items[0].(string) == "fe" {
+				return true, items[1 : itemLength-2]
 			}
 		}
 	}
@@ -228,7 +293,7 @@ func serveError502(conn http.ResponseWriter, host string, request *http.Request)
 	headers.Set(contentLength, error502Length)
 	conn.WriteHeader(http.StatusBadGateway)
 	conn.Write(error502)
-	logRequest(HTTPS, http.StatusBadGateway, host, conn, request)
+	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
 }
 
 func joinPath(instanceDirectory, path string) string {
@@ -308,26 +373,41 @@ func main() {
 
 	// Define the options for the command line and config file options parser.
 	opts := optparse.Parser(
-		"Usage: frontend <config.yaml> [options]\n",
-		"frontend 0.0.0")
+		"Usage: live-server <config.yaml> [options]\n",
+		"live-server 0.0.0")
 
 	debug := opts.Bool([]string{"-d", "--debug"}, false,
 		"enable debug mode")
 
 	frontendHost := opts.StringConfig("frontend-host", "",
-		"the host to bind the Frontend Server to")
+		"the host to bind the HTTPS Frontend to")
 
 	frontendPort := opts.IntConfig("frontend-port", 9040,
-		"the port to bind the Frontend Server to [9040]")
+		"the port to bind the HTTPS Frontend to [9040]")
 
-	certFile := opts.StringConfig("cert-file", "cert/frontend.cert",
-		"the path to the TLS certificate [cert/frontend.cert]")
+	officialHost := opts.StringConfig("official-host", "",
+		"limit the HTTPS Frontend to the specified host")
 
-	keyFile := opts.StringConfig("key-file", "cert/frontend.key",
-		"the path to the TLS key [cert/frontend.key]")
+	certFile := opts.StringConfig("cert-file", "cert/live-server.cert",
+		"the path to the TLS certificate [cert/live-server.cert]")
 
-	officialHost := opts.StringConfig("official-host", "localhost:9040",
-		"limit Frontend Server to specified host [localhost:9040]")
+	keyFile := opts.StringConfig("key-file", "cert/live-server.key",
+		"the path to the TLS key [cert/live-server.key]")
+
+	disableSensor := opts.BoolConfig("disable-live", false,
+		"disable the WebSockets and Comet-driven live sensor [false]")
+
+	wsPrefix := opts.StringConfig("ws-prefix", "/.ws/",
+		"URL path prefix for WebSocket requests [/.ws/]")
+
+	cometPrefix := opts.StringConfig("comet-prefix", "/.live/",
+		"URL path prefix for Comet requests [/.live/]")
+
+	redisConfig := opts.StringConfig("redis-conf", "redis.conf",
+		"path to the redis config file [redis.conf]")
+
+	redisSocket := opts.StringConfig("redis-socket", "run/redis.sock",
+		"path to the redis Unix domain socket [run/redis.sock]")
 
 	staticDirectory := opts.StringConfig("static-dir", "www",
 		"the path to serve static files from [www]")
@@ -347,28 +427,34 @@ func main() {
 	redirectURL := opts.StringConfig("redirect-url", "",
 		"the URL that the HTTP Redirector redirects to")
 
+	pingPath := opts.StringConfig("ping-path", "/.ping",
+		`URL path for a "ping" request [/.ping]`)
+
 	enableHSTS := opts.BoolConfig("enable-hsts", false,
 		"enable HTTP Strict Transport Security on redirects [false]")
 
 	hstsMaxAge := opts.IntConfig("hsts-max-age", 50000000,
 		"max-age value of HSTS in number of seconds [50000000]")
 
-	gaeHost := opts.StringConfig("gae-host", "localhost",
-		"the App Engine host to connect to [localhost]")
+	upstreamHost := opts.StringConfig("upstream-host", "localhost",
+		"the upstream host to connect to [localhost]")
 
-	gaePort := opts.IntConfig("gae-port", 8080,
-		"the App Engine port to connect to [8080]")
+	upstreamPort := opts.IntConfig("upstream-port", 8080,
+		"the upstream port to connect to [8080]")
 
-	gaeTLS := opts.BoolConfig("gae-tls", false,
-		"use TLS when connecting to App Engine [false]")
+	upstreamTLS := opts.BoolConfig("upstream-tls", false,
+		"use TLS when connecting to upstream [false]")
 
 	logRotate := opts.StringConfig("log-rotate", "never",
 		"specify one of 'hourly', 'daily' or 'never' [never]")
 
 	noConsoleLog := opts.BoolConfig("no-console-log", false,
-		"disable logging to stdout/stderr [false]")
+		"disable server requests being logged to the console [false]")
 
-	os.Args[0] = "frontend"
+	maintenanceMode := opts.BoolConfig("maintenance", false,
+		"start up in maintenance mode [false]")
+
+	os.Args[0] = "live-server"
 	args := opts.Parse(os.Args)
 
 	debugMode = *debug
@@ -377,9 +463,7 @@ func main() {
 	var configPath string
 	var err os.Error
 
-	// If a config file is provided, assume its parent directory as the instance
-	// directory, otherwise assume the current working directory as the instance
-	// directory.
+	// Assume the parent directory of the config as the instance directory.
 	if len(args) >= 1 {
 		if args[0] == "help" {
 			opts.PrintUsage()
@@ -395,10 +479,8 @@ func main() {
 		}
 		instanceDirectory, _ = filepath.Split(configPath)
 	} else {
-		instanceDirectory, err = os.Getwd()
-		if err != nil {
-			runtime.StandardError(err)
-		}
+		opts.PrintUsage()
+		runtime.Exit(0)
 	}
 
 	// Fail fast if the directory containing the 50x.html files isn't present.
@@ -427,12 +509,12 @@ func main() {
 		runtime.StandardError(err)
 	}
 
-	_, err = runtime.GetLock(runPath, "frontend")
+	_, err = runtime.GetLock(runPath, "live-server")
 	if err != nil {
 		runtime.Error("ERROR: Couldn't successfully acquire a process lock:\n\n\t%s\n\n", err)
 	}
 
-	go runtime.CreatePidFile(filepath.Join(runPath, "frontend.pid"))
+	go runtime.CreatePidFile(filepath.Join(runPath, "live-server.pid"))
 
 	var exitProcess bool
 	if *certFile == "" {
@@ -443,12 +525,18 @@ func main() {
 		fmt.Printf("ERROR: The key-file config value hasn't been specified.\n")
 		exitProcess = true
 	}
-	if *officialHost == "" {
-		fmt.Printf("ERROR: The official-host config value hasn't been specified.\n")
-		exitProcess = true
-	}
 	if exitProcess {
 		runtime.Exit(1)
+	}
+
+	// If ``--official-host`` hasn't been specified, generate it from the given
+	// frontend host and port values -- assuming ``localhost`` for a blank host.
+	if *officialHost == "" {
+		if *frontendHost == "" {
+			*officialHost = fmt.Sprintf("localhost:%d", *frontendPort)
+		} else {
+			*officialHost = fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
+		}
 	}
 
 	staticPath := joinPath(instanceDirectory, *staticDirectory)
@@ -465,13 +553,13 @@ func main() {
 	staticFiles := make(map[string]*StaticFile)
 	getFiles(staticPath, staticFiles, "")
 
-	// Initialise the Ampify runtime -- which will run ``frontend`` on multiple
-	// processors if possible.
+	// Initialise the Ampify runtime -- which will run ``live-server`` on
+	// multiple processors if possible.
 	runtime.Init()
 
 	// Initialise the TLS config.
 	tlsconf.Init()
-	gaeAddr := fmt.Sprintf("%s:%d", *gaeHost, *gaePort)
+	upstreamAddr := fmt.Sprintf("%s:%d", *upstreamHost, *upstreamPort)
 
 	frontendAddr := fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
 	frontendConn, err := net.Listen("tcp", frontendAddr)
@@ -501,7 +589,7 @@ func main() {
 		*httpHost = "localhost"
 	}
 
-	httpAddrURL := fmt.Sprintf("http://%s:%d/", *httpHost, *httpPort)
+	httpAddrURL := fmt.Sprintf("http://%s:%d", *httpHost, *httpPort)
 
 	var httpAddr string
 	var httpListener net.Listener
@@ -532,7 +620,7 @@ func main() {
 
 	if !*noConsoleLog {
 		logging.AddConsoleLogger()
-		logging.AddFilter(filterRequestLog)
+		logging.AddConsoleFilter(filterRequestLog)
 	}
 
 	_, err = logging.AddFileLogger("frontend", logPath, rotate)
@@ -540,14 +628,61 @@ func main() {
 		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
 	}
 
-	fmt.Printf("Running frontend with %d CPUs:\n", runtime.CPUCount)
+	var sensor bool
+
+	if !*disableSensor {
+		_ = *redisConfig
+		_ = *redisSocket
+		sensor = true
+	}
+
+	frontend := &Frontend{
+		cometPrefix:  *cometPrefix,
+		maintenance:  *maintenanceMode,
+		officialHost: *officialHost,
+		redirectHTML: redirectHTML,
+		redirectURL:  frontendURL,
+		sensor:       sensor,
+		staticFiles:  staticFiles,
+		upstreamAddr: upstreamAddr,
+		upstreamHost: *upstreamHost,
+		upstreamTLS:  *upstreamTLS,
+		wsPrefix:     *wsPrefix,
+	}
+
+	maintenanceChannel := make(chan bool, 1)
+
+	go func() {
+		for {
+			enabledState := <-maintenanceChannel
+			if enabledState {
+				frontend.maintenance = true
+			} else {
+				frontend.maintenance = false
+			}
+		}
+	}()
+
+	runtime.RegisterSignalHandler(signal.SIGUSR1, func() {
+		maintenanceChannel <- true
+	})
+
+	runtime.RegisterSignalHandler(signal.SIGUSR2, func() {
+		maintenanceChannel <- false
+	})
+
+	fmt.Printf("Running live-server with %d CPUs:\n", runtime.CPUCount)
 
 	if !*noRedirect {
 		hsts := ""
 		if *enableHSTS {
 			hsts = fmt.Sprintf("max-age=%d", *hstsMaxAge)
 		}
-		redirector := &Redirector{url: *redirectURL, hsts: hsts}
+		redirector := &Redirector{
+			hsts:     hsts,
+			pingPath: *pingPath,
+			url:      *redirectURL,
+		}
 		go func() {
 			err = http.Serve(httpListener, redirector)
 			if err != nil {
@@ -557,21 +692,11 @@ func main() {
 		fmt.Printf("* HTTP Redirector running on %s -> %s\n", httpAddrURL, *redirectURL)
 	}
 
-	frontend := &Frontend{
-		gaeAddr:      gaeAddr,
-		gaeHost:      *gaeHost,
-		gaeTLS:       *gaeTLS,
-		officialHost: *officialHost,
-		redirectHTML: redirectHTML,
-		redirectURL:  frontendURL,
-		staticFiles:  staticFiles,
-	}
-
-	fmt.Printf("* Frontend Server running on %s\n", frontendURL)
+	fmt.Printf("* HTTPS Frontend running on %s\n", frontendURL)
 
 	err = http.Serve(frontendListener, frontend)
 	if err != nil {
-		runtime.Error("ERROR serving Frontend Server: %s\n", err)
+		runtime.Error("ERROR serving HTTPS Frontend: %s\n", err)
 	}
 
 }
