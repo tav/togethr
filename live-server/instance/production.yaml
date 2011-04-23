@@ -1,13 +1,15 @@
 # Public Domain (-) 2011 The Ampify Authors.
 # See the Ampify UNLICENSE file for details.
 
-cert-file: /etc/liveserver/liveserver.cert
-key-file: /etc/liveserver/liveserver.key
 official-host: togethr.at
-redis-conf: /etc/liveserver/redis.conf
+cert-file: /etc/live-server/live-server.cert
+key-file: /etc/live-server/live-server.key
+redis-conf: /etc/live-server/redis.conf
+keyspace-key: /etc/live-server/keyspace.key
 enable-hsts: true
 upstream-host: togethrat.appspot.com
 upstream-port: 443
 upstream-tls: true
 log-rotate: hourly
 no-console-log: true
+extra-config: /etc/live-server/local.yaml
