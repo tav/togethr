@@ -465,6 +465,23 @@ func initFrontend(status, host string, port int, public, cert, key, cometPrefix,
 
 }
 
+// The ``initProcess`` utility function acquires a process lock and writes the
+// PID file for the current process.
+func initProcess(typeName, runPath string) {
+
+	pidFile := fmt.Sprintf("%s.pid", typeName)
+
+	// Get the runtime lock to ensure we only have one live-server process of
+	// any given type running within the same instance directory at any time.
+	_, err := runtime.GetLock(runPath, typeName)
+	if err != nil {
+		runtime.Error("ERROR: Couldn't successfully acquire a process lock:\n\n\t%s\n\n", err)
+	}
+
+	// Write the process ID into a file for use by external scripts.
+	go runtime.CreatePidFile(filepath.Join(runPath, pidFile))
+
+}
 
 func main() {
 
@@ -649,15 +666,9 @@ func main() {
 		runtime.StandardError(err)
 	}
 
-	// Get the runtime lock to ensure we only have one live-server process
-	// running within the same instance directory at any time.
-	_, err = runtime.GetLock(runPath, "live-server")
-	if err != nil {
-		runtime.Error("ERROR: Couldn't successfully acquire a process lock:\n\n\t%s\n\n", err)
-	}
-
-	// Write the process ID into a file for use by external scripts.
-	go runtime.CreatePidFile(filepath.Join(runPath, "live-server.pid"))
+	// Initialise the Ampify runtime -- which will run ``live-server`` on
+	// multiple processors if possible.
+	runtime.Init()
 
 	// Handle running as an Acceptor node if ``--run-as-acceptor`` was
 	// specified.
@@ -685,13 +696,20 @@ func main() {
 			}
 			index += 1
 		}
+
 		if selfAddress == "" {
 			runtime.Error("ERROR: Couldn't determine the address for the acceptor.\n")
 		}
 
+		// Initialise the process-related resources.
+		initProcess(fmt.Sprintf("acceptor-%d", *acceptorIndex), runPath)
+
 		return
 
 	}
+
+	// Initialise the process-related resources.
+	initProcess("live-server", runPath)
 
 	// Ensure that the directory containing static files exists.
 	staticPath := joinPath(instanceDirectory, *staticDirectory)
@@ -722,10 +740,6 @@ func main() {
 	// Load the content for the HTTP ``502`` and ``503`` errors.
 	error502, error502Length = getErrorInfo(errorPath, "502.html")
 	error503, error503Length = getErrorInfo(errorPath, "503.html")
-
-	// Initialise the Ampify runtime -- which will run ``live-server`` on
-	// multiple processors if possible.
-	runtime.Init()
 
 	// Initialise the TLS config.
 	tlsconf.Init()
