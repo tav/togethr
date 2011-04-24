@@ -503,14 +503,20 @@ func main() {
 	secondaryKey := opts.StringConfig("secondary-key", "cert/secondary.key",
 		"the path to the secondary host's TLS key [cert/secondary.key]")
 
-	staticDirectory := opts.StringConfig("static-dir", "www",
-		"the path to the static files directory [www]")
-
 	errorDirectory := opts.StringConfig("error-dir", "error",
 		"the path to the HTTP error files directory [error]")
 
+	logDirectory := opts.StringConfig("log-dir", "log",
+		"the path to the log directory [log]")
+
+	runDirectory := opts.StringConfig("run-dir", "run",
+		"the path to the run directory to store pid files, etc. [run]")
+
+	staticDirectory := opts.StringConfig("static-dir", "www",
+		"the path to the static files directory [www]")
+
 	disableLive := opts.BoolConfig("disable-live", false,
-		"disable the live Keyspace and secondary HTTPS Frontend [false]")
+		"disable the LiveQuery node and secondary HTTPS Frontend [false]")
 
 	websocketPrefix := opts.StringConfig("websocket-prefix", "/.ws/",
 		"URL path prefix for WebSocket requests [/.ws/]")
@@ -518,29 +524,23 @@ func main() {
 	cometPrefix := opts.StringConfig("comet-prefix", "/.live/",
 		"URL path prefix for Comet requests [/.live/]")
 
-	redisConfig := opts.StringConfig("redis-conf", "redis.conf",
-		"the path to the Redis config file [redis.conf]")
+	livequeryHost := opts.StringConfig("livequery-host", "",
+		"the host to bind the LiveQuery node to")
 
-	redisSocket := opts.StringConfig("redis-socket", "run/redis.sock",
-		"the path to the Redis Unix domain socket [run/redis.sock]")
-
-	keyspaceHost := opts.StringConfig("keyspace-host", "",
-		"the host to bind the Keyspace node to")
-
-	keyspacePort := opts.IntConfig("keyspace-port", 9060,
-		"the port to bind the Keyspace node to [9050]")
-
-	keyspaceKey := opts.StringConfig("keyspace-key", "cert/keyspace.key",
-		"the path to the Keyspace shared secret key [cert/keyspace.key]")
+	livequeryPort := opts.IntConfig("livequery-port", 9050,
+		"the port to bind the LiveQuery node to [9050]")
 
 	acceptors := opts.StringConfig("acceptor-nodes", "localhost:9060",
-		"comma-separated addresses of Keyspace acceptor nodes [localhost:9060]")
+		"comma-separated addresses of Acceptor nodes [localhost:9060]")
+
+	acceptorKey := opts.StringConfig("acceptor-key", "cert/acceptor.key",
+		"the path to the Acceptor shared secret key file [cert/acceptor.key]")
 
 	runAcceptor := opts.BoolConfig("run-as-acceptor", false,
-		"run this node as a Keyspace acceptor [false]")
+		"run as an Acceptor node [false]")
 
 	acceptorIndex := opts.IntConfig("acceptor-index", 0,
-		"this node's index in the Keyspace acceptor addresses list [0]")
+		"this node's index in the Acceptor nodes address list [0]")
 
 	noRedirect := opts.BoolConfig("no-redirect", false,
 		"disable the HTTP Redirector [false]")
@@ -636,14 +636,14 @@ func main() {
 	}
 
 	// Create the log directory if it doesn't exist.
-	logPath := joinPath(instanceDirectory, "log")
+	logPath := joinPath(instanceDirectory, *logDirectory)
 	err = os.MkdirAll(logPath, 0755)
 	if err != nil {
 		runtime.StandardError(err)
 	}
 
 	// Create the run directory if it doesn't exist.
-	runPath := joinPath(instanceDirectory, "run")
+	runPath := joinPath(instanceDirectory, *runDirectory)
 	err = os.MkdirAll(runPath, 0755)
 	if err != nil {
 		runtime.StandardError(err)
@@ -659,7 +659,7 @@ func main() {
 	// Write the process ID into a file for use by external scripts.
 	go runtime.CreatePidFile(filepath.Join(runPath, "live-server.pid"))
 
-	// Handle running as a Keyspace acceptor node if ``--run-as-acceptor`` was
+	// Handle running as an Acceptor node if ``--run-as-acceptor`` was
 	// specified.
 	if *runAcceptor {
 
@@ -758,11 +758,9 @@ func main() {
 
 	// Setup the live support as long as it hasn't been disabled.
 	if !*disableLive {
-		_ = *keyspaceHost
-		_ = *keyspacePort
-		_ = *keyspaceKey
-		_ = *redisConfig
-		_ = *redisSocket
+		_ = *livequeryHost
+		_ = *livequeryPort
+		_ = *acceptorKey
 		liveMode = true
 	}
 
