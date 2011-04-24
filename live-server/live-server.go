@@ -30,6 +30,7 @@ import (
 const (
 	contentType      = "Content-Type"
 	contentLength    = "Content-Length"
+	nodeIDLength     = 32
 	redirectHTML     = `Please <a href="%s">click here if your browser doesn't redirect</a> automatically.`
 	redirectURL      = "%s%s"
 	redirectURLQuery = "%s%s?%s"
@@ -56,6 +57,7 @@ var (
 	error503       []byte
 	error502Length string
 	error503Length string
+	selfID         []byte
 )
 
 var (
@@ -105,11 +107,11 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 
 type Frontend struct {
 	cometPrefix     string
-	maintenance     bool
-	officialHost    string
+	maintenanceMode bool
+	publicHost      string
 	redirectHTML    []byte
 	redirectURL     string
-	live            bool
+	liveMode        bool
 	staticFiles     map[string]*StaticFile
 	upstreamAddr    string
 	upstreamHost    string
@@ -121,9 +123,9 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	originalHost := req.Host
 
-	// Redirect all requests to the official host if the Host header doesn't
-	// match.
-	if originalHost != frontend.officialHost {
+	// Redirect all requests to the "official" public host if the Host header
+	// doesn't match.
+	if originalHost != frontend.publicHost {
 		conn.Header().Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
@@ -132,7 +134,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	}
 
 	// Return the HTTP 503 error page if we're in maintenance mode.
-	if frontend.maintenance {
+	if frontend.maintenanceMode {
 		headers := conn.Header()
 		headers.Set(contentType, textHTML)
 		headers.Set(contentLength, error503Length)
@@ -155,7 +157,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	if frontend.live {
+	if frontend.liveMode {
 
 		// Handle WebSocket requests.
 		if strings.HasPrefix(reqPath, frontend.websocketPrefix) {
@@ -379,6 +381,91 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 	}
 }
 
+// The ``initFrontend`` utility function abstracts away the various checks and
+// steps involved in setting up and running a new HTTPS Frontend.
+func initFrontend(status, host string, port int, public, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticFiles map[string]*StaticFile) (*Frontend, string) {
+
+	var err os.Error
+
+	// Exit if the config values for the paths of the server's certificate or
+	// key haven't been specified.
+	if cert == "" {
+		runtime.Error("ERROR: The %s-cert config value hasn't been specified.\n", status)
+	}
+	if key == "" {
+		runtime.Error("ERROR: The %s-key config value hasn't been specified.\n", status)
+	}
+
+	// Initialise a fresh TLS Config.
+	tlsConfig := &tls.Config{
+		NextProtos: []string{"http/1.1"},
+		Rand:       rand.Reader,
+		Time:       time.Seconds,
+	}
+
+	// Load the certificate and private key into the TLS config.
+	certPath := joinPath(instanceDirectory, cert)
+	keyPath := joinPath(instanceDirectory, key)
+	tlsConfig.Certificates = make([]tls.Certificate, 1)
+	tlsConfig.Certificates[0], err = tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		runtime.Error("ERROR: Couldn't load %s certificate/key pair: %s\n",
+			status, err)
+	}
+
+	// If ``--official-host`` hasn't been specified, generate it from the given
+	// frontend host and port values -- assuming ``localhost`` for a blank host.
+	if public == "" {
+		if host == "" {
+			public = fmt.Sprintf("localhost:%d", port)
+		} else {
+			public = fmt.Sprintf("%s:%d", host, port)
+		}
+	}
+
+	// Instantiate the associated variables and listeners for the HTTPS Frontend
+	// and HTTP Redirector.
+	upstreamAddr := fmt.Sprintf("%s:%d", upstreamHost, upstreamPort)
+	frontendAddr := fmt.Sprintf("%s:%d", host, port)
+	frontendConn, err := net.Listen("tcp", frontendAddr)
+	if err != nil {
+		runtime.Error("ERROR: Cannot listen on %s: %v\n", frontendAddr, err)
+	}
+
+	frontendListener := tls.NewListener(frontendConn, tlsConfig)
+	frontendURL := "https://" + public
+	redirectHTML := []byte(fmt.Sprintf(redirectHTML, frontendURL))
+
+	// Instantiate a ``Frontend`` object for use by the HTTPS Frontend.
+	frontend := &Frontend{
+		cometPrefix:     cometPrefix,
+		liveMode:        liveMode,
+		maintenanceMode: maintenanceMode,
+		publicHost:      public,
+		redirectHTML:    redirectHTML,
+		redirectURL:     frontendURL,
+		staticFiles:     staticFiles,
+		upstreamAddr:    upstreamAddr,
+		upstreamHost:    upstreamHost,
+		upstreamTLS:     upstreamTLS,
+		websocketPrefix: websocketPrefix,
+	}
+
+	// Start the HTTPS Frontend.
+	go func() {
+		err = http.Serve(frontendListener, frontend)
+		if err != nil {
+			runtime.Error("ERROR serving %s HTTPS Frontend: %s\n", status, err)
+		}
+	}()
+
+	fmt.Printf("* HTTPS Frontend %s running on %s\n", status, frontendURL)
+
+	return frontend, frontendURL
+
+}
+
+
 func main() {
 
 	// Define the options for the command line and config file options parser.
@@ -393,19 +480,28 @@ func main() {
 		"show the default yaml config")
 
 	frontendHost := opts.StringConfig("frontend-host", "",
-		"the host to bind the HTTPS Frontend to")
+		"the host to bind the HTTPS Frontends to")
 
 	frontendPort := opts.IntConfig("frontend-port", 9040,
-		"the port to bind the HTTPS Frontend to [9040]")
+		"the base port for the HTTPS Frontends [9040]")
 
-	officialHost := opts.StringConfig("official-host", "",
-		"limit the HTTPS Frontend to the specified host")
+	primaryHost := opts.StringConfig("primary-host", "",
+		"limit the primary HTTPS Frontend to the specified host")
 
-	certFile := opts.StringConfig("cert-file", "cert/live-server.cert",
-		"the path to the TLS certificate [cert/live-server.cert]")
+	primaryCert := opts.StringConfig("primary-cert", "cert/primary.cert",
+		"the path to the primary host's TLS certificate [cert/primary.cert]")
 
-	keyFile := opts.StringConfig("key-file", "cert/live-server.key",
-		"the path to the TLS key [cert/live-server.key]")
+	primaryKey := opts.StringConfig("primary-key", "cert/primary.key",
+		"the path to the primary host's TLS key [cert/primary.key]")
+
+	secondaryHost := opts.StringConfig("secondary-host", "",
+		"limit the secondary HTTPS Frontend to the specified host")
+
+	secondaryCert := opts.StringConfig("secondary-cert", "cert/secondary.cert",
+		"the path to the secondary host's TLS certificate [cert/secondary.cert]")
+
+	secondaryKey := opts.StringConfig("secondary-key", "cert/secondary.key",
+		"the path to the secondary host's TLS key [cert/secondary.key]")
 
 	staticDirectory := opts.StringConfig("static-dir", "www",
 		"the path to the static files directory [www]")
@@ -414,7 +510,7 @@ func main() {
 		"the path to the HTTP error files directory [error]")
 
 	disableLive := opts.BoolConfig("disable-live", false,
-		"disable the live Keyspace and WebSockets/Comet support [false]")
+		"disable the live Keyspace and secondary HTTPS Frontend [false]")
 
 	websocketPrefix := opts.StringConfig("websocket-prefix", "/.ws/",
 		"URL path prefix for WebSocket requests [/.ws/]")
@@ -434,11 +530,11 @@ func main() {
 	keyspacePort := opts.IntConfig("keyspace-port", 9060,
 		"the port to bind the Keyspace node to [9050]")
 
-	keyspaceKey := opts.StringConfig("keyspace-keyfile", "cert/keyspace.key",
+	keyspaceKey := opts.StringConfig("keyspace-key", "cert/keyspace.key",
 		"the path to the Keyspace shared secret key [cert/keyspace.key]")
 
 	acceptors := opts.StringConfig("acceptor-nodes", "localhost:9060",
-		"comma-separated list of Keyspace acceptor addresses [localhost:9060]")
+		"comma-separated addresses of Keyspace acceptor nodes [localhost:9060]")
 
 	runAcceptor := opts.BoolConfig("run-as-acceptor", false,
 		"run this node as a Keyspace acceptor [false]")
@@ -563,7 +659,7 @@ func main() {
 	// Write the process ID into a file for use by external scripts.
 	go runtime.CreatePidFile(filepath.Join(runPath, "live-server.pid"))
 
-	// Handle running as a Keyspace acceptor node if ``--run-acceptor`` was
+	// Handle running as a Keyspace acceptor node if ``--run-as-acceptor`` was
 	// specified.
 	if *runAcceptor {
 
@@ -595,31 +691,6 @@ func main() {
 
 		return
 
-	}
-
-	// Exit if the ``cert-file`` or ``key-file`` config values haven't been
-	// specified.
-	var exitProcess bool
-	if *certFile == "" {
-		fmt.Printf("ERROR: The cert-file config value hasn't been specified.\n")
-		exitProcess = true
-	}
-	if *keyFile == "" {
-		fmt.Printf("ERROR: The key-file config value hasn't been specified.\n")
-		exitProcess = true
-	}
-	if exitProcess {
-		runtime.Exit(1)
-	}
-
-	// If ``--official-host`` hasn't been specified, generate it from the given
-	// frontend host and port values -- assuming ``localhost`` for a blank host.
-	if *officialHost == "" {
-		if *frontendHost == "" {
-			*officialHost = fmt.Sprintf("localhost:%d", *frontendPort)
-		} else {
-			*officialHost = fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
-		}
 	}
 
 	// Ensure that the directory containing static files exists.
@@ -658,53 +729,6 @@ func main() {
 
 	// Initialise the TLS config.
 	tlsconf.Init()
-	tlsConfig := &tls.Config{
-		NextProtos: []string{"http/1.1"},
-		Rand:       rand.Reader,
-		Time:       time.Seconds,
-	}
-
-	// Load the certificate and private key into the TLS config.
-	certPath := joinPath(instanceDirectory, *certFile)
-	keyPath := joinPath(instanceDirectory, *keyFile)
-	tlsConfig.Certificates = make([]tls.Certificate, 1)
-	tlsConfig.Certificates[0], err = tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		runtime.Error("ERROR: Couldn't load certificate/key pair: %s\n", err)
-	}
-
-	// Instantiate the associated variables and listeners for the HTTPS Frontend
-	// and HTTP Redirector.
-	upstreamAddr := fmt.Sprintf("%s:%d", *upstreamHost, *upstreamPort)
-	frontendAddr := fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
-	frontendConn, err := net.Listen("tcp", frontendAddr)
-	if err != nil {
-		runtime.Error("ERROR: Cannot listen on %s: %v\n", frontendAddr, err)
-	}
-
-	frontendListener := tls.NewListener(frontendConn, tlsConfig)
-	frontendURL := "https://" + *officialHost
-	redirectHTML := []byte(fmt.Sprintf(redirectHTML, frontendURL))
-
-	if *httpHost == "" {
-		*httpHost = "localhost"
-	}
-
-	httpAddrURL := fmt.Sprintf("http://%s:%d", *httpHost, *httpPort)
-
-	var httpAddr string
-	var httpListener net.Listener
-
-	if !*noRedirect {
-		if *redirectURL == "" {
-			*redirectURL = frontendURL
-		}
-		httpAddr = fmt.Sprintf("%s:%d", *httpHost, *httpPort)
-		httpListener, err = net.Listen("tcp", httpAddr)
-		if err != nil {
-			runtime.Error("ERROR: Cannot listen on %s: %v\n", httpAddr, err)
-		}
-	}
 
 	// Setup the file and console logging.
 	var rotate int
@@ -730,7 +754,7 @@ func main() {
 		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
 	}
 
-	var live bool
+	var liveMode bool
 
 	// Setup the live support as long as it hasn't been disabled.
 	if !*disableLive {
@@ -739,23 +763,11 @@ func main() {
 		_ = *keyspaceKey
 		_ = *redisConfig
 		_ = *redisSocket
-		live = true
+		liveMode = true
 	}
 
-	// Instantiate a ``Frontend`` object for use by the HTTPS Frontend.
-	frontend := &Frontend{
-		cometPrefix:     *cometPrefix,
-		live:            live,
-		maintenance:     *maintenanceMode,
-		officialHost:    *officialHost,
-		redirectHTML:    redirectHTML,
-		redirectURL:     frontendURL,
-		staticFiles:     staticFiles,
-		upstreamAddr:    upstreamAddr,
-		upstreamHost:    *upstreamHost,
-		upstreamTLS:     *upstreamTLS,
-		websocketPrefix: *websocketPrefix,
-	}
+	// Create a container for the Frontend instances.
+	frontends := make([]*Frontend, 0)
 
 	// Create a channel which is used to toggle the state of the live-server's
 	// maintenance mode based on process signals.
@@ -766,10 +778,12 @@ func main() {
 	go func() {
 		for {
 			enabledState := <-maintenanceChannel
-			if enabledState {
-				frontend.maintenance = true
-			} else {
-				frontend.maintenance = false
+			for _, frontend := range frontends {
+				if enabledState {
+					frontend.maintenanceMode = true
+				} else {
+					frontend.maintenanceMode = false
+				}
 			}
 		}
 	}()
@@ -786,32 +800,66 @@ func main() {
 	// Let the user know how many CPUs we're currently running on.
 	fmt.Printf("Running live-server with %d CPUs:\n", runtime.CPUCount)
 
-	// Start a goroutine which runs the HTTP redirector as long as it hasn't
-	// been disabled.
-	if !*noRedirect {
-		hsts := ""
-		if *enableHSTS {
-			hsts = fmt.Sprintf("max-age=%d", *hstsMaxAge)
-		}
-		redirector := &Redirector{
-			hsts:     hsts,
-			pingPath: *pingPath,
-			url:      *redirectURL,
-		}
-		go func() {
-			err = http.Serve(httpListener, redirector)
-			if err != nil {
-				runtime.Error("ERROR serving HTTP Redirector: %s\n", err)
-			}
-		}()
-		fmt.Printf("* HTTP Redirector running on %s -> %s\n", httpAddrURL, *redirectURL)
+	// Setup and run the primary HTTPS Frontend.
+	primary, primaryURL := initFrontend("primary", *frontendHost, *frontendPort,
+		*primaryHost, *primaryCert, *primaryKey, "", "", instanceDirectory,
+		*upstreamHost, *upstreamPort, *upstreamTLS, *maintenanceMode, false, staticFiles)
+	frontends = append(frontends, primary)
+
+	// Setup and run the secondary HTTPS Frontend if live mode is enabled.
+	if liveMode {
+		secondary, _ := initFrontend("secondary", *frontendHost, *frontendPort+1,
+			*secondaryHost, *secondaryCert, *secondaryKey, *cometPrefix,
+			*websocketPrefix, instanceDirectory, *upstreamHost, *upstreamPort,
+			*upstreamTLS, *maintenanceMode, true, staticFiles)
+		frontends = append(frontends, secondary)
 	}
 
-	// Start the HTTPS Frontend.
-	fmt.Printf("* HTTPS Frontend running on %s\n", frontendURL)
-	err = http.Serve(frontendListener, frontend)
-	if err != nil {
-		runtime.Error("ERROR serving HTTPS Frontend: %s\n", err)
+	// Enter a wait loop if the HTTP Redirector has been disabled.
+	if *noRedirect {
+		loopForever := make(chan bool, 1)
+		<-loopForever
 	}
+
+	// Otherwise, setup the HTTP Redirector.
+	if *httpHost == "" {
+		*httpHost = "localhost"
+	}
+
+	if *redirectURL == "" {
+		*redirectURL = primaryURL
+	}
+
+	httpAddr := fmt.Sprintf("%s:%d", *httpHost, *httpPort)
+	httpListener, err := net.Listen("tcp", httpAddr)
+	if err != nil {
+		runtime.Error("ERROR: Cannot listen on %s: %v\n", httpAddr, err)
+	}
+
+	hsts := ""
+	if *enableHSTS {
+		hsts = fmt.Sprintf("max-age=%d", *hstsMaxAge)
+	}
+
+	redirector := &Redirector{
+		hsts:     hsts,
+		pingPath: *pingPath,
+		url:      *redirectURL,
+	}
+
+	// Start a goroutine which runs the HTTP redirector.
+	go func() {
+		err = http.Serve(httpListener, redirector)
+		if err != nil {
+			runtime.Error("ERROR serving HTTP Redirector: %s\n", err)
+		}
+	}()
+
+	fmt.Printf("* HTTP Redirector running on http://%s:%d -> %s\n",
+		*httpHost, *httpPort, *redirectURL)
+
+	// Enter the wait loop for the process to be killed.
+	loopForever := make(chan bool, 1)
+	<-loopForever
 
 }
