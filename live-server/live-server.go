@@ -348,6 +348,26 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			return
 		}
 
+		// Re-encode the response if it had been gzipped by upstream.
+		if gzipSet {
+			buffer := &bytes.Buffer{}
+			encoder, err := gzip.NewWriter(buffer)
+			if err != nil {
+				if debugMode {
+					fmt.Printf("Error creating a new gzip Writer: %v\n", err)
+				}
+				serveLiveError(conn, originalHost, req)
+				respBody.Close()
+				resp.Body.Close()
+				return
+			}
+			encoder.Write(body)
+			encoder.Close()
+			body = buffer.Bytes()
+			respBody.Close()
+		}
+		resp.Body.Close()
+
 		resp.Header.Set(contentLength, fmt.Sprintf("%d", len(body)))
 		xLiveChannel <- xLiveMessage
 
@@ -362,6 +382,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			resp.Body.Close()
 			return
 		}
+		resp.Body.Close()
 	}
 
 	// Set the received headers back to the initial connection.
@@ -372,10 +393,8 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	}
 
 	// Write the response body back to the initial connection.
-	resp.Body.Close()
 	conn.WriteHeader(resp.StatusCode)
 	conn.Write(body)
-
 	logRequest(HTTPS_UPSTREAM, resp.StatusCode, originalHost, req)
 
 }
