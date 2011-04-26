@@ -12,8 +12,11 @@ import (
 	"amp/runtime"
 	"amp/tlsconf"
 	"bufio"
+	"bytes"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"http"
 	"io/ioutil"
@@ -65,6 +68,10 @@ var (
 	pingResponseLength = fmt.Sprintf("%d", len(pingResponse))
 )
 
+// -----------------------------------------------------------------------------
+// HTTP Redirector
+// -----------------------------------------------------------------------------
+
 type Redirector struct {
 	hsts     string
 	pingPath string
@@ -105,6 +112,10 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 
 }
 
+// -----------------------------------------------------------------------------
+// HTTPS Frontend
+// -----------------------------------------------------------------------------
+
 type Frontend struct {
 	cometPrefix     string
 	maintenanceMode bool
@@ -112,7 +123,9 @@ type Frontend struct {
 	redirectHTML    []byte
 	redirectURL     string
 	liveMode        bool
+	staticCache     string
 	staticFiles     map[string]*StaticFile
+	staticMaxAge    int64
 	upstreamAddr    string
 	upstreamHost    string
 	upstreamTLS     bool
@@ -149,8 +162,12 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Handle requests for any files exposed within the static directory.
 	if staticFile, ok := frontend.staticFiles[reqPath]; ok {
 		headers := conn.Header()
+		headers.Set("Etag", staticFile.etag)
 		headers.Set(contentType, staticFile.mimetype)
 		headers.Set(contentLength, staticFile.size)
+		expires := time.SecondsToUTC(time.UTC().Seconds() + frontend.staticMaxAge)
+		headers.Set("Expires", expires.Format(http.TimeFormat))
+		headers.Set("Cache-Control", frontend.staticCache)
 		conn.WriteHeader(http.StatusOK)
 		conn.Write(staticFile.content)
 		logRequest(HTTPS_STATIC, http.StatusOK, originalHost, req)
@@ -254,6 +271,19 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 }
 
+func serveError502(conn http.ResponseWriter, host string, request *http.Request) {
+	headers := conn.Header()
+	headers.Set(contentType, textHTML)
+	headers.Set(contentLength, error502Length)
+	conn.WriteHeader(http.StatusBadGateway)
+	conn.Write(error502)
+	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
+}
+
+// -----------------------------------------------------------------------------
+// WebSocket Handler
+// -----------------------------------------------------------------------------
+
 func handleWebSocket(conn *websocket.Conn) {
 	defer func() {
 		conn.Close()
@@ -263,6 +293,10 @@ func handleWebSocket(conn *websocket.Conn) {
 		fmt.Printf("boo")
 	}
 }
+
+// -----------------------------------------------------------------------------
+// Logging
+// -----------------------------------------------------------------------------
 
 func logRequest(proto, status int, host string, request *http.Request) {
 	var ip string
@@ -290,14 +324,9 @@ func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
 	return true, data
 }
 
-func serveError502(conn http.ResponseWriter, host string, request *http.Request) {
-	headers := conn.Header()
-	headers.Set(contentType, textHTML)
-	headers.Set(contentLength, error502Length)
-	conn.WriteHeader(http.StatusBadGateway)
-	conn.Write(error502)
-	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
-}
+// -----------------------------------------------------------------------------
+// Utility Functions
+// -----------------------------------------------------------------------------
 
 // The ``joinPath`` utility function joins the given ``path`` with the
 // ``instanceDirectory`` unless it happens to be an absolute path, in which case
@@ -333,6 +362,7 @@ func getErrorInfo(directory, filename string) ([]byte, string) {
 // HTTPS Frontend.
 type StaticFile struct {
 	content  []byte
+	etag     string
 	mimetype string
 	size     string
 }
@@ -371,8 +401,15 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 				if mimetype == "" {
 					mimetype = "application/octet-stream"
 				}
+				hash := sha1.New()
+				hash.Write(content)
+				buffer := &bytes.Buffer{}
+				encoder := base64.NewEncoder(base64.URLEncoding, buffer)
+				encoder.Write(hash.Sum())
+				encoder.Close()
 				mapping[key] = &StaticFile{
 					content:  content,
+					etag:     fmt.Sprintf(`"%s"`, buffer.String()),
 					mimetype: mimetype,
 					size:     fmt.Sprintf("%d", len(content)),
 				}
@@ -383,7 +420,7 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 
 // The ``initFrontend`` utility function abstracts away the various checks and
 // steps involved in setting up and running a new HTTPS Frontend.
-func initFrontend(status, host string, port int, public, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticFiles map[string]*StaticFile) (*Frontend, string) {
+func initFrontend(status, host string, port int, public, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticCache string, staticFiles map[string]*StaticFile, staticMaxAge int64) (*Frontend, string) {
 
 	var err os.Error
 
@@ -444,7 +481,9 @@ func initFrontend(status, host string, port int, public, cert, key, cometPrefix,
 		publicHost:      public,
 		redirectHTML:    redirectHTML,
 		redirectURL:     frontendURL,
+		staticCache:     staticCache,
 		staticFiles:     staticFiles,
+		staticMaxAge:    staticMaxAge,
 		upstreamAddr:    upstreamAddr,
 		upstreamHost:    upstreamHost,
 		upstreamTLS:     upstreamTLS,
@@ -482,6 +521,10 @@ func initProcess(typeName, runPath string) {
 	go runtime.CreatePidFile(filepath.Join(runPath, pidFile))
 
 }
+
+// -----------------------------------------------------------------------------
+// Main Runner
+// -----------------------------------------------------------------------------
 
 func main() {
 
@@ -532,6 +575,9 @@ func main() {
 	staticDirectory := opts.StringConfig("static-dir", "www",
 		"the path to the static files directory [www]")
 
+	staticMaxAge := opts.IntConfig("static-max-age", 86400,
+		"max-age cache header value when serving the static files [86400]")
+
 	disableLive := opts.BoolConfig("disable-live", false,
 		"disable the LiveQuery node and secondary HTTPS Frontend [false]")
 
@@ -545,7 +591,7 @@ func main() {
 		"the host to bind the LiveQuery node to")
 
 	livequeryPort := opts.IntConfig("livequery-port", 9050,
-		"the port to bind the LiveQuery node to [9050]")
+		"the port (both UDP and TCP) to bind the LiveQuery node to [9050]")
 
 	acceptors := opts.StringConfig("acceptor-nodes", "localhost:9060",
 		"comma-separated addresses of Acceptor nodes [localhost:9060]")
@@ -726,6 +772,10 @@ func main() {
 	staticFiles := make(map[string]*StaticFile)
 	getFiles(staticPath, staticFiles, "")
 
+	// Pre-format the Cache-Control header for static files.
+	staticCache := fmt.Sprintf("public, max-age=%d", *staticMaxAge)
+	staticMaxAge64 := int64(*staticMaxAge)
+
 	// Exit if the directory containing the 50x.html files isn't present.
 	errorPath := joinPath(instanceDirectory, *errorDirectory)
 	dirInfo, err = os.Stat(errorPath)
@@ -815,7 +865,8 @@ func main() {
 	// Setup and run the primary HTTPS Frontend.
 	primary, primaryURL := initFrontend("primary", *frontendHost, *frontendPort,
 		*primaryHost, *primaryCert, *primaryKey, "", "", instanceDirectory,
-		*upstreamHost, *upstreamPort, *upstreamTLS, *maintenanceMode, false, staticFiles)
+		*upstreamHost, *upstreamPort, *upstreamTLS, *maintenanceMode, false,
+		staticCache, staticFiles, staticMaxAge64)
 	frontends = append(frontends, primary)
 
 	// Setup and run the secondary HTTPS Frontend if live mode is enabled.
@@ -823,7 +874,8 @@ func main() {
 		secondary, _ := initFrontend("secondary", *frontendHost, *frontendPort+1,
 			*secondaryHost, *secondaryCert, *secondaryKey, *cometPrefix,
 			*websocketPrefix, instanceDirectory, *upstreamHost, *upstreamPort,
-			*upstreamTLS, *maintenanceMode, true, staticFiles)
+			*upstreamTLS, *maintenanceMode, true, staticCache, staticFiles,
+			staticMaxAge64)
 		frontends = append(frontends, secondary)
 	}
 
