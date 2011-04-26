@@ -269,7 +269,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Get the original request header.
 	headers := conn.Header()
 
-	// Set variables to hold any X-Live and Content-Length values.
+	// Set a variable to hold the X-Live header value if present.
 	var xLiveLength int
 
 	if frontend.liveMode {
@@ -280,14 +280,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			if err != nil {
 				if debugMode {
 					fmt.Printf("Error converting X-Live header value %q: %v\n", xLive, err)
-				}
-				serveLiveError(conn, originalHost, req)
-				return
-			}
-			// Sanity check the X-Live header value.
-			if xLiveLength < 0 {
-				if debugMode {
-					fmt.Printf("Invalid (negative) X-Live header value: %d\n", xLiveLength)
 				}
 				serveLiveError(conn, originalHost, req)
 				return
