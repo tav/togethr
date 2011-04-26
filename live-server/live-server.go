@@ -264,6 +264,8 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	defer resp.Body.Close()
+
 	// Get the original request header.
 	headers := conn.Header()
 
@@ -280,7 +282,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 					fmt.Printf("Error converting X-Live header value %q: %v\n", xLive, err)
 				}
 				serveLiveError(conn, originalHost, req)
-				resp.Body.Close()
 				return
 			}
 			// Sanity check the X-Live header value.
@@ -289,7 +290,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 					fmt.Printf("Invalid (negative) X-Live header value: %d\n", xLiveLength)
 				}
 				serveLiveError(conn, originalHost, req)
-				resp.Body.Close()
 				return
 			}
 			resp.Header.Del("X-Live")
@@ -312,9 +312,9 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 					fmt.Printf("Error reading gzipped response from upstream: %v\n", err)
 				}
 				serveLiveError(conn, originalHost, req)
-				resp.Body.Close()
 				return
 			}
+			defer respBody.Close()
 		} else {
 			respBody = resp.Body
 		}
@@ -327,10 +327,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 				fmt.Printf("Error reading X-Live response from upstream: %v\n", err)
 			}
 			serveLiveError(conn, originalHost, req)
-			if gzipSet {
-				respBody.Close()
-			}
-			resp.Body.Close()
 			return
 		}
 
@@ -341,10 +337,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 				fmt.Printf("Error reading non X-Live response from upstream: %v\n", err)
 			}
 			serveLiveError(conn, originalHost, req)
-			if gzipSet {
-				respBody.Close()
-			}
-			resp.Body.Close()
 			return
 		}
 
@@ -357,16 +349,12 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 					fmt.Printf("Error creating a new gzip Writer: %v\n", err)
 				}
 				serveLiveError(conn, originalHost, req)
-				respBody.Close()
-				resp.Body.Close()
 				return
 			}
 			encoder.Write(body)
 			encoder.Close()
 			body = buffer.Bytes()
-			respBody.Close()
 		}
-		resp.Body.Close()
 
 		resp.Header.Set(contentLength, fmt.Sprintf("%d", len(body)))
 		xLiveChannel <- xLiveMessage
@@ -379,10 +367,8 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 				fmt.Printf("Error reading response from upstream: %v\n", err)
 			}
 			serveError502(conn, originalHost, req)
-			resp.Body.Close()
 			return
 		}
-		resp.Body.Close()
 	}
 
 	// Set the received headers back to the initial connection.
