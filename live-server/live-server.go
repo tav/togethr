@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 	"websocket"
@@ -46,6 +47,7 @@ const (
 	HTTP_PING = iota
 	HTTP_REDIRECT
 	HTTPS_COMET
+	HTTPS_LIVE_ERROR
 	HTTPS_MAINTENANCE
 	HTTPS_PROXY_ERROR
 	HTTPS_REDIRECT
@@ -56,8 +58,10 @@ const (
 
 var (
 	debugMode      bool
+	error500       []byte
 	error502       []byte
 	error503       []byte
+	error500Length string
 	error502Length string
 	error503Length string
 	selfID         []byte
@@ -67,6 +71,18 @@ var (
 	pingResponse       = []byte("pong")
 	pingResponseLength = fmt.Sprintf("%d", len(pingResponse))
 )
+
+// -----------------------------------------------------------------------------
+// X-Live Handler
+// -----------------------------------------------------------------------------
+
+var xLiveChannel = make(chan []byte, 100)
+
+func xLiveHandler() {
+	for message := range xLiveChannel {
+		fmt.Printf("X-LIVE: %q\n", string(message))
+	}
+}
 
 // -----------------------------------------------------------------------------
 // HTTP Redirector
@@ -161,13 +177,18 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	// Handle requests for any files exposed within the static directory.
 	if staticFile, ok := frontend.staticFiles[reqPath]; ok {
-		headers := conn.Header()
-		headers.Set("Etag", staticFile.etag)
-		headers.Set(contentType, staticFile.mimetype)
-		headers.Set(contentLength, staticFile.size)
 		expires := time.SecondsToUTC(time.UTC().Seconds() + frontend.staticMaxAge)
+		headers := conn.Header()
 		headers.Set("Expires", expires.Format(http.TimeFormat))
 		headers.Set("Cache-Control", frontend.staticCache)
+		headers.Set("Etag", staticFile.etag)
+		if req.Header.Get("If-None-Match") == staticFile.etag {
+			conn.WriteHeader(http.StatusNotModified)
+			logRequest(HTTPS_STATIC, http.StatusNotModified, originalHost, req)
+			return
+		}
+		headers.Set(contentType, staticFile.mimetype)
+		headers.Set(contentLength, staticFile.size)
 		conn.WriteHeader(http.StatusOK)
 		conn.Write(staticFile.content)
 		logRequest(HTTPS_STATIC, http.StatusOK, originalHost, req)
@@ -241,19 +262,99 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// Read the full response body.
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		if debugMode {
-			fmt.Printf("Error reading response from upstream: %v\n", err)
+	// Get the original request header.
+	headers := conn.Header()
+
+	// Set variables to hold any X-Live and modified Content-Length values.
+	var xLiveLength int
+	var newContentLength int
+
+	if frontend.liveMode {
+		xLive := resp.Header.Get("X-Live")
+		if xLive != "" {
+			// If the X-Live header was set, parse it into an int.
+			xLiveLength, err = strconv.Atoi(xLive)
+			if err != nil {
+				if debugMode {
+					fmt.Printf("Error converting X-Live header value %q: %v\n", xLive, err)
+				}
+				serveLiveError(conn, originalHost, req)
+				resp.Body.Close()
+				return
+			}
+			resp.Header.Del("X-Live")
+			// Get the original Content-Length header.
+			contentLengthValue := resp.Header.Get(contentLength)
+			if contentLengthValue == "" {
+				if debugMode {
+					fmt.Println("No Content-Length sent by upstream.")
+				}
+				serveLiveError(conn, originalHost, req)
+				resp.Body.Close()
+				return
+			}
+			// Parse it into an int.
+			oriContentLength, err := strconv.Atoi(contentLengthValue)
+			if err != nil {
+				if debugMode {
+					fmt.Printf("Error converting Content-Length header value %s: %v\n",
+						contentLengthValue, err)
+				}
+				serveLiveError(conn, originalHost, req)
+				resp.Body.Close()
+				return
+			}
+			// Compute the new Content-Length header value.
+			newContentLength = oriContentLength - xLiveLength
+			if xLiveLength < 0 || newContentLength < 0 {
+				if debugMode {
+					fmt.Printf("Invalid content lengths: %d and %d\n", xLiveLength,
+						newContentLength)
+				}
+				serveLiveError(conn, originalHost, req)
+				resp.Body.Close()
+				return
+			}
 		}
-		serveError502(conn, originalHost, req)
-		resp.Body.Close()
-		return
 	}
 
-	// Get the header.
-	headers := conn.Header()
+	var body []byte
+
+	if xLiveLength > 0 {
+		resp.Header.Set(contentLength, fmt.Sprintf("%d", newContentLength))
+		xLiveMessage := make([]byte, xLiveLength)
+		n, err := resp.Body.Read(xLiveMessage)
+		if n != xLiveLength || err != nil {
+			if debugMode {
+				fmt.Printf("Error reading X-Live response from upstream: %v\n", err)
+			}
+			serveError502(conn, originalHost, req)
+			resp.Body.Close()
+			return
+		}
+		body = make([]byte, newContentLength)
+		n, err = resp.Body.Read(body)
+		if n != newContentLength || err != nil {
+			if debugMode {
+				fmt.Printf("Error reading non X-Live response from upstream: %v\n", err)
+			}
+			serveError502(conn, originalHost, req)
+			resp.Body.Close()
+			return
+		}
+		xLiveChannel <- xLiveMessage
+	} else {
+		// Read the full response body.
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			if debugMode {
+				fmt.Printf("Error reading response from upstream: %v\n", err)
+			}
+			serveError502(conn, originalHost, req)
+			resp.Body.Close()
+			return
+		}
+	}
 
 	// Set the received headers back to the initial connection.
 	for k, values := range resp.Header {
@@ -278,6 +379,15 @@ func serveError502(conn http.ResponseWriter, host string, request *http.Request)
 	conn.WriteHeader(http.StatusBadGateway)
 	conn.Write(error502)
 	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
+}
+
+func serveLiveError(conn http.ResponseWriter, host string, request *http.Request) {
+	headers := conn.Header()
+	headers.Set(contentType, textHTML)
+	headers.Set(contentLength, error500Length)
+	conn.WriteHeader(http.StatusInternalServerError)
+	conn.Write(error500)
+	logRequest(HTTPS_LIVE_ERROR, http.StatusInternalServerError, host, request)
 }
 
 // -----------------------------------------------------------------------------
@@ -788,6 +898,7 @@ func main() {
 	}
 
 	// Load the content for the HTTP ``502`` and ``503`` errors.
+	error500, error500Length = getErrorInfo(errorPath, "500.html")
 	error502, error502Length = getErrorInfo(errorPath, "502.html")
 	error503, error503Length = getErrorInfo(errorPath, "503.html")
 
@@ -822,6 +933,7 @@ func main() {
 
 	// Setup the live support as long as it hasn't been disabled.
 	if !*disableLive {
+		go xLiveHandler()
 		_ = *livequeryHost
 		_ = *livequeryPort
 		_ = *acceptorKey
