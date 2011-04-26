@@ -13,12 +13,14 @@ import (
 	"amp/tlsconf"
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"http"
+	"io"
 	"io/ioutil"
 	"mime"
 	"net"
@@ -265,9 +267,8 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Get the original request header.
 	headers := conn.Header()
 
-	// Set variables to hold any X-Live and modified Content-Length values.
+	// Set variables to hold any X-Live and Content-Length values.
 	var xLiveLength int
-	var newContentLength int
 
 	if frontend.liveMode {
 		xLive := resp.Header.Get("X-Live")
@@ -282,67 +283,74 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 				resp.Body.Close()
 				return
 			}
+			// Sanity check the X-Live header value.
+			if xLiveLength < 0 {
+				if debugMode {
+					fmt.Printf("Invalid (negative) X-Live header value: %d\n", xLiveLength)
+				}
+				serveLiveError(conn, originalHost, req)
+				resp.Body.Close()
+				return
+			}
 			resp.Header.Del("X-Live")
-			// Get the original Content-Length header.
-			contentLengthValue := resp.Header.Get(contentLength)
-			if contentLengthValue == "" {
-				if debugMode {
-					fmt.Println("No Content-Length sent by upstream.")
-				}
-				serveLiveError(conn, originalHost, req)
-				resp.Body.Close()
-				return
-			}
-			// Parse it into an int.
-			oriContentLength, err := strconv.Atoi(contentLengthValue)
-			if err != nil {
-				if debugMode {
-					fmt.Printf("Error converting Content-Length header value %s: %v\n",
-						contentLengthValue, err)
-				}
-				serveLiveError(conn, originalHost, req)
-				resp.Body.Close()
-				return
-			}
-			// Compute the new Content-Length header value.
-			newContentLength = oriContentLength - xLiveLength
-			if xLiveLength < 0 || newContentLength < 0 {
-				if debugMode {
-					fmt.Printf("Invalid content lengths: %d and %d\n", xLiveLength,
-						newContentLength)
-				}
-				serveLiveError(conn, originalHost, req)
-				resp.Body.Close()
-				return
-			}
 		}
 	}
 
 	var body []byte
 
 	if xLiveLength > 0 {
-		resp.Header.Set(contentLength, fmt.Sprintf("%d", newContentLength))
+
+		var gzipSet bool
+		var respBody io.ReadCloser
+
+		// Check Content-Encoding to see if upstream sent gzipped content.
+		if resp.Header.Get("Content-Encoding") == "gzip" {
+			gzipSet = true
+			respBody, err = gzip.NewReader(resp.Body)
+			if err != nil {
+				if debugMode {
+					fmt.Printf("Error reading gzipped response from upstream: %v\n", err)
+				}
+				serveLiveError(conn, originalHost, req)
+				resp.Body.Close()
+				return
+			}
+		} else {
+			respBody = resp.Body
+		}
+
+		// Read the X-Live content from the response body.
 		xLiveMessage := make([]byte, xLiveLength)
-		n, err := resp.Body.Read(xLiveMessage)
+		n, err := respBody.Read(xLiveMessage)
 		if n != xLiveLength || err != nil {
 			if debugMode {
 				fmt.Printf("Error reading X-Live response from upstream: %v\n", err)
 			}
-			serveError502(conn, originalHost, req)
+			serveLiveError(conn, originalHost, req)
+			if gzipSet {
+				respBody.Close()
+			}
 			resp.Body.Close()
 			return
 		}
-		body = make([]byte, newContentLength)
-		n, err = resp.Body.Read(body)
-		if n != newContentLength || err != nil {
+
+		// Read the response to send back to the original request.
+		body, err = ioutil.ReadAll(respBody)
+		if err != nil {
 			if debugMode {
 				fmt.Printf("Error reading non X-Live response from upstream: %v\n", err)
 			}
-			serveError502(conn, originalHost, req)
+			serveLiveError(conn, originalHost, req)
+			if gzipSet {
+				respBody.Close()
+			}
 			resp.Body.Close()
 			return
 		}
+
+		resp.Header.Set(contentLength, fmt.Sprintf("%d", len(body)))
 		xLiveChannel <- xLiveMessage
+
 	} else {
 		// Read the full response body.
 		body, err = ioutil.ReadAll(resp.Body)
