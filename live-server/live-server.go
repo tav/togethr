@@ -343,8 +343,22 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 				serveLiveError(conn, originalHost, req)
 				return
 			}
-			encoder.Write(body)
-			encoder.Close()
+			n, err = encoder.Write(body)
+			if n != len(body) || err != nil {
+				if debugMode {
+					fmt.Printf("Error writing to the gzip Writer: %v\n", err)
+				}
+				serveLiveError(conn, originalHost, req)
+				return
+			}
+			err = encoder.Close()
+			if err != nil {
+				if debugMode {
+					fmt.Printf("Error finalising the write to the gzip Writer: %v\n", err)
+				}
+				serveLiveError(conn, originalHost, req)
+				return
+			}
 			body = buffer.Bytes()
 		}
 
@@ -708,11 +722,14 @@ func main() {
 	livequeryPort := opts.IntConfig("livequery-port", 9050,
 		"the port (both UDP and TCP) to bind the LiveQuery node to [9050]")
 
+	cookieKeyPath := opts.StringConfig("cookie-key", "cert/cookie.key",
+		"the path to the file containing key used to sign cookies [cert/cookie.key]")
+
 	acceptors := opts.StringConfig("acceptor-nodes", "localhost:9060",
 		"comma-separated addresses of Acceptor nodes [localhost:9060]")
 
-	acceptorKey := opts.StringConfig("acceptor-key", "cert/acceptor.key",
-		"the path to the Acceptor shared secret key file [cert/acceptor.key]")
+	acceptorKeyPath := opts.StringConfig("acceptor-key", "cert/acceptor.key",
+		"the path to the file containing the Acceptor secret key [cert/acceptor.key]")
 
 	runAcceptor := opts.BoolConfig("run-as-acceptor", false,
 		"run as an Acceptor node [false]")
@@ -941,7 +958,16 @@ func main() {
 		go xLiveHandler()
 		_ = *livequeryHost
 		_ = *livequeryPort
-		_ = *acceptorKey
+		acceptorKey, err := ioutil.ReadFile(joinPath(instanceDirectory, *acceptorKeyPath))
+		if err != nil {
+			runtime.StandardError(err)
+		}
+		cookieKey, err := ioutil.ReadFile(joinPath(instanceDirectory, *cookieKeyPath))
+		if err != nil {
+			runtime.StandardError(err)
+		}
+		_ = acceptorKey
+		_ = cookieKey
 		liveMode = true
 	}
 
