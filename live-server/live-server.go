@@ -49,7 +49,7 @@ const (
 	HTTP_PING = iota
 	HTTP_REDIRECT
 	HTTPS_COMET
-	HTTPS_LIVE_ERROR
+	HTTPS_INTERNAL_ERROR
 	HTTPS_MAINTENANCE
 	HTTPS_PROXY_ERROR
 	HTTPS_REDIRECT
@@ -78,12 +78,32 @@ var (
 // X-Live Handler
 // -----------------------------------------------------------------------------
 
-var xLiveChannel = make(chan []byte, 100)
+var liveChannel = make(chan []byte, 100)
 
-func xLiveHandler() {
-	for message := range xLiveChannel {
-		fmt.Printf("X-LIVE: %q\n", string(message))
+func handleLiveMessages() {
+	for message := range liveChannel {
+		cmd := message[0]
+		switch cmd {
+		case 0:
+			go publish(message[1:])
+		case 1:
+			go subscribe(message[1:])
+		default:
+			logging.Error("Got unexpected X-Live payload: %s", message)
+		}
 	}
+}
+
+// -----------------------------------------------------------------------------
+// PubSub Payload Handlers
+// -----------------------------------------------------------------------------
+
+func publish(message []byte) {
+	fmt.Println("GOT PUB")
+}
+
+func subscribe(message []byte) {
+	fmt.Println("GOT SUB")
 }
 
 // -----------------------------------------------------------------------------
@@ -216,9 +236,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Open a connection to the upstream server.
 	upstreamConn, err := net.Dial("tcp", frontend.upstreamAddr)
 	if err != nil {
-		if debugMode {
-			fmt.Printf("Couldn't connect to remote %s: %v\n", frontend.upstreamHost, err)
-		}
+		logging.Error("Couldn't connect to upstream: %s", err)
 		serveError502(conn, originalHost, req)
 		return
 	}
@@ -247,9 +265,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Send the request to the upstream server.
 	err = req.Write(upstream)
 	if err != nil {
-		if debugMode {
-			fmt.Printf("Error writing to the upstream server: %v\n", err)
-		}
+		logging.Error("Error writing to the upstream server: %s", err)
 		serveError502(conn, originalHost, req)
 		return
 	}
@@ -257,9 +273,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Parse the response from upstream.
 	resp, err := http.ReadResponse(bufio.NewReader(upstream), req.Method)
 	if err != nil {
-		if debugMode {
-			fmt.Printf("Error parsing response from upstream: %v\n", err)
-		}
+		logging.Error("Error parsing response from upstream: %s", err)
 		serveError502(conn, originalHost, req)
 		return
 	}
@@ -270,18 +284,16 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	headers := conn.Header()
 
 	// Set a variable to hold the X-Live header value if present.
-	var xLiveLength int
+	var liveLength int
 
 	if frontend.liveMode {
 		xLive := resp.Header.Get("X-Live")
 		if xLive != "" {
 			// If the X-Live header was set, parse it into an int.
-			xLiveLength, err = strconv.Atoi(xLive)
+			liveLength, err = strconv.Atoi(xLive)
 			if err != nil {
-				if debugMode {
-					fmt.Printf("Error converting X-Live header value %q: %v\n", xLive, err)
-				}
-				serveLiveError(conn, originalHost, req)
+				logging.Error("Error converting X-Live header value %q: %s", xLive, err)
+				serveError500(conn, originalHost, req)
 				return
 			}
 			resp.Header.Del("X-Live")
@@ -290,7 +302,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	var body []byte
 
-	if xLiveLength > 0 {
+	if liveLength > 0 {
 
 		var gzipSet bool
 		var respBody io.ReadCloser
@@ -300,10 +312,8 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			gzipSet = true
 			respBody, err = gzip.NewReader(resp.Body)
 			if err != nil {
-				if debugMode {
-					fmt.Printf("Error reading gzipped response from upstream: %v\n", err)
-				}
-				serveLiveError(conn, originalHost, req)
+				logging.Error("Error reading gzipped response from upstream: %s", err)
+				serveError500(conn, originalHost, req)
 				return
 			}
 			defer respBody.Close()
@@ -312,23 +322,19 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		}
 
 		// Read the X-Live content from the response body.
-		xLiveMessage := make([]byte, xLiveLength)
-		n, err := respBody.Read(xLiveMessage)
-		if n != xLiveLength || err != nil {
-			if debugMode {
-				fmt.Printf("Error reading X-Live response from upstream: %v\n", err)
-			}
-			serveLiveError(conn, originalHost, req)
+		liveMessage := make([]byte, liveLength)
+		n, err := respBody.Read(liveMessage)
+		if n != liveLength || err != nil {
+			logging.Error("Error reading X-Live response from upstream: %s", err)
+			serveError500(conn, originalHost, req)
 			return
 		}
 
 		// Read the response to send back to the original request.
 		body, err = ioutil.ReadAll(respBody)
 		if err != nil {
-			if debugMode {
-				fmt.Printf("Error reading non X-Live response from upstream: %v\n", err)
-			}
-			serveLiveError(conn, originalHost, req)
+			logging.Error("Error reading non X-Live response from upstream: %s", err)
+			serveError500(conn, originalHost, req)
 			return
 		}
 
@@ -337,41 +343,33 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			buffer := &bytes.Buffer{}
 			encoder, err := gzip.NewWriter(buffer)
 			if err != nil {
-				if debugMode {
-					fmt.Printf("Error creating a new gzip Writer: %v\n", err)
-				}
-				serveLiveError(conn, originalHost, req)
+				logging.Error("Error creating a new gzip Writer: %s", err)
+				serveError500(conn, originalHost, req)
 				return
 			}
 			n, err = encoder.Write(body)
 			if n != len(body) || err != nil {
-				if debugMode {
-					fmt.Printf("Error writing to the gzip Writer: %v\n", err)
-				}
-				serveLiveError(conn, originalHost, req)
+				logging.Error("Error writing to the gzip Writer: %s", err)
+				serveError500(conn, originalHost, req)
 				return
 			}
 			err = encoder.Close()
 			if err != nil {
-				if debugMode {
-					fmt.Printf("Error finalising the write to the gzip Writer: %v\n", err)
-				}
-				serveLiveError(conn, originalHost, req)
+				logging.Error("Error finalising the write to the gzip Writer: %s", err)
+				serveError500(conn, originalHost, req)
 				return
 			}
 			body = buffer.Bytes()
 		}
 
 		resp.Header.Set(contentLength, fmt.Sprintf("%d", len(body)))
-		xLiveChannel <- xLiveMessage
+		liveChannel <- liveMessage
 
 	} else {
 		// Read the full response body.
 		body, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			if debugMode {
-				fmt.Printf("Error reading response from upstream: %v\n", err)
-			}
+			logging.Error("Error reading response from upstream: %s", err)
 			serveError502(conn, originalHost, req)
 			return
 		}
@@ -400,13 +398,13 @@ func serveError502(conn http.ResponseWriter, host string, request *http.Request)
 	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
 }
 
-func serveLiveError(conn http.ResponseWriter, host string, request *http.Request) {
+func serveError500(conn http.ResponseWriter, host string, request *http.Request) {
 	headers := conn.Header()
 	headers.Set(contentType, textHTML)
 	headers.Set(contentLength, error500Length)
 	conn.WriteHeader(http.StatusInternalServerError)
 	conn.Write(error500)
-	logRequest(HTTPS_LIVE_ERROR, http.StatusInternalServerError, host, request)
+	logRequest(HTTPS_INTERNAL_ERROR, http.StatusInternalServerError, host, request)
 }
 
 // -----------------------------------------------------------------------------
@@ -435,7 +433,7 @@ func logRequest(proto, status int, host string, request *http.Request) {
 	} else {
 		ip = request.RemoteAddr[0:splitPoint]
 	}
-	logging.Info("ls", proto, status, request.Method, host, request.RawURL,
+	logging.InfoData("ls", proto, status, request.Method, host, request.RawURL,
 		ip, request.UserAgent, request.Referer)
 }
 
@@ -443,10 +441,14 @@ func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
 	items := record.Items
 	itemLength := len(items)
 	if itemLength > 1 {
-		switch items[0].(type) {
+		identifier := items[0]
+		switch identifier.(type) {
 		case string:
-			if items[0].(string) == "ls" {
-				return true, items[1 : itemLength-2]
+			if identifier.(string) == "ls" {
+				return true, items[2 : itemLength-2]
+			}
+			if identifier.(string) == "m" {
+				return true, items[1:itemLength]
 			}
 		}
 	}
@@ -946,7 +948,12 @@ func main() {
 		logging.AddConsoleFilter(filterRequestLog)
 	}
 
-	_, err = logging.AddFileLogger("live-server", logPath, rotate)
+	_, err = logging.AddFileLogger("live-server", logPath, rotate, logging.InfoLog)
+	if err != nil {
+		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
+	}
+
+	_, err = logging.AddFileLogger("error", logPath, rotate, logging.ErrorLog)
 	if err != nil {
 		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
 	}
@@ -955,7 +962,7 @@ func main() {
 
 	// Setup the live support as long as it hasn't been disabled.
 	if !*disableLive {
-		go xLiveHandler()
+		go handleLiveMessages()
 		_ = *livequeryHost
 		_ = *livequeryPort
 		acceptorKey, err := ioutil.ReadFile(joinPath(instanceDirectory, *acceptorKeyPath))
