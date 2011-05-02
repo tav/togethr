@@ -156,18 +156,41 @@ func (redirector *Redirector) ServeHTTP(conn http.ResponseWriter, req *http.Requ
 
 type Frontend struct {
 	cometPrefix     string
+	liveMode        bool
 	maintenanceMode bool
-	publicHost      string
 	redirectHTML    []byte
 	redirectURL     string
-	liveMode        bool
 	staticCache     string
 	staticFiles     map[string]*StaticFile
 	staticMaxAge    int64
 	upstreamAddr    string
 	upstreamHost    string
 	upstreamTLS     bool
+	validAddress    string
+	validWildcard   bool
 	websocketPrefix string
+}
+
+// The ``isValidHost`` method validates a request Host against any specified
+// valid address/wildcard.
+func (frontend *Frontend) isValidHost(host string) (valid bool) {
+	if frontend.validAddress == "" {
+		return true
+	}
+	if frontend.validWildcard {
+		splitHost := strings.Split(host, ".", 2)
+		if len(splitHost) != 2 {
+			return
+		}
+		if splitHost[1] == frontend.validAddress {
+			return true
+		}
+		return
+	}
+	if host == frontend.validAddress {
+		return true
+	}
+	return
 }
 
 func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request) {
@@ -176,7 +199,8 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	// Redirect all requests to the "official" public host if the Host header
 	// doesn't match.
-	if originalHost != frontend.publicHost {
+	if !frontend.isValidHost(originalHost) {
+		fmt.Printf("\nINVALID: %s\n", originalHost)
 		conn.Header().Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
@@ -444,10 +468,10 @@ func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
 		identifier := items[0]
 		switch identifier.(type) {
 		case string:
-			if identifier.(string) == "ls" {
+			switch identifier.(string) {
+			case "ls":
 				return true, items[2 : itemLength-2]
-			}
-			if identifier.(string) == "m" {
+			case "m":
 				return true, items[1:itemLength]
 			}
 		}
@@ -551,7 +575,7 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 
 // The ``initFrontend`` utility function abstracts away the various checks and
 // steps involved in setting up and running a new HTTPS Frontend.
-func initFrontend(status, host string, port int, public, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticCache string, staticFiles map[string]*StaticFile, staticMaxAge int64) (*Frontend, string) {
+func initFrontend(status, host string, port int, publicAddress, validAddress, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticCache string, staticFiles map[string]*StaticFile, staticMaxAge int64) *Frontend {
 
 	var err os.Error
 
@@ -581,18 +605,7 @@ func initFrontend(status, host string, port int, public, cert, key, cometPrefix,
 			status, err)
 	}
 
-	// If ``--official-host`` hasn't been specified, generate it from the given
-	// frontend host and port values -- assuming ``localhost`` for a blank host.
-	if public == "" {
-		if host == "" {
-			public = fmt.Sprintf("localhost:%d", port)
-		} else {
-			public = fmt.Sprintf("%s:%d", host, port)
-		}
-	}
-
-	// Instantiate the associated variables and listeners for the HTTPS Frontend
-	// and HTTP Redirector.
+	// Instantiate the associated variables and listener for the HTTPS Frontend.
 	upstreamAddr := fmt.Sprintf("%s:%d", upstreamHost, upstreamPort)
 	frontendAddr := fmt.Sprintf("%s:%d", host, port)
 	frontendConn, err := net.Listen("tcp", frontendAddr)
@@ -601,23 +614,33 @@ func initFrontend(status, host string, port int, public, cert, key, cometPrefix,
 	}
 
 	frontendListener := tls.NewListener(frontendConn, tlsConfig)
-	frontendURL := "https://" + public
-	redirectHTML := []byte(fmt.Sprintf(redirectHTML, frontendURL))
+
+	// Compute the variables related to detecting valid hosts.
+	var validWildcard bool
+	if strings.HasPrefix(validAddress, "*.") {
+		validAddress = validAddress[2:]
+		validWildcard = true
+	}
+
+	// Compute the variables related to redirects.
+	redirectURL := "https://" + publicAddress
+	redirectHTML := []byte(fmt.Sprintf(redirectHTML, redirectURL))
 
 	// Instantiate a ``Frontend`` object for use by the HTTPS Frontend.
 	frontend := &Frontend{
 		cometPrefix:     cometPrefix,
 		liveMode:        liveMode,
 		maintenanceMode: maintenanceMode,
-		publicHost:      public,
 		redirectHTML:    redirectHTML,
-		redirectURL:     frontendURL,
+		redirectURL:     redirectURL,
 		staticCache:     staticCache,
 		staticFiles:     staticFiles,
 		staticMaxAge:    staticMaxAge,
 		upstreamAddr:    upstreamAddr,
 		upstreamHost:    upstreamHost,
 		upstreamTLS:     upstreamTLS,
+		validAddress:    validAddress,
+		validWildcard:   validWildcard,
 		websocketPrefix: websocketPrefix,
 	}
 
@@ -629,9 +652,16 @@ func initFrontend(status, host string, port int, public, cert, key, cometPrefix,
 		}
 	}()
 
+	var frontendURL string
+	if host == "" {
+		frontendURL = fmt.Sprintf("https://localhost:%d", port)
+	} else {
+		frontendURL = fmt.Sprintf("https://%s:%d", host, port)
+	}
+
 	fmt.Printf("* HTTPS Frontend %s running on %s\n", status, frontendURL)
 
-	return frontend, frontendURL
+	return frontend
 
 }
 
@@ -676,8 +706,11 @@ func main() {
 	frontendPort := opts.IntConfig("frontend-port", 9040,
 		"the base port for the HTTPS Frontends [9040]")
 
-	primaryHost := opts.StringConfig("primary-host", "",
-		"limit the primary HTTPS Frontend to the specified host")
+	publicAddress := opts.StringConfig("public-address", "",
+		"the official public address for the HTTPS Frontends")
+
+	primaryHosts := opts.StringConfig("primary-hosts", "",
+		"limit the primary HTTPS Frontend to the specified host pattern")
 
 	primaryCert := opts.StringConfig("primary-cert", "cert/primary.cert",
 		"the path to the primary host's TLS certificate [cert/primary.cert]")
@@ -685,8 +718,11 @@ func main() {
 	primaryKey := opts.StringConfig("primary-key", "cert/primary.key",
 		"the path to the primary host's TLS key [cert/primary.key]")
 
-	secondaryHost := opts.StringConfig("secondary-host", "",
-		"limit the secondary HTTPS Frontend to the specified host")
+	noSecondary := opts.BoolConfig("no-secondary", false,
+		"disable the secondary HTTPS Frontend [false]")
+
+	secondaryHosts := opts.StringConfig("secondary-hosts", "",
+		"limit the secondary HTTPS Frontend to the specified host pattern")
 
 	secondaryCert := opts.StringConfig("secondary-cert", "cert/secondary.cert",
 		"the path to the secondary host's TLS certificate [cert/secondary.cert]")
@@ -701,7 +737,7 @@ func main() {
 		"the path to the log directory [log]")
 
 	runDirectory := opts.StringConfig("run-dir", "run",
-		"the path to the run directory to store pid files, etc. [run]")
+		"the path to the run directory to store locks, pid files, etc. [run]")
 
 	staticDirectory := opts.StringConfig("static-dir", "www",
 		"the path to the static files directory [www]")
@@ -709,8 +745,8 @@ func main() {
 	staticMaxAge := opts.IntConfig("static-max-age", 86400,
 		"max-age cache header value when serving the static files [86400]")
 
-	disableLive := opts.BoolConfig("disable-live", false,
-		"disable the LiveQuery node and secondary HTTPS Frontend [false]")
+	noLivequery := opts.BoolConfig("no-livequery", false,
+		"disable the LiveQuery node and WebSocket/Comet support [false]")
 
 	websocketPrefix := opts.StringConfig("websocket-prefix", "/.ws/",
 		"URL path prefix for WebSocket requests [/.ws/]")
@@ -725,7 +761,7 @@ func main() {
 		"the port (both UDP and TCP) to bind the LiveQuery node to [9050]")
 
 	cookieKeyPath := opts.StringConfig("cookie-key", "cert/cookie.key",
-		"the path to the file containing key used to sign cookies [cert/cookie.key]")
+		"the path to the file containing the key used to sign cookies [cert/cookie.key]")
 
 	acceptors := opts.StringConfig("acceptor-nodes", "localhost:9060",
 		"comma-separated addresses of Acceptor nodes [localhost:9060]")
@@ -961,7 +997,7 @@ func main() {
 	var liveMode bool
 
 	// Setup the live support as long as it hasn't been disabled.
-	if !*disableLive {
+	if !*noLivequery {
 		go handleLiveMessages()
 		_ = *livequeryHost
 		_ = *livequeryPort
@@ -1012,21 +1048,32 @@ func main() {
 	// Let the user know how many CPUs we're currently running on.
 	fmt.Printf("Running live-server with %d CPUs:\n", runtime.CPUCount)
 
-	// Setup and run the primary HTTPS Frontend.
-	primary, primaryURL := initFrontend("primary", *frontendHost, *frontendPort,
-		*primaryHost, *primaryCert, *primaryKey, "", "", instanceDirectory,
-		*upstreamHost, *upstreamPort, *upstreamTLS, *maintenanceMode, false,
-		staticCache, staticFiles, staticMaxAge64)
-	frontends = append(frontends, primary)
+	// If ``--public-address`` hasn't been specified, generate it from the given
+	// frontend host and base port values -- assuming ``localhost`` for a blank
+	// host.
+	publicAddr := *publicAddress
+	if publicAddr == "" {
+		if *frontendHost == "" {
+			publicAddr = fmt.Sprintf("localhost:%d", *frontendPort)
+		} else {
+			publicAddr = fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
+		}
+	}
 
-	// Setup and run the secondary HTTPS Frontend if live mode is enabled.
-	if liveMode {
-		secondary, _ := initFrontend("secondary", *frontendHost, *frontendPort+1,
-			*secondaryHost, *secondaryCert, *secondaryKey, *cometPrefix,
-			*websocketPrefix, instanceDirectory, *upstreamHost, *upstreamPort,
-			*upstreamTLS, *maintenanceMode, true, staticCache, staticFiles,
-			staticMaxAge64)
-		frontends = append(frontends, secondary)
+	// Setup and run the primary HTTPS Frontend.
+	frontends = append(frontends, initFrontend("primary", *frontendHost,
+		*frontendPort, publicAddr, *primaryHosts, *primaryCert, *primaryKey,
+		*cometPrefix, *websocketPrefix, instanceDirectory, *upstreamHost,
+		*upstreamPort, *upstreamTLS, *maintenanceMode, liveMode, staticCache,
+		staticFiles, staticMaxAge64))
+
+	// Setup and run the secondary HTTPS Frontend.
+	if !*noSecondary {
+		frontends = append(frontends, initFrontend("secondary", *frontendHost,
+			*frontendPort+1, publicAddr, *secondaryHosts, *secondaryCert,
+			*secondaryKey, *cometPrefix, *websocketPrefix, instanceDirectory,
+			*upstreamHost, *upstreamPort, *upstreamTLS, *maintenanceMode,
+			liveMode, staticCache, staticFiles, staticMaxAge64))
 	}
 
 	// Enter a wait loop if the HTTP Redirector has been disabled.
@@ -1041,7 +1088,7 @@ func main() {
 	}
 
 	if *redirectURL == "" {
-		*redirectURL = primaryURL
+		*redirectURL = "https://" + publicAddr
 	}
 
 	httpAddr := fmt.Sprintf("%s:%d", *httpHost, *httpPort)
