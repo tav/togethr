@@ -64,6 +64,8 @@ const (
 )
 
 var (
+	acceptorKey    []byte
+	cookieKey      []byte
 	debugMode      bool
 	error500       []byte
 	error502       []byte
@@ -100,48 +102,146 @@ func handleLiveMessages() {
 }
 
 // -----------------------------------------------------------------------------
+// PubSub Data Types
+// -----------------------------------------------------------------------------
+
+var subscriptions = make(map[string][]*Sub)
+
+type Sub struct {
+	c int
+	r int64
+	t int64
+}
+
+type RefReq struct {
+	c chan int64
+	s string
+	t int64
+}
+
+type RefInfo struct {
+	s string
+	t int64
+}
+
+// -----------------------------------------------------------------------------
+// Session Query Reference Handlers
+// -----------------------------------------------------------------------------
+
+var refChannel = make(chan *RefReq, 100)
+var refMap = make(map[string]int64)
+var refInfoMap = make(map[int64]*RefInfo)
+
+func allocateRefs() {
+	var ref int64
+	for req := range refChannel {
+		s := req.s
+		_s, found := refMap[s]
+		if found {
+			req.c <- _s
+		} else {
+			ref += 1
+			refMap[s] = ref
+			refInfoMap[ref] = &RefInfo{s: s, t: req.t}
+			req.c <- ref
+		}
+	}
+}
+
+// -----------------------------------------------------------------------------
 // PubSub Payload Handlers
 // -----------------------------------------------------------------------------
 
-// The publish message is of the format:
-//   [<key>, ...]
+// The publish message is of the format::
+//
+//     <item-id> [<key>, ...]
+//
 func publish(message []byte) {
 	buffer := bytes.NewBuffer(message)
 	decoder := &argo.Decoder{buffer}
-	keys, err := decoder.ReadStringArray()
+	itemID, err := decoder.ReadString()
 	if err != nil {
-		logging.Error("Error decoding X-Live publish message %q: %s", message, err)
+		logging.Error("Error decoding X-Live Publish ItemID %q: %s", message, err)
 		return
 	}
-	_ = keys
+	if itemID == "" {
+		return
+	}
+	keys, err := decoder.ReadStringArray()
+	if err != nil {
+		logging.Error("Error decoding X-Live Publish Keys %q: %s", message, err)
+		return
+	}
+	count := len(keys)
+	if count == 0 {
+		return
+	}
+	_ = itemID
 }
 
-// The subscribe message is of the format:
-//   <sqid> [<key>, ...] [<key>, ...]
+// The subscribe message is of the format::
+//
+//     <sqid> [<key>, ...] [<key>, ...]
+//
 func subscribe(message []byte) {
 	buffer := bytes.NewBuffer(message)
 	decoder := &argo.Decoder{buffer}
 	sqid, err := decoder.ReadString()
 	if err != nil {
-		logging.Error("Error decoding X-Live subscribe message %q: %s", message, err)
+		logging.Error("Error decoding X-Live Subscribe SQID %q: %s", message, err)
+		return
+	}
+	if sqid == "" {
 		return
 	}
 	keys1, err := decoder.ReadStringArray()
 	if err != nil {
-		logging.Error("Error decoding X-Live subscribe message %q: %s", message, err)
+		logging.Error("Error decoding X-Live Subscribe Keys-1 %q: %s", message, err)
 		return
 	}
 	var keys2 []string
 	if buffer.Len() > 0 {
 		keys2, err = decoder.ReadStringArray()
 		if err != nil {
-			logging.Error("Error decoding X-Live subscribe message %q: %s", message, err)
+			logging.Error("Error decoding X-Live Subscribe Keys-2 %q: %s", message, err)
 			return
 		}
 	}
-	_ = sqid
-	_ = keys1
-	_ = keys2
+	count := len(keys1) + len(keys2)
+	if count == 0 {
+		return
+	}
+	now := time.Seconds()
+	resp := make(chan int64)
+	req := &RefReq{
+		c: resp,
+		s: sqid,
+		t: now,
+	}
+	refChannel <- req
+	ref := <-resp
+	close(resp)
+	subscribeKeys(keys1, count, ref, now)
+	subscribeKeys(keys2, count, ref, now)
+}
+
+func subscribeKeys(keys []string, count int, ref int64, now int64) {
+	for _, key := range keys {
+		sub := &Sub{
+			c: count,
+			r: ref,
+			t: now,
+		}
+		subs, found := subscriptions[key]
+		if found {
+			subscriptions[key] = append(subs, sub)
+		} else {
+			subscriptions[key] = []*Sub{sub}
+		}
+	}
+}
+
+func notifyListeners() {
 }
 
 // -----------------------------------------------------------------------------
@@ -260,7 +360,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	// Handle requests for any files exposed within the static directory.
 	if staticFile, ok := frontend.staticFiles[reqPath]; ok {
-		expires := time.SecondsToUTC(time.UTC().Seconds() + frontend.staticMaxAge)
+		expires := time.SecondsToUTC(time.Seconds() + frontend.staticMaxAge)
 		headers := conn.Header()
 		headers.Set("Expires", expires.Format(http.TimeFormat))
 		headers.Set("Cache-Control", frontend.staticCache)
@@ -1044,23 +1144,22 @@ func main() {
 
 	// Setup the live support as long as it hasn't been disabled.
 	if !*noLivequery {
+		go allocateRefs()
 		go handleLiveMessages()
+		acceptorKey, err = ioutil.ReadFile(joinPath(instanceDirectory, *acceptorKeyPath))
+		if err != nil {
+			runtime.StandardError(err)
+		}
+		cookieKey, err = ioutil.ReadFile(joinPath(instanceDirectory, *cookieKeyPath))
+		if err != nil {
+			runtime.StandardError(err)
+		}
+		liveMode = true
 		_ = *livequeryHost
 		_ = *livequeryPort
 		_ = *livequeryExpiry
-		acceptorKey, err := ioutil.ReadFile(joinPath(instanceDirectory, *acceptorKeyPath))
-		if err != nil {
-			runtime.StandardError(err)
-		}
-		cookieKey, err := ioutil.ReadFile(joinPath(instanceDirectory, *cookieKeyPath))
-		if err != nil {
-			runtime.StandardError(err)
-		}
-		_ = acceptorKey
-		_ = cookieKey
-		_ = cookieName
-		_ = leaseExpiry
-		liveMode = true
+		_ = *cookieName
+		_ = *leaseExpiry
 	}
 
 	// Create a container for the Frontend instances.
