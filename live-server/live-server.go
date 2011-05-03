@@ -7,6 +7,7 @@
 package main
 
 import (
+	"amp/argo"
 	"amp/logging"
 	"amp/optparse"
 	"amp/runtime"
@@ -36,12 +37,16 @@ import (
 const (
 	contentType      = "Content-Type"
 	contentLength    = "Content-Length"
-	nodeIDLength     = 32
 	redirectHTML     = `Please <a href="%s">click here if your browser doesn't redirect</a> automatically.`
 	redirectURL      = "%s%s"
 	redirectURLQuery = "%s%s?%s"
 	textPlain        = "text/plain"
 	textHTML         = "text/html; charset=utf-8"
+)
+
+const (
+	nodeIDLength = 32
+	selfRef      = "\xff"
 )
 
 // Constants for the different log event types.
@@ -98,12 +103,45 @@ func handleLiveMessages() {
 // PubSub Payload Handlers
 // -----------------------------------------------------------------------------
 
+// The publish message is of the format:
+//   [<key>, ...]
 func publish(message []byte) {
-	fmt.Println("GOT PUB")
+	buffer := bytes.NewBuffer(message)
+	decoder := &argo.Decoder{buffer}
+	keys, err := decoder.ReadStringArray()
+	if err != nil {
+		logging.Error("Error decoding X-Live publish message %q: %s", message, err)
+		return
+	}
+	_ = keys
 }
 
+// The subscribe message is of the format:
+//   <sqid> [<key>, ...] [<key>, ...]
 func subscribe(message []byte) {
-	fmt.Println("GOT SUB")
+	buffer := bytes.NewBuffer(message)
+	decoder := &argo.Decoder{buffer}
+	sqid, err := decoder.ReadString()
+	if err != nil {
+		logging.Error("Error decoding X-Live subscribe message %q: %s", message, err)
+		return
+	}
+	keys1, err := decoder.ReadStringArray()
+	if err != nil {
+		logging.Error("Error decoding X-Live subscribe message %q: %s", message, err)
+		return
+	}
+	var keys2 []string
+	if buffer.Len() > 0 {
+		keys2, err = decoder.ReadStringArray()
+		if err != nil {
+			logging.Error("Error decoding X-Live subscribe message %q: %s", message, err)
+			return
+		}
+	}
+	_ = sqid
+	_ = keys1
+	_ = keys2
 }
 
 // -----------------------------------------------------------------------------
@@ -200,7 +238,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Redirect all requests to the "official" public host if the Host header
 	// doesn't match.
 	if !frontend.isValidHost(originalHost) {
-		fmt.Printf("\nINVALID: %s\n", originalHost)
 		conn.Header().Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
@@ -760,8 +797,14 @@ func main() {
 	livequeryPort := opts.IntConfig("livequery-port", 9050,
 		"the port (both UDP and TCP) to bind the LiveQuery node to [9050]")
 
+	livequeryExpiry := opts.IntConfig("livequery-expiry", 40,
+		"maximum number of seconds a LiveQuery subscription is valid [40]")
+
 	cookieKeyPath := opts.StringConfig("cookie-key", "cert/cookie.key",
 		"the path to the file containing the key used to sign cookies [cert/cookie.key]")
+
+	cookieName := opts.StringConfig("cookie-name", "user",
+		"the property name of the cookie containing the user id [user]")
 
 	acceptors := opts.StringConfig("acceptor-nodes", "localhost:9060",
 		"comma-separated addresses of Acceptor nodes [localhost:9060]")
@@ -774,6 +817,9 @@ func main() {
 
 	acceptorIndex := opts.IntConfig("acceptor-index", 0,
 		"this node's index in the Acceptor nodes address list [0]")
+
+	leaseExpiry := opts.IntConfig("lease-expiry", 7,
+		"maximum number of seconds a lease from an Acceptor node is valid [7]")
 
 	noRedirect := opts.BoolConfig("no-redirect", false,
 		"disable the HTTP Redirector [false]")
@@ -1001,6 +1047,7 @@ func main() {
 		go handleLiveMessages()
 		_ = *livequeryHost
 		_ = *livequeryPort
+		_ = *livequeryExpiry
 		acceptorKey, err := ioutil.ReadFile(joinPath(instanceDirectory, *acceptorKeyPath))
 		if err != nil {
 			runtime.StandardError(err)
@@ -1011,6 +1058,8 @@ func main() {
 		}
 		_ = acceptorKey
 		_ = cookieKey
+		_ = cookieName
+		_ = leaseExpiry
 		liveMode = true
 	}
 
