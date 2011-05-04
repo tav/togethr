@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"websocket"
 )
@@ -106,13 +107,42 @@ func handleLiveMessages() {
 // PubSub Data Types
 // -----------------------------------------------------------------------------
 
-var subscriptions = make(map[string][]*Subscription)
+var pubsub = NewPubSub()
 var sqidMap = refmap.New()
 
 type Subscription struct {
 	seen  int64
 	sqid  uint64
 	tally int
+}
+
+type PubSub struct {
+	mutex sync.RWMutex
+	subs  map[string][]*Subscription
+}
+
+func (pubsub *PubSub) Subscribe(keys []string, tally int, ref uint64, now int64) {
+	data := pubsub.subs
+	pubsub.mutex.Lock()
+	for _, key := range keys {
+		sub := &Subscription{
+			seen:  now,
+			sqid:  ref,
+			tally: tally,
+		}
+		subs, found := data[key]
+		if found {
+			data[key] = append(subs, sub)
+		} else {
+			data[key] = []*Subscription{sub}
+		}
+	}
+	pubsub.mutex.Unlock()
+}
+
+func NewPubSub() *PubSub {
+	subs := make(map[string][]*Subscription)
+	return &PubSub{subs: subs}
 }
 
 // -----------------------------------------------------------------------------
@@ -187,27 +217,8 @@ func subscribe(message []byte) {
 	if keys2Len > 0 {
 		tally += 1
 	}
-	subscribeKeys(keys1, tally, ref, now)
-	subscribeKeys(keys2, tally, ref, now)
-}
-
-func subscribeKeys(keys []string, tally int, ref uint64, now int64) {
-	for _, key := range keys {
-		sub := &Subscription{
-			seen:  now,
-			sqid:  ref,
-			tally: tally,
-		}
-		subs, found := subscriptions[key]
-		if found {
-			subscriptions[key] = append(subs, sub)
-		} else {
-			subscriptions[key] = []*Subscription{sub}
-		}
-	}
-}
-
-func notifyListeners() {
+	pubsub.Subscribe(keys1, tally, ref, now)
+	pubsub.Subscribe(keys2, tally, ref, now)
 }
 
 // -----------------------------------------------------------------------------
