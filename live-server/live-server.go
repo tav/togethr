@@ -8,9 +8,9 @@ package main
 
 import (
 	"amp/argo"
+	"amp/livequery"
 	"amp/logging"
 	"amp/optparse"
-	"amp/refmap"
 	"amp/runtime"
 	"amp/tlsconf"
 	"bufio"
@@ -31,7 +31,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"websocket"
 )
@@ -104,50 +103,10 @@ func handleLiveMessages() {
 }
 
 // -----------------------------------------------------------------------------
-// PubSub Data Types
-// -----------------------------------------------------------------------------
-
-var pubsub = NewPubSub()
-var sqidMap = refmap.New()
-
-type Subscription struct {
-	seen  int64
-	sqid  uint64
-	tally int
-}
-
-type PubSub struct {
-	mutex sync.RWMutex
-	subs  map[string][]*Subscription
-}
-
-func (pubsub *PubSub) Subscribe(keys []string, tally int, ref uint64, now int64) {
-	data := pubsub.subs
-	pubsub.mutex.Lock()
-	for _, key := range keys {
-		sub := &Subscription{
-			seen:  now,
-			sqid:  ref,
-			tally: tally,
-		}
-		subs, found := data[key]
-		if found {
-			data[key] = append(subs, sub)
-		} else {
-			data[key] = []*Subscription{sub}
-		}
-	}
-	pubsub.mutex.Unlock()
-}
-
-func NewPubSub() *PubSub {
-	subs := make(map[string][]*Subscription)
-	return &PubSub{subs: subs}
-}
-
-// -----------------------------------------------------------------------------
 // PubSub Payload Handlers
 // -----------------------------------------------------------------------------
+
+var pubsub = livequery.New()
 
 // The publish message is of the format::
 //
@@ -169,11 +128,7 @@ func publish(message []byte) {
 		logging.Error("Error decoding X-Live Publish Keys %q: %s", message, err)
 		return
 	}
-	count := len(keys)
-	if count == 0 {
-		return
-	}
-	_ = itemID
+	pubsub.Publish(itemID, keys)
 }
 
 // The subscribe message is of the format::
@@ -206,19 +161,7 @@ func subscribe(message []byte) {
 			return
 		}
 	}
-	tally := len(keys1)
-	keys2Len := len(keys2)
-	refCount := tally + keys2Len
-	if refCount == 0 {
-		return
-	}
-	now := time.Seconds()
-	ref := sqidMap.Incref(sqid, refCount)
-	if keys2Len > 0 {
-		tally += 1
-	}
-	pubsub.Subscribe(keys1, tally, ref, now)
-	pubsub.Subscribe(keys2, tally, ref, now)
+	pubsub.Subscribe(sqid, keys1, keys2)
 }
 
 // -----------------------------------------------------------------------------
