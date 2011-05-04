@@ -10,6 +10,7 @@ import (
 	"amp/argo"
 	"amp/logging"
 	"amp/optparse"
+	"amp/refmap"
 	"amp/runtime"
 	"amp/tlsconf"
 	"bufio"
@@ -105,47 +106,13 @@ func handleLiveMessages() {
 // PubSub Data Types
 // -----------------------------------------------------------------------------
 
-var subscriptions = make(map[string][]*Sub)
+var subscriptions = make(map[string][]*Subscription)
+var sqidMap = refmap.New()
 
-type Sub struct {
-	c int
-	r int64
-	t int64
-}
-
-type RefReq struct {
-	c chan int64
-	s string
-	t int64
-}
-
-type RefInfo struct {
-	s string
-	t int64
-}
-
-// -----------------------------------------------------------------------------
-// Session Query Reference Handlers
-// -----------------------------------------------------------------------------
-
-var refChannel = make(chan *RefReq, 100)
-var refMap = make(map[string]int64)
-var refInfoMap = make(map[int64]*RefInfo)
-
-func allocateRefs() {
-	var ref int64
-	for req := range refChannel {
-		s := req.s
-		_s, found := refMap[s]
-		if found {
-			req.c <- _s
-		} else {
-			ref += 1
-			refMap[s] = ref
-			refInfoMap[ref] = &RefInfo{s: s, t: req.t}
-			req.c <- ref
-		}
-	}
+type Subscription struct {
+	seen  int64
+	sqid  uint64
+	tally int
 }
 
 // -----------------------------------------------------------------------------
@@ -183,6 +150,8 @@ func publish(message []byte) {
 //
 //     <sqid> [<key>, ...] [<key>, ...]
 //
+// The two sets of keys are assumed to be disjoint sets, i.e. they have no
+// elements in common.
 func subscribe(message []byte) {
 	buffer := bytes.NewBuffer(message)
 	decoder := &argo.Decoder{buffer}
@@ -207,36 +176,33 @@ func subscribe(message []byte) {
 			return
 		}
 	}
-	count := len(keys1) + len(keys2)
-	if count == 0 {
+	tally := len(keys1)
+	keys2Len := len(keys2)
+	refCount := tally + keys2Len
+	if refCount == 0 {
 		return
 	}
 	now := time.Seconds()
-	resp := make(chan int64)
-	req := &RefReq{
-		c: resp,
-		s: sqid,
-		t: now,
+	ref := sqidMap.Incref(sqid, refCount)
+	if keys2Len > 0 {
+		tally += 1
 	}
-	refChannel <- req
-	ref := <-resp
-	close(resp)
-	subscribeKeys(keys1, count, ref, now)
-	subscribeKeys(keys2, count, ref, now)
+	subscribeKeys(keys1, tally, ref, now)
+	subscribeKeys(keys2, tally, ref, now)
 }
 
-func subscribeKeys(keys []string, count int, ref int64, now int64) {
+func subscribeKeys(keys []string, tally int, ref uint64, now int64) {
 	for _, key := range keys {
-		sub := &Sub{
-			c: count,
-			r: ref,
-			t: now,
+		sub := &Subscription{
+			seen:  now,
+			sqid:  ref,
+			tally: tally,
 		}
 		subs, found := subscriptions[key]
 		if found {
 			subscriptions[key] = append(subs, sub)
 		} else {
-			subscriptions[key] = []*Sub{sub}
+			subscriptions[key] = []*Subscription{sub}
 		}
 	}
 }
@@ -1144,7 +1110,6 @@ func main() {
 
 	// Setup the live support as long as it hasn't been disabled.
 	if !*noLivequery {
-		go allocateRefs()
 		go handleLiveMessages()
 		acceptorKey, err = ioutil.ReadFile(joinPath(instanceDirectory, *acceptorKeyPath))
 		if err != nil {
