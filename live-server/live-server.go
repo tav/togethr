@@ -24,6 +24,7 @@ import (
 	"http"
 	"io"
 	"io/ioutil"
+	"json"
 	"mime"
 	"net"
 	"os"
@@ -36,6 +37,7 @@ import (
 )
 
 const (
+	applicationJSON  = "application/json"
 	contentType      = "Content-Type"
 	contentLength    = "Content-Length"
 	redirectHTML     = `Please <a href="%s">click here if your browser doesn't redirect</a> automatically.`
@@ -68,9 +70,11 @@ var (
 	acceptorKey    []byte
 	cookieKey      []byte
 	debugMode      bool
+	error400       []byte
 	error500       []byte
 	error502       []byte
 	error503       []byte
+	error400Length string
 	error500Length string
 	error502Length string
 	error503Length string
@@ -87,6 +91,7 @@ var (
 // -----------------------------------------------------------------------------
 
 var liveChannel = make(chan []byte, 100)
+var livequeryTimeout int64
 
 func handleLiveMessages() {
 	for message := range liveChannel {
@@ -117,7 +122,7 @@ func publish(message []byte) {
 	decoder := &argo.Decoder{buffer}
 	itemID, err := decoder.ReadString()
 	if err != nil {
-		logging.Error("Error decoding X-Live Publish ItemID %q: %s", message, err)
+		logging.Error("Error decoding X-Live Publish ItemID %s %s", message, err)
 		return
 	}
 	if itemID == "" {
@@ -125,7 +130,7 @@ func publish(message []byte) {
 	}
 	keys, err := decoder.ReadStringArray()
 	if err != nil {
-		logging.Error("Error decoding X-Live Publish Keys %q: %s", message, err)
+		logging.Error("Error decoding X-Live Publish Keys %s %s", message, err)
 		return
 	}
 	pubsub.Publish(itemID, keys)
@@ -142,7 +147,7 @@ func subscribe(message []byte) {
 	decoder := &argo.Decoder{buffer}
 	sqid, err := decoder.ReadString()
 	if err != nil {
-		logging.Error("Error decoding X-Live Subscribe SQID %q: %s", message, err)
+		logging.Error("Error decoding X-Live Subscribe SQID %s %s", message, err)
 		return
 	}
 	if sqid == "" {
@@ -150,14 +155,14 @@ func subscribe(message []byte) {
 	}
 	keys1, err := decoder.ReadStringArray()
 	if err != nil {
-		logging.Error("Error decoding X-Live Subscribe Keys-1 %q: %s", message, err)
+		logging.Error("Error decoding X-Live Subscribe Keys-1 %s %s", message, err)
 		return
 	}
 	var keys2 []string
 	if buffer.Len() > 0 {
 		keys2, err = decoder.ReadStringArray()
 		if err != nil {
-			logging.Error("Error decoding X-Live Subscribe Keys-2 %q: %s", message, err)
+			logging.Error("Error decoding X-Live Subscribe Keys-2 %s %s", message, err)
 			return
 		}
 	}
@@ -308,7 +313,25 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 		// Handle long-polling Comet requests.
 		if strings.HasPrefix(reqPath, frontend.cometPrefix) {
-			logRequest(HTTPS_COMET, http.StatusOK, originalHost, req)
+			query, err := http.ParseQuery(req.URL.RawQuery)
+			if err != nil {
+				logging.Error("Error parsing Comet query string %q: %s",
+					req.URL.RawQuery, err)
+				serveError400(conn, originalHost, req)
+				return
+			}
+			queryReq, found := query["q"]
+			if !found {
+				serveError400(conn, originalHost, req)
+				return
+			}
+			response, status := getLiveItems(queryReq[0])
+			headers := conn.Header()
+			headers.Set(contentType, applicationJSON)
+			headers.Set(contentLength, fmt.Sprintf("%d", len(response)))
+			conn.WriteHeader(status)
+			conn.Write(response)
+			logRequest(HTTPS_COMET, status, originalHost, req)
 			return
 		}
 
@@ -470,13 +493,13 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 }
 
-func serveError502(conn http.ResponseWriter, host string, request *http.Request) {
+func serveError400(conn http.ResponseWriter, host string, request *http.Request) {
 	headers := conn.Header()
 	headers.Set(contentType, textHTML)
-	headers.Set(contentLength, error502Length)
-	conn.WriteHeader(http.StatusBadGateway)
-	conn.Write(error502)
-	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
+	headers.Set(contentLength, error400Length)
+	conn.WriteHeader(http.StatusBadRequest)
+	conn.Write(error400)
+	logRequest(HTTPS_PROXY_ERROR, http.StatusBadRequest, host, request)
 }
 
 func serveError500(conn http.ResponseWriter, host string, request *http.Request) {
@@ -488,18 +511,86 @@ func serveError500(conn http.ResponseWriter, host string, request *http.Request)
 	logRequest(HTTPS_INTERNAL_ERROR, http.StatusInternalServerError, host, request)
 }
 
+func serveError502(conn http.ResponseWriter, host string, request *http.Request) {
+	headers := conn.Header()
+	headers.Set(contentType, textHTML)
+	headers.Set(contentLength, error502Length)
+	conn.WriteHeader(http.StatusBadGateway)
+	conn.Write(error502)
+	logRequest(HTTPS_PROXY_ERROR, http.StatusBadGateway, host, request)
+}
+
 // -----------------------------------------------------------------------------
 // WebSocket Handler
 // -----------------------------------------------------------------------------
 
 func handleWebSocket(conn *websocket.Conn) {
+	respStatus := http.StatusOK
 	defer func() {
 		conn.Close()
-		logRequest(HTTPS_WEBSOCKET, http.StatusOK, conn.Request.Host, conn.Request)
+		logRequest(HTTPS_WEBSOCKET, respStatus, conn.Request.Host, conn.Request)
 	}()
-	if conn.Request.Header.Get("User-Agent") == "Safari" {
-		fmt.Printf("boo")
+	request := make([]byte, 1024)
+	for {
+		n, err := conn.Read(request)
+		if err != nil {
+			if debugMode {
+				logging.Error("Error reading on WebSocket: %s", err)
+			}
+			break
+		}
+		response, status := getLiveItems(string(request[:n]))
+		if status != http.StatusOK {
+			respStatus = status
+			break
+		}
+		if len(response) != 0 {
+			if _, err = conn.Write(response); err != nil {
+				break
+			}
+		}
 	}
+}
+
+// -----------------------------------------------------------------------------
+// Live Listener
+// -----------------------------------------------------------------------------
+
+func getLiveItems(request string) ([]byte, int) {
+	reqs := strings.Split(request, ",", -1)
+	if len(reqs) == 0 {
+		return nil, http.StatusBadRequest
+	}
+	sid := reqs[0] /* XXX validate sid */
+	result, refresh, ok := pubsub.Listen(sid, reqs[1:], livequeryTimeout)
+	if ok {
+		data := make(map[string]map[string][]string)
+		data["items"] = result
+		response, err := json.Marshal(data)
+		if err != nil {
+			logging.Error("ERROR encoding JSON: %s for: %v", err, data)
+			return nil, http.StatusInternalServerError
+		}
+		return response, http.StatusOK
+	}
+	refreshCount := len(refresh)
+	if refreshCount != 0 {
+		data := make(map[string][]string)
+		qids := make([]string, refreshCount)
+		i := 0
+		for qid, _ := range refresh {
+			qids[i] = qid
+			i++
+		}
+		data["refresh"] = qids
+		response, err := json.Marshal(data)
+		if err != nil {
+			logging.Error("ERROR encoding JSON: %s for: %v", err, data)
+			return nil, http.StatusInternalServerError
+		}
+		return response, http.StatusOK
+	}
+	return nil, http.StatusNotFound
 }
 
 // -----------------------------------------------------------------------------
@@ -1023,7 +1114,9 @@ func main() {
 		runtime.StandardError(err)
 	}
 
-	// Load the content for the HTTP ``502`` and ``503`` errors.
+	// Load the content for the HTTP ``400``, ``500``, ``502`` and ``503``
+	// errors.
+	error400, error400Length = getErrorInfo(errorPath, "400.html")
 	error500, error500Length = getErrorInfo(errorPath, "500.html")
 	error502, error502Length = getErrorInfo(errorPath, "502.html")
 	error503, error503Length = getErrorInfo(errorPath, "503.html")
@@ -1076,9 +1169,9 @@ func main() {
 		liveMode = true
 		_ = *livequeryHost
 		_ = *livequeryPort
-		_ = *livequeryExpiry
 		_ = *cookieName
 		_ = *leaseExpiry
+		livequeryTimeout = (int64(*livequeryExpiry) / 2) * 1000000000
 	}
 
 	// Create a container for the Frontend instances.
