@@ -678,7 +678,7 @@ def handle_http_request(
             service_name = _args[0]
             args = _args[1:]
         else:
-            service_name = 'root'
+            service_name = '/'
             args = ()
 
         if service_name not in SERVICE_REGISTRY:
@@ -1110,9 +1110,7 @@ XML_PATTERNS = (
     compile_regex(r'&[A-Za-z]+;').sub,
     # tag
     compile_regex(r'(?ms)<[^>]+>').sub,
-
     # re.compile(r'<[^<>]*>').sub,
-
     )
 
 def harvest_words(
