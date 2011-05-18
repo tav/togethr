@@ -30,8 +30,8 @@ from zipfile import ZipFile
 # SDK Version Config
 # ------------------------------------------------------------------------------
 
-SDK_VERSION = "1.4.3"
-SDK_VERSION_NAME = "1.4.3"
+SDK_VERSION = "1.5.0"
+SDK_VERSION_NAME = "1.5.0"
 
 # ------------------------------------------------------------------------------
 # Some Constants
