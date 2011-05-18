@@ -1,0 +1,11 @@
+{
+  "auth_endpoint": "https://localhost:9040/.oauth.authorize",
+  "auth_management_endpoint": "https://localhost:9040/.oauth.apps",
+  "client_management_endpoint": "https://localhost:9040/.oauth.clients",
+  "client_registration_challenge": "sha-1:20:togethr.at",
+  "client_registration_endpoint": "https://localhost:9040/.oauth.register",
+  "secure_access": true,
+  "terms_of_use": "https://localhost:9040/.docs/terms",
+  "token_endpoint": "https://localhost:9040/.oauth.token",
+  "version": "3.0.0draft-01"
+}
