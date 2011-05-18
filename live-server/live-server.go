@@ -295,6 +295,31 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			logRequest(HTTPS_STATIC, http.StatusNotModified, originalHost, req)
 			return
 		}
+		// Special case /.well-known/oauth.json?callback= requests.
+		if reqPath == "/.well-known/oauth.json" && req.URL.RawQuery != "" {
+			query, err := http.ParseQuery(req.URL.RawQuery)
+			if err != nil {
+				logging.Error("Error parsing oauth.json query string %q: %s",
+					req.URL.RawQuery, err)
+				serveError400(conn, originalHost, req)
+				return
+			}
+			if callbackList, found := query["callback"]; found {
+				callback := callbackList[0]
+				if callback != "" {
+					respLen := len(callback) + len(staticFile.content) + 2
+					headers.Set(contentType, "text/javascript")
+					headers.Set(contentLength, fmt.Sprintf("%d", respLen))
+					conn.WriteHeader(http.StatusOK)
+					conn.Write([]byte(callback))
+					conn.Write([]byte{'('})
+					conn.Write(staticFile.content)
+					conn.Write([]byte{')'})
+					logRequest(HTTPS_STATIC, http.StatusOK, originalHost, req)
+					return
+				}
+			}
+		}
 		headers.Set(contentType, staticFile.mimetype)
 		headers.Set(contentLength, staticFile.size)
 		conn.WriteHeader(http.StatusOK)
