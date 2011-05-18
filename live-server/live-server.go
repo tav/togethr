@@ -723,7 +723,7 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 
 // The ``initFrontend`` utility function abstracts away the various checks and
 // steps involved in setting up and running a new HTTPS Frontend.
-func initFrontend(status, host string, port int, publicAddress, validAddress, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticCache string, staticFiles map[string]*StaticFile, staticMaxAge int64) *Frontend {
+func initFrontend(status, host string, port int, officialHost, validAddress, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticCache string, staticFiles map[string]*StaticFile, staticMaxAge int64) *Frontend {
 
 	var err os.Error
 
@@ -771,7 +771,7 @@ func initFrontend(status, host string, port int, publicAddress, validAddress, ce
 	}
 
 	// Compute the variables related to redirects.
-	redirectURL := "https://" + publicAddress
+	redirectURL := "https://" + officialHost
 	redirectHTML := []byte(fmt.Sprintf(redirectHTML, redirectURL))
 
 	// Instantiate a ``Frontend`` object for use by the HTTPS Frontend.
@@ -854,8 +854,8 @@ func main() {
 	frontendPort := opts.IntConfig("frontend-port", 9040,
 		"the base port for the HTTPS Frontends [9040]")
 
-	publicAddress := opts.StringConfig("public-address", "",
-		"the official public address for the HTTPS Frontends")
+	officialHost := opts.StringConfig("offficial-host", "",
+		"the official public host for the HTTPS Frontends")
 
 	primaryHosts := opts.StringConfig("primary-hosts", "",
 		"limit the primary HTTPS Frontend to the specified host pattern")
@@ -1211,18 +1211,18 @@ func main() {
 	// If ``--public-address`` hasn't been specified, generate it from the given
 	// frontend host and base port values -- assuming ``localhost`` for a blank
 	// host.
-	publicAddr := *publicAddress
-	if publicAddr == "" {
+	publicHost := *officialHost
+	if publicHost == "" {
 		if *frontendHost == "" {
-			publicAddr = fmt.Sprintf("localhost:%d", *frontendPort)
+			publicHost = fmt.Sprintf("localhost:%d", *frontendPort)
 		} else {
-			publicAddr = fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
+			publicHost = fmt.Sprintf("%s:%d", *frontendHost, *frontendPort)
 		}
 	}
 
 	// Setup and run the primary HTTPS Frontend.
 	frontends = append(frontends, initFrontend("primary", *frontendHost,
-		*frontendPort, publicAddr, *primaryHosts, *primaryCert, *primaryKey,
+		*frontendPort, publicHost, *primaryHosts, *primaryCert, *primaryKey,
 		*cometPrefix, *websocketPrefix, instanceDirectory, *upstreamHost,
 		*upstreamPort, *upstreamTLS, *maintenanceMode, liveMode, staticCache,
 		staticFiles, staticMaxAge64))
@@ -1230,7 +1230,7 @@ func main() {
 	// Setup and run the secondary HTTPS Frontend.
 	if !*noSecondary {
 		frontends = append(frontends, initFrontend("secondary", *frontendHost,
-			*frontendPort+1, publicAddr, *secondaryHosts, *secondaryCert,
+			*frontendPort+1, publicHost, *secondaryHosts, *secondaryCert,
 			*secondaryKey, *cometPrefix, *websocketPrefix, instanceDirectory,
 			*upstreamHost, *upstreamPort, *upstreamTLS, *maintenanceMode,
 			liveMode, staticCache, staticFiles, staticMaxAge64))
@@ -1248,7 +1248,7 @@ func main() {
 	}
 
 	if *redirectURL == "" {
-		*redirectURL = "https://" + publicAddr
+		*redirectURL = "https://" + publicHost
 	}
 
 	httpAddr := fmt.Sprintf("%s:%d", *httpHost, *httpPort)
