@@ -375,7 +375,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	}
 
 	// Parse the response from upstream.
-	resp, err := http.ReadResponse(bufio.NewReader(upstream), req.Method)
+	resp, err := http.ReadResponse(bufio.NewReader(upstream), req)
 	if err != nil {
 		logging.Error("Error parsing response from upstream: %s", err)
 		serveError502(conn, originalHost, req)
