@@ -2,10 +2,16 @@
 # See the Ampify UNLICENSE file for details.
 
 official-host: togethr.at
-cert-file: /etc/live-server/live-server.cert
-key-file: /etc/live-server/live-server.key
-redis-conf: /etc/live-server/redis.conf
-keyspace-key: /etc/live-server/keyspace.key
+primary-hosts: togethr.at
+primary-cert: /etc/live-server/primary.cert
+primary-key: /etc/live-server/primary.key
+secondary-hosts: *.togethr.at
+secondary-cert: /etc/live-server/secondary.cert
+secondary-key: /etc/live-server/secondary.key
+error-dir: /etc/live-server/error
+static-dir: /etc/live-server/www
+cookie-key: /etc/live-server/cookie.key
+acceptor-key: /etc/live-server/acceptor.key
 enable-hsts: true
 upstream-host: togethrat.appspot.com
 upstream-port: 443
