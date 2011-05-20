@@ -3,12 +3,15 @@
 .appengine_java_sdk
 .appengine_python_sdk
 
+appengine/assets.json
+appengine/static/
+
+bin/logo.small.png
+bin/logo.png
+
 live-server/instance/log
 live-server/instance/run
 live-server/live-server
-
-scripts/logo.small.png
-scripts/logo.png
 
 # minified css/js files
 

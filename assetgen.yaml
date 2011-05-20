@@ -1,0 +1,57 @@
+# Public Domain (-) 2011 The Ampify Authors.
+# See the Ampify UNLICENSE file for details.
+
+generate:
+
+- js/base.js:
+    source:
+      - %(AMPIFY_ROOT)s/third_party/jslibs/json.js
+
+- js/app.js:
+    source:
+      - static/js/app.coffee
+    uglify:
+      - --define-from-module
+      - consts
+    profile.dev:
+      uglify:
+        - --define-from-module
+        - consts-dev
+
+- gfx/*:
+    source: static/gfx/*
+    type: binary
+
+- css/site.css:
+    source:
+      - raw: |
+          // Public Domain (-) 2011 The Ampify Authors.
+          // See the Ampify UNLICENSE file for details.
+      - static/css/site.sass
+    depends:
+      - static/css/*.sass
+      - static/gfx/*
+    bidi: true
+    embed.path.root: static
+    embed.url.base: /.static/
+
+prereqs:
+
+- static/js/consts.js:
+    source: static/js/consts.coffee
+    compressed: false
+
+- static/js/consts-dev.js:
+    source: static/js/consts-dev.coffee
+    compressed: false
+
+env:
+  NODE_PATH.prefix: static/js
+
+output.directory: appengine/static
+output.hashed: true
+output.manifest: appengine/assets.json
+
+profile.dev:
+  css.compressed: false
+  js.compressed: false
