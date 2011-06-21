@@ -28,7 +28,6 @@ import (
 	"mime"
 	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -389,7 +388,9 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	// Modify the request Host: and User-Agent: headers.
 	req.Host = frontend.upstreamHost
-	req.UserAgent = fmt.Sprintf("%s, %s, %s", req.UserAgent, clientIP, originalHost)
+	req.Header.Set(
+		"User-Agent",
+		fmt.Sprintf("%s, %s, %s", req.UserAgent(), clientIP, originalHost))
 
 	// Send the request to the upstream server.
 	err = req.Write(upstream)
@@ -631,7 +632,7 @@ func logRequest(proto, status int, host string, request *http.Request) {
 		ip = request.RemoteAddr[0:splitPoint]
 	}
 	logging.InfoData("ls", proto, status, request.Method, host, request.RawURL,
-		ip, request.UserAgent, request.Referer)
+		ip, request.UserAgent(), request.Referer())
 }
 
 func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
@@ -1222,11 +1223,11 @@ func main() {
 	}()
 
 	// Register the signal handlers for SIGUSR1 and SIGUSR2.
-	runtime.RegisterSignalHandler(signal.SIGUSR1, func() {
+	runtime.RegisterSignalHandler(os.SIGUSR1, func() {
 		maintenanceChannel <- true
 	})
 
-	runtime.RegisterSignalHandler(signal.SIGUSR2, func() {
+	runtime.RegisterSignalHandler(os.SIGUSR2, func() {
 		maintenanceChannel <- false
 	})
 
