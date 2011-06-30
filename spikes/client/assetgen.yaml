@@ -1,0 +1,32 @@
+# Public Domain (-) 2011 The Ampify Authors.
+# See the Ampify UNLICENSE file for details.
+
+generate:
+- js/base.js:
+    source:
+      - js/src/underscore-1.1.6.js
+      - js/src/jquery-1.6.1.js
+      - js/src/jquery.geolocation.js
+      - js/src/backbone-0.3.3.js
+    
+
+- js/app.js:
+    source: coffee/app.coffee
+
+- css/site.css:
+    source: sass/site.sass
+    depends: sass/*.sass
+
+
+prereqs:
+- js/consts.js:
+    source: coffee/consts.coffee
+    compressed: false
+
+
+output.directory: .
+output.hashed: false
+
+profile.dev:
+  css.compressed: false
+  js.compressed: false
