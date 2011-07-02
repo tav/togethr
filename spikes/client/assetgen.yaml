@@ -4,29 +4,65 @@
 generate:
 - js/base.js:
     source:
-      - js/src/underscore-1.1.6.js
-      - js/src/jquery-1.6.1.js
-      - js/src/jquery.geolocation.js
-      - js/src/backbone-0.3.3.js
+      - src/js/underscore-1.1.6.js
+      - src/js/jquery-1.6.1.js
+      - src/js/jquery.geolocation.js
+      - src/js/jquery.namespace.js
+      - src/js/backbone-0.3.3.js
     
 
 - js/app.js:
-    source: coffee/app.coffee
+    source: 
+      - raw: |
+          // Public Domain (-) 2011 The Ampify Authors.
+          // See the Ampify UNLICENSE file for details.
+          (function ($) {
+      - src/coffee/model.coffee
+      - src/coffee/view.coffee
+      - src/coffee/route.coffee
+      - src/coffee/app.coffee
+      - raw: |
+          })(jQuery);
+    uglify:
+      - --define-from-module
+      - config
+    profile.dev:
+      uglify:
+        - --beautify
+        - --define-from-module
+        - config-dev
+    
+
 
 - css/site.css:
-    source: sass/site.sass
-    depends: sass/*.sass
+    source: 
+      - raw: |
+          // Public Domain (-) 2011 The Ampify Authors.
+          // See the Ampify UNLICENSE file for details.
+      - src/sass/site.sass
+    depends: src/sass/*.sass
+    
 
 
 prereqs:
-- js/consts.js:
-    source: coffee/consts.coffee
+- build/js/config.js:
+    source: src/coffee/etc/config.coffee
+    compressed: false
+
+- build/js/config-dev.js:
+    source: src/coffee/etc/config-dev.coffee
     compressed: false
 
 
-output.directory: .
+
+output.directory: build
 output.hashed: false
+
+env:
+  NODE_PATH.prefix: build/js
+
 
 profile.dev:
   css.compressed: false
   js.compressed: false
+

@@ -1,2 +1,0 @@
-var dev;
-dev = true;
