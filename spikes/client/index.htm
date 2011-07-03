@@ -40,21 +40,6 @@
         </div>
       </div>  
     </div>
-    
-    <!--
-    <script type="text/template" id="item-template">
-      <div class="todo <%= done ? 'done' : '' %>">
-        <div class="display">
-          <input class="check" type="checkbox" <%= done ? 'checked="checked"' : '' %> />
-          <div class="todo-content"></div>
-          <span class="todo-destroy"></span>
-        </div>
-        <div class="edit">
-          <input class="todo-input" type="text" value="" />
-        </div>
-      </div>
-    </script>
-    -->
     <script type="text/javascript"
         src="http://maps.google.com/maps/api/js?sensor=true">
     </script>
@@ -63,6 +48,17 @@
     </script>
     <script type="text/javascript"
         src="build/js/app.js">
+    </script>
+    <script type="text/javascript">
+      app.main({
+          'user': {
+            'is_authenticated': true,
+            'is_admin': true,
+            'username': 'thruflo',
+            'displayName': 'James Arthur',
+            'profileImage': 'http://www.gravatar.com/avatar/b5c8346eb3ea83594fc97cb3cc4e44f5.png'
+          }
+      });
     </script>
   </body>
 </html>

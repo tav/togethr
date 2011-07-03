@@ -12,6 +12,7 @@ $.namespace 'view', (exports) ->
       _.bindAll this, 'render', 'changeLocation'
       this.model.bind 'change', this.render
       this.model.view = this
+      this.render()
     
     render: ->
       $ this.el .text "+#{this.model.get 'label'}"
@@ -20,7 +21,5 @@ $.namespace 'view', (exports) ->
     changeLocation: ->
       alert 'show set location dialog ...'
     
-  
-  # etc.
   
 
