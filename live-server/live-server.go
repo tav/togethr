@@ -657,16 +657,6 @@ func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
 // Utility Functions
 // -----------------------------------------------------------------------------
 
-// The ``joinPath`` utility function joins the given ``path`` with the
-// ``instanceDirectory`` unless it happens to be an absolute path, in which case
-// it returns the path exactly as it was given.
-func joinPath(instanceDirectory, path string) string {
-	if filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(instanceDirectory, filepath.Clean(path))
-}
-
 // The ``getErrorInfo`` utility function loads the specified error file from the
 // given directory and returns its content and file size.
 func getErrorInfo(directory, filename string) ([]byte, string) {
@@ -770,8 +760,8 @@ func initFrontend(status, host string, port int, officialHost, validAddress, cer
 	}
 
 	// Load the certificate and private key into the TLS config.
-	certPath := joinPath(instanceDirectory, cert)
-	keyPath := joinPath(instanceDirectory, key)
+	certPath := runtime.JoinPath(instanceDirectory, cert)
+	keyPath := runtime.JoinPath(instanceDirectory, key)
 	tlsConfig.Certificates = make([]tls.Certificate, 1)
 	tlsConfig.Certificates[0], err = tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
@@ -836,24 +826,6 @@ func initFrontend(status, host string, port int, officialHost, validAddress, cer
 	fmt.Printf("* HTTPS Frontend %s running on %s\n", status, frontendURL)
 
 	return frontend
-
-}
-
-// The ``initProcess`` utility function acquires a process lock and writes the
-// PID file for the current process.
-func initProcess(typeName, runPath string) {
-
-	pidFile := fmt.Sprintf("%s.pid", typeName)
-
-	// Get the runtime lock to ensure we only have one live-server process of
-	// any given type running within the same instance directory at any time.
-	_, err := runtime.GetLock(runPath, typeName)
-	if err != nil {
-		runtime.Error("ERROR: Couldn't successfully acquire a process lock:\n\n\t%s\n\n", err)
-	}
-
-	// Write the process ID into a file for use by external scripts.
-	go runtime.CreatePidFile(filepath.Join(runPath, pidFile))
 
 }
 
@@ -1044,7 +1016,7 @@ func main() {
 		if err != nil {
 			runtime.StandardError(err)
 		}
-		extraConfigPath = joinPath(instanceDirectory, extraConfigPath)
+		extraConfigPath = runtime.JoinPath(instanceDirectory, extraConfigPath)
 		err = opts.ParseConfig(extraConfigPath, os.Args)
 		if err != nil {
 			runtime.StandardError(err)
@@ -1052,14 +1024,14 @@ func main() {
 	}
 
 	// Create the log directory if it doesn't exist.
-	logPath := joinPath(instanceDirectory, *logDirectory)
+	logPath := runtime.JoinPath(instanceDirectory, *logDirectory)
 	err = os.MkdirAll(logPath, 0755)
 	if err != nil {
 		runtime.StandardError(err)
 	}
 
 	// Create the run directory if it doesn't exist.
-	runPath := joinPath(instanceDirectory, *runDirectory)
+	runPath := runtime.JoinPath(instanceDirectory, *runDirectory)
 	err = os.MkdirAll(runPath, 0755)
 	if err != nil {
 		runtime.StandardError(err)
@@ -1101,17 +1073,17 @@ func main() {
 		}
 
 		// Initialise the process-related resources.
-		initProcess(fmt.Sprintf("acceptor-%d", *acceptorIndex), runPath)
+		runtime.InitProcess(fmt.Sprintf("acceptor-%d", *acceptorIndex), runPath)
 
 		return
 
 	}
 
 	// Initialise the process-related resources.
-	initProcess("live-server", runPath)
+	runtime.InitProcess("live-server", runPath)
 
 	// Ensure that the directory containing static files exists.
-	staticPath := joinPath(instanceDirectory, *staticDirectory)
+	staticPath := runtime.JoinPath(instanceDirectory, *staticDirectory)
 	dirInfo, err := os.Stat(staticPath)
 	if err == nil {
 		if !dirInfo.IsDirectory() {
@@ -1130,7 +1102,7 @@ func main() {
 	staticMaxAge64 := int64(*staticMaxAge)
 
 	// Exit if the directory containing the 50x.html files isn't present.
-	errorPath := joinPath(instanceDirectory, *errorDirectory)
+	errorPath := runtime.JoinPath(instanceDirectory, *errorDirectory)
 	dirInfo, err = os.Stat(errorPath)
 	if err == nil {
 		if !dirInfo.IsDirectory() {
@@ -1184,11 +1156,11 @@ func main() {
 	// Setup the live support as long as it hasn't been disabled.
 	if !*noLivequery {
 		go handleLiveMessages()
-		acceptorKey, err = ioutil.ReadFile(joinPath(instanceDirectory, *acceptorKeyPath))
+		acceptorKey, err = ioutil.ReadFile(runtime.JoinPath(instanceDirectory, *acceptorKeyPath))
 		if err != nil {
 			runtime.StandardError(err)
 		}
-		cookieKey, err = ioutil.ReadFile(joinPath(instanceDirectory, *cookieKeyPath))
+		cookieKey, err = ioutil.ReadFile(runtime.JoinPath(instanceDirectory, *cookieKeyPath))
 		if err != nil {
 			runtime.StandardError(err)
 		}
