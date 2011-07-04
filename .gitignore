@@ -6,6 +6,10 @@
 appengine/assets.json
 appengine/static/
 
+app-server/instance/log
+app-server/instance/run
+app-server/app-server
+
 bin/logo.small.png
 bin/logo.png
 
