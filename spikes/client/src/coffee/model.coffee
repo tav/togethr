@@ -1,8 +1,8 @@
-### `model` classes i) encapsulate state and ii) fetch, store and manipulate data.
+### ``model`` classes i) encapsulate state and ii) fetch, store and manipulate data.
 ###
 $.namespace 'model', (exports) ->
   
-  ### `model.User` encapsulates a user.
+  ### ``model.User`` encapsulates a user.
   ###
   User = Backbone.Model.extend
     defaults:
@@ -12,7 +12,7 @@ $.namespace 'model', (exports) ->
       displayName: 'Guest User'
       profileImage: '...'
     
-  ### `model.Settings` encapsulates the authenticated user's settings.
+  ### ``model.Settings`` encapsulates the authenticated user's settings.
   ###
   Settings = Backbone.Model.extend
     # defaults: ???
@@ -20,7 +20,7 @@ $.namespace 'model', (exports) ->
   exports.User = User
   exports.Settings = Settings
   
-  ### `model.Location` encapsulates a location.
+  ### ``model.Location`` encapsulates a location.  XXX need to amend.
   ###
   Location = Backbone.Model.extend
     defaults:
@@ -28,9 +28,8 @@ $.namespace 'model', (exports) ->
       lon: 0.0
       bbox: []
       label: ''
-      level: ''
     
-    setToCurrent: (success, failure) ->
+    setToHere: (success, failure) ->
       $.geolocation.find (location) => 
           this.store location, success
         , failure
@@ -71,7 +70,7 @@ $.namespace 'model', (exports) ->
       
     
   
-  ### `model.Locations` is a collection of `model.Location`s.
+  ### ``model.Locations`` is a collection of ``model.Location``s.
   ###
   Locations = Backbone.Collection.extend
     model: Location
@@ -79,18 +78,19 @@ $.namespace 'model', (exports) ->
   exports.Location = Location
   exports.Locations = Locations
   
-  ### `model.Space` encapsulates a cumulative set of filters.
+  ### ``model.Space`` encapsulates a cumulative set of filters.
   ###
   Space = Backbone.Model.extend
     defaults:
-      user: {}
-      challenge: {}
+      users: []
+      badges: []
+      challenges: []
       hashtags: []
       keywords: []
     
-  ### `model.ActionMessage` encapsulates an action message.
+  ### ``model.Message`` encapsulates an action message.
   ###
-  ActionMessage = Backbone.Model.extend
+  Message = Backbone.Model.extend
     defaults:
       from_user: {}
       from_location: {}
@@ -98,10 +98,16 @@ $.namespace 'model', (exports) ->
       to_space: {}
       on: '' # XXX datetime?
       actions: []
-      message: ''
+      body: ''
       data: {} # XXX attachments?
+      comments = []
     
-  ### `model.Comment` encapsulates a comment.
+  ### ``model.Messages`` is a collection of ``model.Message``s.
+  ###
+  Messages = Backbone.Collection.extend
+    model: Message
+  
+  ### ``model.Comment`` encapsulates a comment.
   ###
   Comment = Backbone.Model.extend
     defaults:
@@ -113,32 +119,41 @@ $.namespace 'model', (exports) ->
       data: {} # XXX attachments?
     
   exports.Space = Space
-  exports.ActionMessage = ActionMessage
+  exports.Message = Message
+  exports.Messages = Messages
   exports.Comment = Comment
   
-  ### `model.Context` encapsulates a `Space` and `Location`.
+  ### ``model.Context`` encapsulates a ``Space``, ``Location`` and collection
+    of ``Messages``.
   ###
   Context = Backbone.Model.extend
     defaults:
       location: {}
       space: {}
+      title: ''
     
-  ### `model.Contexts` is a collection of `model.Context`s.
-  ###
-  Contexts = Backbone.Collection.extend
-    model: Context
+    matches: (context) ->
+      if _.isEqual context.location this.location
+        if _.isEqual context.space this.space
+          true
+      false
+      
+    
+    kill: ->
+      # kill any live messaging stuff
+      
+    
   
   exports.Context = Context
-  exports.Contexts = Contexts
   
-  ### `model.Bookmark` encapsulates a persistent, aliased context.
+  ### ``model.Bookmark`` encapsulates a persistent, aliased context.
   ###
   Bookmark = Backbone.Model.extend
     defaults:
       context: {}
       alias: ''
     
-  ### `model.Bookmarks` is a collection of `model.Bookmark`s.
+  ### ``model.Bookmarks`` is a collection of ``model.Bookmark``s.
   ###
   Bookmarks = Backbone.Collection.extend
     model: Bookmark

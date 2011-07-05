@@ -1,0 +1,2 @@
+var DEBUG;
+DEBUG = false;

@@ -1,0 +1,100 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>
+      Togethr
+    </title>
+    <link rel="stylesheet"
+        href="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.css"
+    />
+    <link type="text/css" rel="stylesheet"
+        href="build/css/site.css"
+    />
+  </head>
+  <body>
+    <!--
+      
+      Query
+      
+      
+    -->
+    <div data-role="page" id="query">
+      <div data-role="header">
+        <div class="bar top-bar">
+          <div id="logo">
+            Togethr.at
+          </div>
+          <div id="location-button" class="button location">
+            +here
+          </div>
+        </div>
+        <div class="bar search-bar">
+          <div class="input search">
+            <input id="search-input" type="text" name="search" />
+            <div class="button advsearch">
+              <a href="#advsearch">ADV</a>
+            </div>
+            <div class="button navigation">
+              <a href="#bookmarks">BM</a>
+            </div>
+          </div>
+        </div>
+        <div class="bar title-bar">
+          TITLE
+        </div>
+      </div>
+      <div data-role="content">  
+        <div class="window main-window">
+          MAIN WINDOW
+        </div>
+        <hr />
+        <p><a href="#location">location</a></p>
+        <p><a href="#message">message</a></p>
+      </div>
+      <div data-role="footer">
+        <h4>Page Footer</h4>
+      </div>
+    </div>
+    <!--
+      
+      Location dialog
+      
+      
+    -->
+    <div data-role="dialog" id="location">
+      <div data-role="header">
+        <h1>Location</h1>
+      </div>
+      <div data-role="content">  
+        <p>... form UI...</p>
+        <div data-inline="true">
+          <a href="#query" data-role="button">Save</a>
+          <a href="#query" data-role="button">Cancel</a>
+        </div>
+      </div>
+    </div>
+    <script type="text/javascript"
+        src="http://maps.google.com/maps/api/js?sensor=true">
+    </script>
+    <script type="text/javascript" 
+        src="build/js/base.js">
+    </script>
+    <script type="text/javascript"
+        src="build/js/app.js">
+    </script>
+    <script type="text/javascript">
+      //<![CDATA[
+      $(document).bind('mobileinit', function () {
+          controller = new app.Controller({
+              // etc ...
+              'user': {
+                'username': 'thruflo'
+              }
+          });
+      });
+      //]]>
+    </script>
+    <script src="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.js">
+    </script>
+  </body>
+</html>

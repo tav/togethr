@@ -4,7 +4,7 @@
     <link type="text/css" rel="stylesheet" href="build/css/site.css" />
   </head>
   <body>
-    <div class="page">
+    <div id="context-view" class="page">
       <div class="head">
         <div class="bar top-bar">
           <div id="logo">
@@ -16,7 +16,7 @@
         </div>
         <div class="bar search-bar">
           <div class="input search">
-            <input type="text" name="search" />
+            <input id="search-input" type="text" name="search" />
             <div class="button advsearch">
               <a href="#advsearch">ADV</a>
             </div>
@@ -39,6 +39,40 @@
           MENU BAR
         </div>
       </div>  
+    </div>
+    <div id="message-view" class="message">
+      <div class="head">
+        <div class="bar title-bar">
+          TITLE
+        </div>
+      </div>
+      <div class="body">
+        <div class="window main-window">
+          MAIN WINDOW
+        </div>
+      </div>
+      <div class="foot">
+        <div class="bar menu-bar">
+          MENU BAR
+        </div>
+      </div>
+    </div>
+    <div id="dialog-view" class="dialog">
+      <div class="head">
+        <div class="bar title-bar">
+          TITLE
+        </div>
+      </div>
+      <div class="body">
+        <div class="window main-window">
+          MAIN WINDOW
+        </div>
+      </div>
+      <div class="foot">
+        <div class="bar menu-bar">
+          MENU BAR
+        </div>
+      </div>
     </div>
     <script type="text/javascript"
         src="http://maps.google.com/maps/api/js?sensor=true">

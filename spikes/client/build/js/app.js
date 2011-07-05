@@ -8,8 +8,8 @@
         return -1;
     };
     a.namespace("model", function(d) {
-        var e, f, g, h, i, j, k, l, m, n, o;
-        o = Backbone.Model.extend({
+        var e, f, g, h, i, j, k, l, m, n;
+        n = Backbone.Model.extend({
             defaults: {
                 is_authenticated: !1,
                 is_admin: !1,
@@ -17,15 +17,14 @@
                 displayName: "Guest User",
                 profileImage: "..."
             }
-        }), m = Backbone.Model.extend, d.User = o, d.Settings = m, k = Backbone.Model.extend({
+        }), l = Backbone.Model.extend, d.User = n, d.Settings = l, i = Backbone.Model.extend({
             defaults: {
                 lat: 0,
                 lon: 0,
                 bbox: [],
-                label: "",
-                level: ""
+                label: ""
             },
-            setToCurrent: function(c, d) {
+            setToHere: function(c, d) {
                 return a.geolocation.find(b(function(a) {
                     return this.store(a, c);
                 }, this), d);
@@ -64,16 +63,16 @@
                     label: b || "" + a.latitude + "," + a.longitude
                 });
             }
-        }), l = Backbone.Collection.extend({
-            model: k
-        }), d.Location = k, d.Locations = l, n = Backbone.Model.extend({
+        }), j = Backbone.Collection.extend({
+            model: i
+        }), d.Location = i, d.Locations = j, m = Backbone.Model.extend({
             defaults: {
                 user: {},
                 challenge: {},
                 hashtags: [],
                 keywords: []
             }
-        }), e = Backbone.Model.extend({
+        }), k = Backbone.Model.extend({
             defaults: {
                 from_user: {},
                 from_location: {},
@@ -81,10 +80,10 @@
                 to_space: {},
                 on: "",
                 actions: [],
-                message: "",
+                body: "",
                 data: {}
             }
-        }), h = Backbone.Model.extend({
+        }), g = Backbone.Model.extend({
             defaults: {
                 from_user: {},
                 from_location: {},
@@ -93,22 +92,20 @@
                 message: "",
                 data: {}
             }
-        }), d.Space = n, d.ActionMessage = e, d.Comment = h, i = Backbone.Model.extend({
+        }), d.Space = m, d.Message = k, d.Comment = g, h = Backbone.Model.extend({
             defaults: {
                 location: {},
                 space: {}
             }
-        }), j = Backbone.Collection.extend({
-            model: i
-        }), d.Context = i, d.Contexts = j, f = Backbone.Model.extend({
+        }), d.Context = h, e = Backbone.Model.extend({
             defaults: {
                 context: {},
                 alias: ""
             }
-        }), g = Backbone.Collection.extend({
-            model: f
-        }), d.Bookmark = f;
-        return d.Bookmarks = g;
+        }), f = Backbone.Collection.extend({
+            model: e
+        }), d.Bookmark = e;
+        return d.Bookmarks = f;
     }), a.namespace("view", function(b) {
         return b.LocationButton = Backbone.View.extend({
             el: a("#location-button"),
@@ -128,33 +125,37 @@
             }
         });
     }), a.namespace("app", function(a) {
-        var b, c, d, e, f, g, h;
-        e = null, d = null, f = null, b = Backbone.Router.extend({
+        var b, c, d, e, f, g, h, i, j, k, l, m, n;
+        n = null, g = null, h = null, m = null, c = null, d = null, j = null, k = null, e = null, f = null, b = Backbone.Router.extend({
             routes: {
-                "/": "home"
+                "": "home",
+                space: "space",
+                "message/:msgid": "message",
+                "dialog/location": "setLocation"
             },
             home: function() {},
-            setLocation: function() {}
-        }), h = new b, c = function() {
-            f = new view.LocationButton({
-                model: d
-            });
-            return Backbone.history.start({
-                pushState: !0
-            });
-        }, g = function(a) {
-            var b;
-            e = new model.User((b = a.user) != null ? b : {}), d = new model.Location;
-            if (a.location) {
-                d.set(a.location);
-                return c();
+            space: function() {},
+            message: function() {},
+            setLocation: function() {},
+            initialize: function() {
+                d = new view.ContextView({
+                    model: c
+                }), k = new view.MessageView({
+                    model: j
+                }), f = new view.DialogView({
+                    model: e
+                });
+                return Backbone.history.start({
+                    pushState: !0
+                });
             }
-            return d.setToCurrent(function() {
-                return c();
-            }, function() {
-                return h.setLocation();
+        }), l = new b, i = function(a) {
+            var b, c, d, e, f, i, k, l;
+            n = new model.User((d = a.user) != null ? d : {}), h = new model.Location((e = a.location) != null ? e : {}), b = new model.Location((f = a.here) != null ? f : {}), m = new model.Space((i = a.space) != null ? i : {}), j = new model.Message((k = a.message) != null ? k : {}), c = new model.Messages((l = a.messages) != null ? l : []);
+            return a.here ? g = b : b.setToHere(function() {
+                return g = b;
             });
-        };
-        return a.main = g;
+        }, a.router = l;
+        return a.main = i;
     });
 })(jQuery);
