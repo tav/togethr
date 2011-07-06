@@ -26,6 +26,8 @@ generate:
     profile.dev:
       uglify:
         - --beautify
+        - --no-mangle
+        - --no-squeeze
         - --define-from-module
         - config-dev
     

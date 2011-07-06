@@ -26,11 +26,10 @@ namespace 'message', (exports) ->
     className: 'message-entry'
     
     initialize: ->
-      _.bindAll this, 'render', 'createPage'
       @model.bind 'change', @render
       @render()
     
-    render: ->
+    render: =>
       context =
         id: @model.id
         content: @model.get 'content'
@@ -39,18 +38,29 @@ namespace 'message', (exports) ->
     
     
   
+  class MessageCollection extends Backbone.Collection
+    
+    model: Message
+    
+    initialize: ->
+      @bind 'add', (message) =>
+        entry = new MessageEntry model: message
+        message.view = entry
+        
+      
+    
+  
   class MessagePage extends Backbone.View
     
     className: 'message-page'
     
     initialize: ->
-      _.bindAll this, 'render'
       @model.bind 'change', @render
       @render()
       
     
     
-    render: ->
+    render: =>
       context =
         id: @model.id
         content: @model.get 'content'
@@ -59,6 +69,7 @@ namespace 'message', (exports) ->
     
     
   exports.Message = Message
+  exports.MessageCollection = MessageCollection
   exports.MessageEntry = MessageEntry
   exports.MessagePage = MessagePage
   
