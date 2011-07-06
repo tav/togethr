@@ -11,12 +11,12 @@ namespace 'app', (exports) ->
     routes:
       ''                            : 'handleHome'
       'space'                       : 'handleSpace'
-      'challenge/:challenge'        : 'handleChallenge'
-      'message/:id'                 : 'handleMessage'
-      'dialog/location'             : 'handleSetLocation'
-      'dialog/jumpto'               : 'handleJumpTo'
-      ':user/:badge'                : 'handleBadge'
-      ':user'                       : 'handleUser'
+      '/message/:msgid'              : 'handleMessage'
+      #':user'                       : 'handleUser'
+      #':user/:badge'                : 'handleBadge'
+      #'challenge/:challenge'        : 'handleChallenge'
+      #'dialog/location'             : 'handleSetLocation'
+      #'dialog/jumpto'               : 'handleJumpTo'
       
     
     ### Create the specified page.
@@ -75,8 +75,8 @@ namespace 'app', (exports) ->
     
     ### ...
     ###
-    handleMessage: =>
-      console.log 'handling message'
+    handleMessage: (msgid) =>
+      console.log 'handling message', msgid
       
     
     ### ...
@@ -100,6 +100,63 @@ namespace 'app', (exports) ->
     
     
   
+  # patterns matching external links to ignore
+  ignore_patterns = [
+    /^\/api/,
+    /^\/app/,
+    /^\/backend/,
+    /^\/static/
+  ]
+  
+  ### Intercepts events to send them through ``app.navigate`` where appropriate.
+  ###
+  class Interceptor
+    
+    # test whether to ignore a url
+    shouldIgnore: (url) ->
+      return true if not url?
+      return true for item in ignore_patterns when url.match item
+      false
+      
+    
+    # send links straight through to app.navigate
+    handleLink: (url) ->
+      app.navigate url, true
+      
+    
+    # send form posts through with the data added to the query string
+    handleForm: (url, query) ->
+      parts = url.split('?')
+      if parts.length is 2
+        existing_data = $.parseQuery parts[1]
+        form_data = $.parseQuery query
+        merged_data = _.extend existing_data form_data
+        query = $.param merged_data
+      url = "#{parts[0]}?#{query}"
+      app.navigate url, true
+      
+    
+    
+    ### Bind to ``click``, ``dblclick`` and ``submit`` events
+    ###
+    constructor: ->
+      console.log 'new Interceptor'
+      $('body').bind 'click dblclick submit', (event) =>
+          console.log 'intercepted', event
+          target = $ event.target
+          if event.type is 'submit'
+            url = target.attr('action')
+            @handleForm url, target.serialize() if not @shouldIgnore url
+          else
+            url = target.attr('href')
+            @handleLink url if not @shouldIgnore url
+          return false
+          
+      
+      
+    
+  
+  
   ### Main application entrypoint
   ###
   main = (data) ->
@@ -117,9 +174,11 @@ namespace 'app', (exports) ->
       messages.add items
     
     # get the user's location upfront (this simplifies things enormously)
+    
     # XXX HACK for testing
     $.geolocation.find = (cb) -> cb {latitude: 51.5197, longitude: -0.1408}
     # XXX END HACK
+    
     $.geolocation.find (coords) ->
         
         # set ``here`` to the user's location
@@ -131,7 +190,7 @@ namespace 'app', (exports) ->
         else # default ``current_location`` to ``here``
           current_location = here.clone()
         
-        # initialise the controller and start handling requests
+        # initialise the controller
         controller = new Controller null, current_user, current_query, \
                                     messages, here, current_location
         
@@ -141,12 +200,16 @@ namespace 'app', (exports) ->
         # start handling requests
         Backbone.history.start pushState: true
         
+        # start intercepting events
+        interceptor = new Interceptor
+        
       , ->
         
         # XXX show a proper user interface here
         alert 'togethr needs to know your location'
         window.location.reload()
       
+    
     
   
   exports.main = main

@@ -4,7 +4,7 @@ namespace 'message', (exports) ->
   
   templates = 
     messageEntry: _.template """
-        <a href="/messages/<%= id %>">
+        <a href="/message/<%= id %>">
           <%= content %>
         </a>
       """
