@@ -6,25 +6,26 @@ namespace 'app', (exports) ->
   ###
   class Controller extends Backbone.Router
     
-    ### Mapping of routes to controller methods.
-    ###
+    # mapping of routes to controller methods
     routes:
       ''                            : 'handleHome'
-      'space'                       : 'handleSpace'
-      '/message/:msgid'              : 'handleMessage'
-      #':user'                       : 'handleUser'
-      #':user/:badge'                : 'handleBadge'
-      #'challenge/:challenge'        : 'handleChallenge'
-      #'dialog/location'             : 'handleSetLocation'
-      #'dialog/jumpto'               : 'handleJumpTo'
+      '/query'                      : 'handleQuery'
+      '/message/:msgid'             : 'handleMessage'
+      'challenge/:challenge'        : 'handleChallenge'
+      'dialog/location'             : 'handleSetLocation'
+      'dialog/jumpto'               : 'handleJumpTo'
+      ':user/:badge'                : 'handleBadge'
+      ':user'                       : 'handleUser'
       
     
-    ### Create the specified page.
-    ###
-    _create: (page_name) ->
+    # cached page views
+    pages: new Object
+    
+    # create the specified page
+    create: (page_name) ->
       switch page_name
         when 'query'
-          @_pages.query = new query.QueryPage
+          @pages.query = new query.QueryPage
             el: $ '#query-page'
             user: @user
             query: @query
@@ -34,17 +35,15 @@ namespace 'app', (exports) ->
         # when ...
       
     
-    ### If the specified page doesn't exist, create it.
-    ###
-    _ensure: (page_name) ->
-      @_pages[page_name] = @_create page_name if not @_pages[page_name]?
+    # make sure the specified page exists
+    ensure: (page_name) ->
+      @pages[page_name] = @create page_name if not @pages[page_name]?
       
     
-    ### Show the specified page.
-    ###
-    _show: (page_name) ->
+    # show the specified page
+    show: (page_name) ->
       # XXX do this properly
-      for own k, v in @_pages
+      for own k, v in @pages
         target = $ v.el
         if k is page_name
           target.show()
@@ -58,19 +57,19 @@ namespace 'app', (exports) ->
     ###
     handleHome: =>
       console.log 'handling home'
-      @_ensure 'query'
+      @ensure 'query'
       @query.set 'value': ''
       @location.set @here.toJSON()
-      @_show 'query_page'
+      @show 'query'
       
     
     ### ...
     ### 
-    handleSpace: =>
-      console.log 'handling space'
-      @_ensure 'query'
+    handleQuery: =>
+      console.log 'handling query'
+      @ensure 'query'
       @query.set 'value', $.parseQuery().q ? ''
-      @_show 'query_page'
+      @show 'query'
       
     
     ### ...
@@ -95,29 +94,28 @@ namespace 'app', (exports) ->
     ### ...
     ###
     initialize: (options, @user, @query, @messages, @here, @location) ->
-      @_pages = new Object
-      
     
     
   
-  # patterns matching external links to ignore
-  ignore_patterns = [
-    /^\/api/,
-    /^\/app/,
-    /^\/backend/,
-    /^\/static/
-  ]
   
-  ### Intercepts events to send them through ``app.navigate`` where appropriate.
+  ### ``Interceptor`` sends events through ``app.navigate`` when appropriate.
   ###
   class Interceptor
     
+    # patterns matching external links to ignore
+    ignore_patterns: [
+      /^\/api/,
+      /^\/app/,
+      /^\/backend/,
+      /^\/static/
+    ]
     # test whether to ignore a url
     shouldIgnore: (url) ->
       return true if not url?
-      return true for item in ignore_patterns when url.match item
+      return true for item in @ignore_patterns when url.match item
       false
       
+    
     
     # send links straight through to app.navigate
     handleLink: (url) ->
@@ -137,12 +135,9 @@ namespace 'app', (exports) ->
       
     
     
-    ### Bind to ``click``, ``dblclick`` and ``submit`` events
-    ###
+    # bind to ``click``, ``dblclick`` and ``submit`` events
     constructor: ->
-      console.log 'new Interceptor'
       $('body').bind 'click dblclick submit', (event) =>
-          console.log 'intercepted', event
           target = $ event.target
           if event.type is 'submit'
             url = target.attr('action')
@@ -194,14 +189,14 @@ namespace 'app', (exports) ->
         controller = new Controller null, current_user, current_query, \
                                     messages, here, current_location
         
-        # provide ``app.navigate``
-        exports.navigate = controller.navigate
-        
         # start handling requests
         Backbone.history.start pushState: true
         
         # start intercepting events
         interceptor = new Interceptor
+        
+        # provide ``app.navigate``
+        exports.navigate = controller.navigate
         
       , ->
         
