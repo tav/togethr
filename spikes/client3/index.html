@@ -1,48 +1,58 @@
 <!DOCTYPE HTML>
 <html>
   <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport"
+        content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>Togethr</title>
     <link type="text/css" rel="stylesheet" href="build/css/site.css" />
   </head>
   <body>
     <div id="query-page" class="page">
-      <div class="head">
-        <div class="bar top-bar">
-          <div id="logo" class="left">
-            <a href="/" title="Togethr.at">
-              <img src="build/gfx/logo.png" alt="Togethr.at Logo" />
-            </a>
+      <div class="scroll-wrapper">
+        <div class="scroll">
+          <div class="head">
+            <div class="bar top-bar">
+              <div id="logo" class="left">
+                <a href="/" title="Togethr.at">
+                  <img src="build/gfx/logo.png" alt="Togethr.at Logo" />
+                </a>
+              </div>
+              <div id="location-button" class="button location-button">
+                +here
+              </div>
+            </div>
+            <div class="bar search-bar">
+              <div class="input search-input left">
+                <form action="/query" method="post">
+                  <input id="search-input" type="text" name="q" />
+                </form>
+              </div>
+              <div class="button advsearch-button">
+                <a href="/dialog/advsearch">ADV</a>
+              </div>
+              <div class="button navigation-button">
+                <a href="/dialog/bookmarks">BM</a>
+              </div>
+            </div>
+            <div class="bar title-bar">
+              <div class="button navigation-button back-button">
+                <a rel="back" href="/">Back</a>
+              </div>
+              <div class="title"></div>
+              <div class="button action-button bookmark-this-button">
+                <a href="/dialog/addBookmark">Add BM</a>
+              </div>
+            </div>
           </div>
-          <div id="location-button" class="button location-button">
-            +here
+          <div class="body">
+            <div class="window main-window">
+              MAIN WINDOW
+            </div>
           </div>
-        </div>
-        <div class="bar search-bar">
-          <div class="input search-input left">
-            <form action="/query" method="post">
-              <input id="search-input" type="text" name="q" />
-            </form>
-          </div>
-          <div class="button advsearch-button">
-            <a href="/dialog/advsearch">ADV</a>
-          </div>
-          <div class="button navigation-button">
-            <a href="/dialog/bookmarks">BM</a>
-          </div>
-        </div>
-        <div class="bar title-bar">
-          <div class="button navigation-button back-button">
-            <a rel="back" href="/">Back</a>
-          </div>
-          <div class="title"></div>
-          <div class="button action-button bookmark-this-button">
-            <a href="/dialog/addBookmark">Add BM</a>
-          </div>
-        </div>
-      </div>
-      <div class="body">
-        <div class="window main-window">
-          MAIN WINDOW
         </div>
       </div>
       <div class="foot">

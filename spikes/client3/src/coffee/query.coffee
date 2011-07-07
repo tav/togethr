@@ -18,6 +18,7 @@ namespace 'query', (exports) ->
       @messages = @options.messages
       @location = @options.location
       
+      @scroll = @$ '.scroll'
       @title_bar = @$ '.title-bar'
       @title_el = $ '.title', @title_bar
       @main_window = @$ '.main-window'
@@ -31,6 +32,13 @@ namespace 'query', (exports) ->
       # search
       # menu bar
       # etc.
+      
+      # make sure when scrolling we don't have floating cursors
+      # from inputs in focus
+      @scroll.bind 'touchstart', -> $(document.body).focus()
+      # setup scrolling
+      @scroll.touchScroll
+        touchTags: ['a', 'button', 'input', 'select', 'textarea']
       
       @render()
       
@@ -50,7 +58,19 @@ namespace 'query', (exports) ->
       # update the main window
       @main_window.html ''
       @messages.each (message) => @main_window.append message.view.el
+      # refresh scrolling
+      @scroll.touchScroll 'update'
       # XXX scroll to the appropriate point
+      if query_value
+        offset = @title_bar.offset()
+        @scroll.touchScroll 'setPosition', offset.top
+      else
+        @scroll.touchScroll 'setPosition', 0
+      window.setTimeout ->
+          $(document.activeElement).blur()
+        ,
+        0
+      
       
     
     

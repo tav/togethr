@@ -7,6 +7,31 @@ namespace 'message', (exports) ->
         <a href="/message/<%= id %>">
           <%= content %>
         </a>
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
+        <br />la
       """
     messagePage: _.template """
         <div>

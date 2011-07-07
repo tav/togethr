@@ -6,6 +6,11 @@ generate:
     source:
       - vendor/jquery.geolocation.js
       - vendor/jquery.parsequery.js
+      - vendor/jquery.mobile.event.js
+      - vendor/jquery.mobile.vmouse.js
+      - src/js/jquery.touch-scroll.js
+      #- src/js/jquery.maximize.js
+      - vendor/jquery.parsequery.js
       - vendor/underscore-1.1.6.js
       - vendor/backbone-0.5.0.js
     
