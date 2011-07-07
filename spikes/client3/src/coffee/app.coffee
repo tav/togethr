@@ -17,6 +17,7 @@ namespace 'app', (exports) ->
       '/dialog/jumpto'              : 'handleJumpTo'
       '/:user/:badge'               : 'handleBadge'
       '/:user'                      : 'handleUser'
+      '/*'                          : 'handle404'
       
     
     # cached page views
@@ -91,6 +92,12 @@ namespace 'app', (exports) ->
       console.log 'handling user'
       
     
+    ### ...
+    ###
+    handle404: =>
+      alert 'This was not the page you were looking for.'
+      window.history.go(-1)
+      
     
     ### ...
     ###
@@ -110,11 +117,17 @@ namespace 'app', (exports) ->
       /^\/backend/,
       /^\/static/
     ]
-    # test whether to ignore a url
-    shouldIgnore: (url) ->
+    # test whether to ignore
+    shouldIgnore: (url, target) ->
       return true if not url?
       return true for item in @ignore_patterns when url.match item
+      return true if target.attr('rel') is 'external'
       false
+      
+    
+    # test whether the link click came from a back button
+    shouldTriggerBack: (target) ->
+      target.attr 'rel' is 'back'
       
     
     
@@ -125,7 +138,6 @@ namespace 'app', (exports) ->
       catch err
         console.error err
       
-    
     
     # send links straight through
     handleLink: (url) ->
@@ -151,10 +163,13 @@ namespace 'app', (exports) ->
           target = $ event.target
           if event.type is 'submit'
             url = target.attr('action')
-            @handleForm url, target.serialize() if not @shouldIgnore url
+            @handleForm url, target.serialize() if not @shouldIgnore url, target
           else
             url = target.attr('href')
-            @handleLink url if not @shouldIgnore url
+            if @shouldTriggerBack target
+              window.history.go -1
+            else
+              @handleLink url if not @shouldIgnore url, target
           return false
           
       

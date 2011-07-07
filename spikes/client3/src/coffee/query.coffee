@@ -2,9 +2,6 @@
 ###
 namespace 'query', (exports) ->
   
-  templates = 
-    title_bar: _.template """<%= title %>"""
-  
   class Query extends Backbone.Model
     defaults:
       value: ''
@@ -20,6 +17,10 @@ namespace 'query', (exports) ->
       @query = @options.query
       @messages = @options.messages
       @location = @options.location
+      
+      @title_bar = @$ '.title-bar'
+      @title_el = $ '.title', @title_bar
+      @main_window = @$ '.main-window'
       
       @query.bind 'change', @rerender
       @location.bind 'change', @rerender
@@ -41,16 +42,14 @@ namespace 'query', (exports) ->
       console.log 'Query.render'
       # XXX this should all be component'd out
       query_value = @query.get 'value'
-      title_bar = @$ '.title-bar'
       if query_value
-        title_bar.html templates.title_bar title: query_value
-        title_bar.show()
+        @title_el.text query_value
+        @title_bar.show()
       else
-        title_bar.hide()
+        @title_bar.hide()
       # update the main window
-      main_window = @$ '.main-window'
-      main_window.html ''
-      @messages.each (message) -> main_window.append message.view.el
+      @main_window.html ''
+      @messages.each (message) => @main_window.append message.view.el
       # XXX scroll to the appropriate point
       
     
