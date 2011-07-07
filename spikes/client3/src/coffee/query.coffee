@@ -21,8 +21,8 @@ namespace 'query', (exports) ->
       @messages = @options.messages
       @location = @options.location
       
-      @query.bind 'change', @render
-      @location.bind 'change', @render
+      @query.bind 'change', @rerender
+      @location.bind 'change', @rerender
       
       @location_button = new location.LocationButton
         el: $ '#location-button'
@@ -79,7 +79,7 @@ namespace 'query', (exports) ->
       console.log 'Query.rerender'
       @fetchMessages (results) =>
           items = (new message.Message item for item in results)
-          messages.reset items
+          @messages.reset items
           @render()
         , ->
           alert 'could not fetch messages'

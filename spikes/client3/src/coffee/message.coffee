@@ -43,11 +43,16 @@ namespace 'message', (exports) ->
     model: Message
     
     initialize: ->
-      @bind 'add', (message) =>
-        entry = new MessageEntry model: message
-        message.view = entry
-        
+      @bind 'add', @applyView
+      @bind 'reset', => @each @applyView
       
+    
+    
+    applyView: (message) =>
+      entry = new MessageEntry model: message
+      message.view = entry
+      
+    
     
   
   class MessagePage extends Backbone.View

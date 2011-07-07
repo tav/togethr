@@ -9,13 +9,14 @@ namespace 'app', (exports) ->
     # mapping of routes to controller methods
     routes:
       ''                            : 'handleHome'
-      '/query'                      : 'handleQuery'
+      '/'                           : 'handleHome'
+      '/query?q=:value'             : 'handleQuery'
       '/message/:msgid'             : 'handleMessage'
-      'challenge/:challenge'        : 'handleChallenge'
-      'dialog/location'             : 'handleSetLocation'
-      'dialog/jumpto'               : 'handleJumpTo'
-      ':user/:badge'                : 'handleBadge'
-      ':user'                       : 'handleUser'
+      '/challenge/:challenge'       : 'handleChallenge'
+      '/dialog/location'            : 'handleSetLocation'
+      '/dialog/jumpto'              : 'handleJumpTo'
+      '/:user/:badge'               : 'handleBadge'
+      '/:user'                      : 'handleUser'
       
     
     # cached page views
@@ -65,10 +66,10 @@ namespace 'app', (exports) ->
     
     ### ...
     ### 
-    handleQuery: =>
-      console.log 'handling query'
+    handleQuery: (value) =>
+      console.log 'handling query', value
       @ensure 'query'
-      @query.set 'value', $.parseQuery().q ? ''
+      @query.set 'value': value
       @show 'query'
       
     
@@ -117,9 +118,18 @@ namespace 'app', (exports) ->
       
     
     
-    # send links straight through to app.navigate
+    # dispatch to app.navigate, catching errors so we stay within the app
+    dispatch: (url) ->
+      try
+        app.navigate url, true
+      catch err
+        console.error err
+      
+    
+    
+    # send links straight through
     handleLink: (url) ->
-      app.navigate url, true
+      @dispatch url
       
     
     # send form posts through with the data added to the query string
@@ -131,7 +141,7 @@ namespace 'app', (exports) ->
         merged_data = _.extend existing_data form_data
         query = $.param merged_data
       url = "#{parts[0]}?#{query}"
-      app.navigate url, true
+      @dispatch url
       
     
     
