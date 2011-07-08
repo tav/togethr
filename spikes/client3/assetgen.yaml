@@ -4,13 +4,18 @@
 generate:
 - js/base.js:
     source:
-      - vendor/jquery.geolocation.js
-      - vendor/jquery.parsequery.js
+      # useful bits of jquery mobile
+      - vendor/jquery.ui.widget.js
+      - vendor/jquery.mobile.widget.js
+      - vendor/jquery.mobile.core.js
       - vendor/jquery.mobile.event.js
       - vendor/jquery.mobile.vmouse.js
-      - src/js/jquery.touch-scroll.js
-      #- src/js/jquery.maximize.js
+      # jquery plugins
+      - vendor/jquery.geolocation.js
       - vendor/jquery.parsequery.js
+      - vendor/jquery.url.js
+      - src/js/jquery.support.fixedPosition.js
+      # mvc framework
       - vendor/underscore-1.1.6.js
       - vendor/backbone-0.5.0.js
     
