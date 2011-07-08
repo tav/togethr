@@ -3,25 +3,25 @@ $footer_height: 50px
 // Layout elements
 
 body
-  overflow-y: hidden
+  // overflow-y: hidden
 
 .page
   
 
 .scroll-wrapper
   display: block
-  position: fixed
-  left: 0
-  top: 0
-  bottom: $footer_height
-  right: 0
-  overflow-y: auto
+  position: relative
+  //left: 0
+  //top: 0
+  //bottom: $footer_height
+  //right: 0
+  //overflow-y: auto
 
 .scroll
-  display: block
-  height: 100%
-  -webkit-perspective: 1000
-  -webkit-backface-visibility: hidden
+  //display: block
+  //height: 100%
+  //-webkit-perspective: 1000
+  //-webkit-backface-visibility: hidden
 
 .head
   
@@ -41,6 +41,16 @@ body
   a
     color: #fff
   
+
+.fixed.foot
+  position: absolute
+  overflow: hidden
+  width: 100%
+  border-left-width: 0
+  border-right-width: 0
+  z-index: 1000
+  -webkit-transform: translateZ(0)
+  opacity: .9
 
 
 

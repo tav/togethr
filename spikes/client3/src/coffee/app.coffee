@@ -99,81 +99,10 @@ namespace 'app', (exports) ->
       window.history.go(-1)
       
     
+    
     ### ...
     ###
-    initialize: (options, @user, @query, @messages, @here, @location) ->
-    
-    
-  
-  
-  ### ``Interceptor`` sends events through ``app.navigate`` when appropriate.
-  ###
-  class Interceptor
-    
-    # patterns matching external links to ignore
-    ignore_patterns: [
-      /^\/api/,
-      /^\/app/,
-      /^\/backend/,
-      /^\/static/
-    ]
-    # test whether to ignore
-    shouldIgnore: (url, target) ->
-      return true if not url?
-      return true for item in @ignore_patterns when url.match item
-      return true if target.attr('rel') is 'external'
-      false
-      
-    
-    # test whether the link click came from a back button
-    shouldTriggerBack: (target) ->
-      target.attr 'rel' is 'back'
-      
-    
-    
-    # dispatch to app.navigate, catching errors so we stay within the app
-    dispatch: (url) ->
-      try
-        app.navigate url, true
-      catch err
-        console.error err
-      
-    
-    # send links straight through
-    handleLink: (url) ->
-      @dispatch url
-      
-    
-    # send form posts through with the data added to the query string
-    handleForm: (url, query) ->
-      parts = url.split('?')
-      if parts.length is 2
-        existing_data = $.parseQuery parts[1]
-        form_data = $.parseQuery query
-        merged_data = _.extend existing_data form_data
-        query = $.param merged_data
-      url = "#{parts[0]}?#{query}"
-      @dispatch url
-      
-    
-    
-    # bind to ``click``, ``dblclick`` and ``submit`` events
-    constructor: ->
-      $('body').bind 'click dblclick submit', (event) =>
-          target = $ event.target
-          if event.type is 'submit'
-            url = target.attr('action')
-            @handleForm url, target.serialize() if not @shouldIgnore url, target
-          else
-            url = target.attr('href')
-            if @shouldTriggerBack target
-              window.history.go -1
-            else
-              @handleLink url if not @shouldIgnore url, target
-          return false
-          
-      
-      
+    initialize: (@user, @query, @messages, @here, @location) ->
     
   
   
@@ -181,29 +110,22 @@ namespace 'app', (exports) ->
   ###
   main = (data) ->
     
-    # set ``current_user`` to ``data.user`` or default to a guest
+    # bootstrap the client application state using the ``data`` provided
     current_user = new user.User data.user ? {}
-    
-    # set ``current_query`` to ``data.query`` or default to no filters
     current_query = new query.Query data.query ? {}
-    
-    # if given ``data.messages`` populate the ``messages`` collection
     messages = new message.MessageCollection
     if data.messages?
-      items = (new message.Message item for item in data.messages)
-      messages.add items
-    
-    # get the user's location upfront (this simplifies things enormously)
+      messages.add new message.Message item for item in data.messages
     
     # XXX HACK for testing
     $.geolocation.find = (cb) -> cb {latitude: 51.5197, longitude: -0.1408}
     # XXX END HACK
     
+    # get the user's location
     $.geolocation.find (coords) ->
         
         # set ``here`` to the user's location
         here = location.Location.createFromCoords coords, 'here'
-        
         # if given ``data.location``, set ``current_location`` to it
         if data.location?
           current_location = new location.Location data.location
@@ -211,26 +133,34 @@ namespace 'app', (exports) ->
           current_location = here.clone()
         
         # initialise the controller
-        controller = new Controller null, current_user, current_query, \
-                                    messages, here, current_location
-        
+        controller = new Controller current_user, current_query, messages, here, current_location
         # start handling requests
         Backbone.history.start pushState: true
-        
-        # start intercepting events
-        interceptor = new Interceptor
+        # start intercepting vclick and submit events
+        interceptor = new util.Interceptor
         
         # provide ``app.navigate``
         exports.navigate = controller.navigate
         
       , ->
         
-        # XXX show a proper user interface here
-        alert 'togethr needs to know your location'
+        # XXX show a proper user interface
+        alert 'togethr needs to know your location, please try again'
         window.location.reload()
+      
       
     
     
+    # if necessary fix the page footer / menu bar positioning, scrolling 1px
+    # down to hide the address bar whilst we're at it
+    $.support.fixedPosition (ok) -> 
+        if not ok
+          footer = new fix.FixedFooter el: $ '.foot'
+      , 1
+      
+    
+    
+  
   
   exports.main = main
   
