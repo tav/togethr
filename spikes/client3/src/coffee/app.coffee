@@ -22,6 +22,7 @@ namespace 'app', (exports) ->
     
     # cached page views
     pages: new Object
+    current_page: null
     
     # create the specified page
     create: (page_name) ->
@@ -44,14 +45,12 @@ namespace 'app', (exports) ->
     
     # show the specified page
     show: (page_name) ->
-      # XXX do this properly
-      for own k, v in @pages
-        target = $ v.el
-        if k is page_name
-          target.show()
-        else 
-          target.hide()
-        
+      if current_page?
+        current_page.sleep()
+        current_page.hide()
+      current_page = @pages[page_name]
+      current_page.wake()
+      current_page.show()
       
     
     

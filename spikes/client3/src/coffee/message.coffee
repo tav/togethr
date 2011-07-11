@@ -80,7 +80,7 @@ namespace 'message', (exports) ->
     
     
   
-  class MessagePage extends Backbone.View
+  class MessagePage extends baseview.Page
     
     className: 'message-page'
     

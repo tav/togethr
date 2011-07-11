@@ -7,7 +7,7 @@ namespace 'query', (exports) ->
       value: ''
     
   
-  class QueryPage extends Backbone.View
+  class QueryPage extends baseview.Page
     
     ### ...
     ###
