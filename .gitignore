@@ -17,6 +17,8 @@ live-server/instance/log
 live-server/instance/run
 live-server/live-server
 
+static/build/gfx/
+
 # minified css/js files
 
 *.min.js
