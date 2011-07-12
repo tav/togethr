@@ -13,7 +13,7 @@ namespace 'app', (exports) ->
       '/query?q=:value'             : 'handleQuery'
       '/message/:msgid'             : 'handleMessage'
       '/challenge/:challenge'       : 'handleChallenge'
-      '/dialog/location'            : 'handleSetLocation'
+      '/dialog/location'            : 'handleLocation'
       '/dialog/jumpto'              : 'handleJumpTo'
       '/:user/:badge'               : 'handleBadge'
       '/:user'                      : 'handleUser'
@@ -21,7 +21,7 @@ namespace 'app', (exports) ->
       
     
     # cached page views
-    pages: new Object
+    pages: {}
     current_page: null
     
     # create the specified page
@@ -34,8 +34,12 @@ namespace 'app', (exports) ->
             query: @query
             messages: @messages
             location: @location
+        when 'location'
+          @pages.location = new location.LocationDialog
+            el: $ '#location-dialog'
+            location: @location
           
-        # when ...
+        
       
     
     # make sure the specified page exists
@@ -44,24 +48,35 @@ namespace 'app', (exports) ->
       
     
     # show the specified page
-    show: (page_name) ->
-      if current_page?
-        current_page.sleep()
-        current_page.hide()
-      current_page = @pages[page_name]
-      current_page.wake()
-      current_page.show()
+    show: (page_name, page_type) ->
+      
+      # XXX don't hide / show current page
+      
+      # if there's a current page, sleep and hide it
+      if @current_page?
+        @current_page.snapshot()
+        @current_page.hide()
+      # hide or show the footer as appropriate
+      if page_type is 'dialog'
+        @footer.hide()
+      else
+        @footer.show()
+      # restore and show the new page
+      @current_page = @pages[page_name]
+      @current_page.restore()
+      @current_page.show()
       
     
     
     ### ...
     ###
     handleHome: =>
+      #@handleLocation()
       console.log 'handling home'
       @ensure 'query'
       @query.set 'value': ''
       @location.set @here.toJSON()
-      @show 'query'
+      @show 'query', 'page'
       
     
     ### ...
@@ -70,7 +85,7 @@ namespace 'app', (exports) ->
       console.log 'handling query', value
       @ensure 'query'
       @query.set 'value': value
-      @show 'query'
+      @show 'query', 'page'
       
     
     ### ...
@@ -81,8 +96,10 @@ namespace 'app', (exports) ->
     
     ### ...
     ###
-    handleSetLocation: =>
+    handleLocation: =>
       console.log 'handling location'
+      @ensure 'location'
+      @show 'location', 'dialog'
       
     
     ### ...
@@ -102,6 +119,9 @@ namespace 'app', (exports) ->
     ### ...
     ###
     initialize: (@user, @query, @messages, @here, @location) ->
+      @footer = new footer.FooterWidget el: $ '#footer-wrapper'
+      
+    
     
   
   
