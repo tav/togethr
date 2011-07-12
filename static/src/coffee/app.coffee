@@ -49,22 +49,21 @@ namespace 'app', (exports) ->
     
     # show the specified page
     show: (page_name, page_type) ->
-      
-      # XXX don't hide / show current page
-      
-      # if there's a current page, sleep and hide it
-      if @current_page?
-        @current_page.snapshot()
-        @current_page.hide()
+      next_page = @pages[page_name]
+      previous_page = @current_page
+      # don't hide / show current page
+      return if _.isEqual next_page previous_page
+      # update @current_page
+      @current_page = next_page
+      # if there's a current page sleep and hide it
+      if previous_page?
+        previous_page.snapshot()
+        previous_page.hide()
+      # wake and show the new page
+      next_page.restore()
+      next_page.show()
       # hide or show the footer as appropriate
-      if page_type is 'dialog'
-        @footer.hide()
-      else
-        @footer.show()
-      # restore and show the new page
-      @current_page = @pages[page_name]
-      @current_page.restore()
-      @current_page.show()
+      if page_type is 'dialog' then @footer.hide() else @footer.show()
       
     
     
