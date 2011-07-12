@@ -2,25 +2,26 @@
 ###
 namespace 'baseview', (exports) ->
   
-  class Page extends Backbone.View
+  class Widget extends Backbone.View
     
-    # override to wake view from sleep
-    wake: (args...) -> # noop
+    # wake
+    restore: (args...) -> # noop
+    # sleep
+    snapshot: (args...) -> # noop
     
-    # override to sleep view
-    sleep: (args...) -> # noop
-    
-    # show view
+    # show
     show: (args...) -> $(@el).show()
-    
-    # hide view
+    # hide
     hide: (args...) -> $(@el).hide()
     
   
-  class Dialog extends Page
-    
+  class Page extends Widget
   
+  class Dialog extends Page
+  
+  exports.Widget = Widget
   exports.Page = Page
   exports.Dialog = Dialog
   
+
 
