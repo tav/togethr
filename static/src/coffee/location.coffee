@@ -11,13 +11,61 @@ namespace 'location', (exports) ->
       label: ''
     
   
-  ### ``Widget`` with location slider and set location button.
+  ### Special ``Location`` class that tracks the user's current geolocation.
   ###
-  class LocationWidget extends baseview.Widget
+  class Here extends Location
+    ###
+        # XXX HACK for testing
+        $.geolocation.find = (cb) -> cb {latitude: 51.5197, longitude: -0.1408}
+        # XXX END HACK
+        
+        # get the user's location
+        $.geolocation.find (coords) ->
+        
+            # set ``here`` to the user's location
+            here = new location.Location coords
+        
+    ###
+    defaults:
+      latitude: 0.0
+      longitude: 0.0
+      label: '+here'
+    
+    
+  
+  ### ``Location``s collection.
+  ###
+  class Locations extends Backbone.Collection
+    
+    # get the first model matching the provided label
+    getByLabel: (label) -> 
+      @find (item) -> item.get('label') is label
+      
+    
+    # select a model by label and notify that the selected model has changed
+    select: (label, opts) ->
+      @selected = @getByLabel label
+      if not (opts? and opts.silent is true)
+        @trigger 'selection:changed', @selected 
+      
+    
+    
+    # select +here by default
+    initialize: ->
+      console.log 'new Locations', @models
+      @selected = @getByLabel '+here'
+      console.log '@selected', @selected
+      
+    
+    
+  
+  class LocationBar extends baseview.Widget
     
     initialize: ->
       @model.bind 'change', @render
       @render()
+      
+    
     
     render: =>
       # XXX update the display
@@ -37,6 +85,9 @@ namespace 'location', (exports) ->
       'vclick .cancel-button'                           : 'handleCancel'
     
     initialize: ->
+      
+      # XXX we've changed to using @locations
+      
       @location = @options.location
       # render map
       node = @$('.map').get 0
@@ -106,7 +157,9 @@ namespace 'location', (exports) ->
     
   
   exports.Location = Location
-  exports.LocationWidget = LocationWidget
+  exports.Here = Here
+  exports.Locations = Locations
+  exports.LocationBar = LocationBar
   exports.LocationDialog = LocationDialog
   exports.SelectExistingLocationDialog = SelectExistingLocationDialog
   

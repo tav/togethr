@@ -63,7 +63,7 @@ namespace 'message', (exports) ->
     
     
   
-  class MessageCollection extends Backbone.Collection
+  class Messages extends Backbone.Collection
     
     model: Message
     
@@ -99,7 +99,7 @@ namespace 'message', (exports) ->
     
     
   exports.Message = Message
-  exports.MessageCollection = MessageCollection
+  exports.Messages = Messages
   exports.MessageEntry = MessageEntry
   exports.MessagePage = MessagePage
   

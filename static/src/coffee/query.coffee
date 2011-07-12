@@ -3,67 +3,91 @@
 namespace 'query', (exports) ->
   
   class Query extends Backbone.Model
-    defaults:
-      value: ''
+  
+  class TitleBar extends baseview.Widget
+    initialize: -> 
+      @model.bind 'change', @render
+      
+    
+    render: => 
+      value = decodeURIComponent @model.get 'value'
+      @$('.title').text value
+      if value
+        @el.show()
+      else 
+        @el.hide()
+      
+    
+    
+  
+  class ActivityStream extends baseview.Widget
+    initialize: ->
+      console.log 'ActivityStream', @collection
+      @collection.bind 'add', @handleAdd
+      @collection.bind 'reset', @handleReset
+      
+    
+    handleAdd: =>
+      @el.append message.view.el
+      
+    
+    handleReset: =>
+      @el.html ''
+      @collection.each (message) => @el.append message.view.el
+      
+    
     
   
   class QueryPage extends baseview.Page
     
-    ### ...
-    ###
+    ignore_set_distance: false
+    
     initialize: ->
       
-      @user = @options.user
       @query = @options.query
-      @messages = @options.messages
-      @location = @options.location
+      @locations = @options.locations
       
-      @title_bar = @$ '.title-bar'
-      @title_el = $ '.title', @title_bar
-      @main_window = @$ '.main-window'
+      @messages = new message.Messages
+      @distance = new Backbone.Model
       
-      @query.bind 'change', @rerender
-      @location.bind 'change', @rerender
+      @location_bar = new location.LocationBar
+        el: @$ '.location-bar'
+        model: @distance
       
-      @location_button = new location.LocationButton
-        el: $ '#location-button'
-        model: @location
-      # search
-      # menu bar
-      # etc.
+      @title_bar = new TitleBar
+        el: @$ '.title-bar'
+        model: @query
       
-      @render()
+      @results_view = new ActivityStream
+        el: @$ '.main-window'
+        collection: @messages
+      
+      @query.bind 'change', @performQuery
+      @locations.bind 'selection:changed', @performQuery
+      @distance.bind 'change', @performDistanceQuery
       
     
     
-    ### ...
-    ###
-    render: =>
-      console.log 'Query.render'
-      # XXX this should all be component'd out
-      query_value = @query.get 'value'
-      if query_value
-        @title_el.text query_value
-        @title_bar.show()
-        $.mobile.silentScroll @title_bar.offset().top
-      else
-        @title_bar.hide()
-        $.mobile.silentScroll 1
-      # update the main window
-      @main_window.html ''
-      @messages.each (message) => @main_window.append message.view.el
-      window.setTimeout ->
+    handleResults: (query_value, results, distance) =>
+      console.log 'QueryPage.handleResults', results.length
+      # update the messages, which triggers @results_view to render
+      items = (new message.Message item for item in results)
+      @messages.reset items
+      # update the distance, which triggers @location_bar
+      # using a flag to avoid triggering a distance query
+      @ignore_set_distance = true
+      @distance.set 'value': distance
+      # scroll and blur to finish
+      y = if query_value then @title_bar.el.offset().top else 1
+      $.mobile.silentScroll y
+      window.setTimeout -> 
           $(document.activeElement).blur()
-        ,
-        0
-      
+        , 0
       
     
-    
-    ### XXX ping the api to get messages
-    ### 
-    fetchMessages: (success, failure) =>
-      console.log 'Query.fetchMessages'
+    fetchMessages: (query_value, latlng, distance, success, failure) =>
+      ### XXX this is fake
+      ### 
       a = Math.random()
       b = Math.random()
       results = [
@@ -73,22 +97,33 @@ namespace 'query', (exports) ->
           id: "msg-#{b}"
           content: "Message #{b}"
       ]
-      # call success with the fake results
-      success results
+      distance = distance ? Math.sqrt(Math.random() * 10000)
+      success query_value, results, distance
       
     
     
-    ### ...
-    ###
-    rerender: =>
-      console.log 'Query.rerender'
-      @fetchMessages (results) =>
-          items = (new message.Message item for item in results)
-          @messages.reset items
-          @render()
-        , ->
+    performQuery: =>
+      query_value = @query.get 'value'
+      latlng = @locations.selected.toJSON()
+      # XXX
+      @fetchMessages query_value, latlng, null, @handleResults, -> 
           alert 'could not fetch messages'
         
+      
+    
+    performDistanceQuery: =>
+      if @ignore_set_distance
+        @ignore_set_distance = false
+        return
+      console.log 'QueryPage.performDistanceQuery'
+      query_value = @query.get 'value'
+      distance = @distance.get 'value'
+      latlng = @locations.selected.toJSON()
+      # XXX
+      @fetchMessages query_value, latlng, distance, @handleResults, -> 
+          alert 'could not fetch messages'
+        
+      
       
     
     
