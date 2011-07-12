@@ -2,11 +2,11 @@
 ###
 namespace 'app', (exports) ->
   
-  ### ...
+  ### ``Controller`` sets up the application and handles internal requests.
   ###
   class Controller extends Backbone.Router
     
-    # mapping of routes to controller methods
+    # mapping of routes to handlers
     routes:
       ''                            : 'handleHome'
       '/'                           : 'handleHome'
@@ -30,21 +30,20 @@ namespace 'app', (exports) ->
         when 'query'
           @pages.query = new query.QueryPage
             el: $ '#query-page'
-            user: @user
             query: @query
-            messages: @messages
-            location: @location
+            locations: @locations
         when 'location'
           @pages.location = new location.LocationDialog
             el: $ '#location-dialog'
-            location: @location
+            locations: @locations
           
         
       
     
-    # make sure the specified page exists
+    # make sure the specified page exists (and return it)
     ensure: (page_name) ->
       @pages[page_name] = @create page_name if not @pages[page_name]?
+      @pages[page_name]
       
     
     # show the specified page
@@ -52,7 +51,7 @@ namespace 'app', (exports) ->
       next_page = @pages[page_name]
       previous_page = @current_page
       # don't hide / show current page
-      return if _.isEqual next_page previous_page
+      return if _.isEqual next_page, previous_page
       # update @current_page
       @current_page = next_page
       # if there's a current page sleep and hide it
@@ -67,19 +66,15 @@ namespace 'app', (exports) ->
       
     
     
-    ### ...
-    ###
+    #
     handleHome: =>
-      #@handleLocation()
       console.log 'handling home'
       @ensure 'query'
-      @query.set 'value': ''
-      @location.set @here.toJSON()
+      @query.set value: ''
       @show 'query', 'page'
       
     
-    ### ...
-    ### 
+    # 
     handleQuery: (value) =>
       console.log 'handling query', value
       @ensure 'query'
@@ -87,88 +82,56 @@ namespace 'app', (exports) ->
       @show 'query', 'page'
       
     
-    ### ...
-    ###
+    #
     handleMessage: (msgid) =>
       console.log 'handling message', msgid
       
     
-    ### ...
-    ###
+    #
     handleLocation: =>
       console.log 'handling location'
       @ensure 'location'
       @show 'location', 'dialog'
       
     
-    ### ...
-    ###
+    #
     handleUser: =>
       console.log 'handling user'
       
     
-    ### ...
-    ###
+    #
     handle404: =>
       alert 'This was not the page you were looking for.'
       window.history.go(-1)
       
     
     
-    ### ...
-    ###
-    initialize: (@user, @query, @messages, @here, @location) ->
+    initialize: ->
+      
+      # setup ``here`` and fetch any existing ``@locations``
+      @here = new location.Here
+      @locations = new location.Locations [@here]
+      @locations.fetch add: true
+      
+      # setup and fetch any existing ``@bookmarks``
+      @bookmarks = new bookmark.Bookmarks
+      @bookmarks.fetch()
+      
+      # setup ``@user`` and fetch any details
+      @user = new user.User
+      @user.fetch()
+      
+      # setup ``@query``
+      @query = new query.Query
+      
+      # setup application wide ``View`` components
       @footer = new footer.FooterWidget el: $ '#footer-wrapper'
       
     
     
   
-  
-  ### Main application entrypoint
-  ###
-  main = (data) ->
-    
-    # bootstrap the client application state using the ``data`` provided
-    current_user = new user.User data.user ? {}
-    current_query = new query.Query data.query ? {}
-    messages = new message.MessageCollection
-    if data.messages?
-      messages.add new message.Message item for item in data.messages
-    
-    # XXX HACK for testing
-    $.geolocation.find = (cb) -> cb {latitude: 51.5197, longitude: -0.1408}
-    # XXX END HACK
-    
-    # get the user's location
-    $.geolocation.find (coords) ->
-        
-        # set ``here`` to the user's location
-        here = location.Location.createFromCoords coords, 'here'
-        # if given ``data.location``, set ``current_location`` to it
-        if data.location?
-          current_location = new location.Location data.location
-        else # default ``current_location`` to ``here``
-          current_location = here.clone()
-        
-        # initialise the controller
-        controller = new Controller current_user, current_query, messages, here, current_location
-        # start handling requests
-        Backbone.history.start pushState: true
-        # start intercepting vclick and submit events
-        interceptor = new util.Interceptor
-        
-        # provide ``app.navigate``
-        exports.navigate = controller.navigate
-        
-      , ->
-        
-        # XXX show a proper user interface
-        alert 'togethr needs to know your location, please try again'
-        window.location.reload()
-      
-      
-    
-    
+  # main application entrypoint
+  main = ->
     # if necessary fix the page footer / menu bar positioning, scrolling 1px
     # down to hide the address bar whilst we're at it
     $.support.fixedPosition (ok) -> 
@@ -177,6 +140,12 @@ namespace 'app', (exports) ->
       , 1
       
     
+    # initialise the controller and provide ``app.navigate``
+    controller = new Controller
+    exports.navigate = controller.navigate
+    # start handling requests and intercepting events
+    interceptor = new util.Interceptor
+    Backbone.history.start pushState: true
     
   
   
@@ -184,8 +153,7 @@ namespace 'app', (exports) ->
   
 
 
-### Provide ``app.main`` as ``window.togethr.main``.
-###
+# provide ``app.main`` as ``window.togethr.main``
 window.togethr ?= {}
 window.togethr.main = app.main
 
