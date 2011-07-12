@@ -2,146 +2,113 @@
 ###
 namespace 'location', (exports) ->
   
-  if not Number::toRad?
-    Number::toRad = -> this * Math.PI / 180
-  
-  if not Number::toDeg?
-    Number::toDeg = -> this * 180 / Math.PI
-  
-  ### Get the coordinates of a point an ``angle`` and ``distance`` from
-    an original point -- see http://bit.ly/qssyw6
-  ### 
-  getCoordsFrom = (coords, angle, distance) ->
-    ### Note, tested with the following code::
-      
-          c1 =
-            latitude: 51.5197572
-            longitude: -0.1407846
-          
-          bbox1 = getBoundaryBox(c1, 30)
-          bbox2 = getBoundaryBox(c1, 2)
-          
-          c2 = getCentre(bbox1)
-          c3 = getCentre(bbox2)
-          
-          console.log c1
-          console.log c2
-          console.log c3
-      
-      I get::
-      
-          Object { latitude=51.5197572, longitude=-0.1407846}
-          Object { latitude=51.51935762281386, longitude=-0.13950031168702975}
-          Object { latitude=51.51975542413611, longitude=-0.140778892072933}
-      
-      Which puts me two streets out over 30km.  So it's *not perfect* but
-      hopefully is good enough for a *single conversion*, i.e.: unless we start
-      converting to and from points and bboxes willy nilly.
-      
-    ###
-    radius = 6371
-    d = distance / radius
-    a = angle.toRad()
-    lat1 = coords.latitude.toRad()
-    lon1 = coords.longitude.toRad()
-    lat2 = Math.asin(
-      Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) \
-      * Math.sin(d) * Math.cos(a)
-    )
-    lon2 = lon1 + Math.atan2(
-      Math.sin(a) * Math.sin(d) * Math.cos(lat1),
-      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
-    )
-    lon2 = (lon2 + 3 * Math.PI) % (2 * Math.PI) - Math.PI
-    coords2 = 
-      latitude: lat2.toDeg()
-      longitude: lon2.toDeg()
-    coords2
-    
-  
-  
-  ### Get a boundary box from a centre and distance.
-  ###
-  getBoundaryBox = (centre, distance) ->
-    ne = getCoordsFrom(centre, 45, distance)
-    sw = getCoordsFrom(centre, 225, distance)
-    bbox = [
-      ne.longitude, 
-      ne.latitude, 
-      sw.longitude, 
-      sw.latitude
-    ]
-    bbox
-    
-  
-  
-  ### Get the centre  from a point and distance.
-  ###
-  getCentre = (bbox) ->
-    centre = 
-      latitude: (bbox[3] + bbox[1]) / 2 # average of the left and right
-      longitude: (bbox[0] + bbox[2]) / 2 # average of the top and bottom
-    centre
-    
-  
-  
-  ### ``Backbone.Model`` class that encapsulates a specific location.
+  ### ``Model`` class that encapsulates a specific location.
   ###
   class Location extends Backbone.Model
-    ### attributes =
-        centre: latitude: 0.0, longitude: 0.0
-        bbox: [
-          0, # top
-          0, # right
-          0, # bottom
-          0 # left
-        ]
-        label: ''
-      
-    ###
-    
-    # factory class method to create with centre derived from bbox
-    @createFromBBox: (bbox, label) ->
-      DEFAULT_DISTANCE = 30 # km
-      new @
-        centre: getCentre(bbox)
-        bbox: bbox
-        label: label
-      
-    
-    
-    # factory class method to create a ``Location`` with bbox derived from centre
-    @createFromCoords: (coords, label) ->
-      DEFAULT_DISTANCE = 30 # km
-      new @
-        centre: coords, 
-        bbox: getBoundaryBox(coords, DEFAULT_DISTANCE)
-        label: label
-      
-    
+    defaults:
+      latitude: 0.0
+      longitude: 0.0
+      label: ''
     
   
-  class LocationButton extends Backbone.View
-    
-    events:
-      click: 'changeLocation'
+  ### ``Widget`` with location slider and set location button.
+  ###
+  class LocationWidget extends baseview.Widget
     
     initialize: ->
       @model.bind 'change', @render
-      @model.view = this
       @render()
     
     render: =>
-      $ @el .text "+#{@model.get 'label'}"
+      # XXX update the display
       
     
-    changeLocation: =>
-      app.navigate 'location', true
+    
+  
+  ### ``Dialog`` page with google map allowing user to set their location.
+  ###
+  class LocationDialog extends baseview.Dialog
+    
+    events:
+      'vclick #select-existing-location-button'         : 'handleSelect'
+      'submit .location-search-input'                   : 'handleSearch'
+      'vclick .label-suggestion'                        : 'handleSelectLabel'
+      'vclick .save-button'                             : 'handleSave'
+      'vclick .cancel-button'                           : 'handleCancel'
+    
+    initialize: ->
+      @location = @options.location
+      # render map
+      node = @$('.map').get 0
+      options = 
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+        disableDefaultUI: true
+        zoomControl: true
+      @map = new google.maps.Map node, options
+      @render()
       
     
+    
+    snapshot: ->
+      @location.unbind 'change', @render
+      $(window).unbind 'throttledresize orientationchange', @updateMapContainerDimensions
+      
+    
+    restore: ->
+      @location.bind 'change', @render
+      $(window).bind 'throttledresize orientationchange', @updateMapContainerDimensions
+      
+    
+    
+    updateMapContainerDimensions: =>
+      # XXX quite how to manage the dimensions of the map, I'm not sure...
+      target = @$ '.map'
+      h = window.innerHeight / 2
+      h = 200 if h < 200
+      target.height(h)
+      google.maps.event.trigger @map, 'resize'
+      
+    
+    centreMap: =>
+      latlng = new google.maps.LatLng @location.latitude, @location.longitude
+      @map.setCentre(latlng)
+      
+    
+    
+    render: =>
+      @updateMapContainerDimensions()
+      @centreMap()
+      # update the label
+      
+    
+    
+    handleSelect: =>
+      
+    
+    handleSearch: =>
+      
+    
+    handleSelectLabel: =>
+      
+    
+    handleSave: =>
+      
+    
+    handleCancel: =>
+      
+    
+    
+  
+  ### Simple ``Dialog`` listing existing locations.
+  ###
+  class SelectExistingLocationDialog extends baseview.Dialog
+    # XXX todo
     
   
   exports.Location = Location
-  exports.LocationButton = LocationButton
+  exports.LocationWidget = LocationWidget
+  exports.LocationDialog = LocationDialog
+  exports.SelectExistingLocationDialog = SelectExistingLocationDialog
   
+
 
