@@ -38,8 +38,13 @@ namespace 'util', (exports) ->
       try
         app.navigate url, true
       catch err
-        console.error err
+        try
+          console.error
+        catch err
+          # pass
+        
       
+    
     
     # send links straight through
     handleLink: (url) ->
@@ -65,19 +70,13 @@ namespace 'util', (exports) ->
           # process an event
           target = $ event.target
           if @shouldtriggerBack target
-            console.log '*'
             window.history.go -1
           else
-            console.log '**'
             if event.type is 'submit'
-              console.log '***'
               url = @validate target.attr('action'), target
-              console.log url
               @handleForm url, target.serialize() if url?
             else
-              console.log '****'
               url = @validate target.attr('href'), target
-              console.log url
               @handleLink url if url?
           false
         
