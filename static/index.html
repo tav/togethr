@@ -15,16 +15,6 @@
       <div class="scroll">
         <div id="query-page" class="page">
           <div class="head">
-            <div class="bar top-bar">
-              <div id="logo" class="left">
-                <a href="/" title="Togethr.at">
-                  <img src="build/gfx/logo.png" alt="Togethr.at Logo" />
-                </a>
-              </div>
-              <div id="location-button" class="button location-button">
-                +here
-              </div>
-            </div>
             <div class="bar search-bar">
               <div class="input search-input left">
                 <form action="/query" method="post">
@@ -47,6 +37,14 @@
                 <a href="/dialog/addBookmark">Add BM</a>
               </div>
             </div>
+            <div class="bar location-bar">
+              <div class="slider left">
+                SLIDER
+              </div>
+              <div class="button location-button">
+                <a id="location-button" href="/dialog/location">(+)</a>
+              </div>
+            </div>
           </div>
           <div class="body">
             <div class="window main-window">
@@ -54,18 +52,65 @@
             </div>
           </div>
         </div>
+        <div id="location-dialog" class="dialog">
+          <div class="head">
+            <div class="bar title-bar">
+              <div class="button navigation-button back-button">
+                <a rel="back" href="/">Back</a>
+              </div>
+              <div class="title">Set Location</div>
+            </div>
+          </div>
+          <div class="body">
+            <div class="window main-window">
+              <div class="row">
+                <div class="button location-button select-existing-location-button">
+                  <a href="#select">Select existing location</a>
+                </div>
+              </div>
+              <div class="row">
+                <div class="input search-input left">
+                  <form class="location-search-form">
+                    <input class="location-search-input" type="text" name="location" />
+                  </form>
+                </div>
+              </div>
+              <div class="row">
+                <div class="map location-map">
+                </div>
+              </div>
+              <div class="row">
+                <div class="input">
+                  <input class="location-label" type="text" name="label" />
+                  <ul class="suggestions label-suggestions">
+                  </ul>
+                </div>
+              </div>
+              <div class="row">
+                <div class="button save-button">
+                  <a href="#save">Save</a>
+                </div>
+                <div class="button cancel-button">
+                  <a href="#cancel">Cancel</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="foot">
-      <div class="bar menu-bar">
-        <div class="button menu-icon home-button">
-          <a href="/" title="Home">Home</a>
-        </div>
-        <div class="button menu-highlight act-button">
-          <a href="/act">*ACT*</a>
-        </div>
-        <div class="button menu-icon settings-button">
-          <a href="/settings" title="Settings">Settings</a>
+    <div id="footer-wrapper">
+      <div class="foot">
+        <div class="bar menu-bar">
+          <div class="button menu-icon home-button">
+            <a href="/" title="Home">Home</a>
+          </div>
+          <div class="button menu-highlight act-button">
+            <a href="/act">*ACT*</a>
+          </div>
+          <div class="button menu-icon settings-button">
+            <a href="/settings" title="Settings">Settings</a>
+          </div>
         </div>
       </div>
     </div>
