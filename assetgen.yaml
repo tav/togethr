@@ -2,56 +2,80 @@
 # See the Ampify UNLICENSE file for details.
 
 generate:
-
-- js/base.js:
+- static/js/base.js:
     source:
-      - %(AMPIFY_ROOT)s/third_party/jslibs/json.js
+      # useful bits of jquery mobile
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.ui.widget.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.mobile.widget.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.mobile.core.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.mobile.event.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.mobile.vmouse.js
+      # jquery plugins
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-plugins/jquery.geolocation.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-plugins/jquery.parsequery.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-plugins/jquery.url.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-plugins/jquery.support.fixedPosition.js
+      # mvc framework
+      - %(AMPIFY_ROOT)s/third_party/jslibs/underscore/underscore.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone.js
+    
 
-- js/app.js:
-    source:
-      - static/js/app.coffee
-    uglify:
-      - --define-from-module
-      - consts
-    profile.dev:
-      uglify:
-        - --define-from-module
-        - consts-dev
-
-- gfx/*:
-    source: static/gfx/*
-    type: binary
-
-- css/site.css:
-    source:
+- static/js/app.js:
+    source: 
       - raw: |
           // Public Domain (-) 2011 The Ampify Authors.
           // See the Ampify UNLICENSE file for details.
-      - static/css/site.sass
-    depends:
-      - static/css/*.sass
-      - static/gfx/*
-    bidi: true
-    embed.path.root: static
-    embed.url.base: /.static/
+          (function ($) {
+      - static/src/coffee/namespace.coffee
+      - static/src/coffee/*.coffee
+      - raw: |
+          })(jQuery);
+    uglify:
+      - --define-from-module
+      - config
+    profile.dev:
+      uglify:
+        - --beautify
+        - --no-mangle
+        - --no-squeeze
+        - --define-from-module
+        - config-dev
+    
+
+- static/gfx/*:
+    source: static/gfx/*
+    type: binary
+
+- static/css/site.css:
+    source: 
+      - raw: |
+          /* Public Domain (-) 2011 The Ampify Authors.
+           * See the Ampify UNLICENSE file for details. */
+      - static/src/sass/site.sass
+    depends: static/src/sass/*.sass
+
+
 
 prereqs:
-
-- static/js/consts.js:
-    source: static/js/consts.coffee
+- static/build/js/config.js:
+    source: static/etc/config.coffee
     compressed: false
 
-- static/js/consts-dev.js:
-    source: static/js/consts-dev.coffee
+- static/build/js/config-dev.js:
+    source: static/etc/config-dev.coffee
     compressed: false
+
+
+
+output.directory: static/build
+output.hashed: false # true when we run this from the backend
+output.manifest: static/build/assets.json
 
 env:
-  NODE_PATH.prefix: static/js
+  NODE_PATH.prefix: static/build/js
 
-output.directory: appengine/static
-output.hashed: true
-output.manifest: appengine/assets.json
 
 profile.dev:
   css.compressed: false
   js.compressed: false
+
