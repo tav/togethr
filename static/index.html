@@ -8,6 +8,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>Togethr</title>
+    <!-- XXX hack this in quickly bc assetgen isn't behaving -->
+    <link type="text/css" rel="stylesheet" href="src/css/themes/base/jquery.ui.all.css" />
+    <!-- XXX end hack -->
     <link type="text/css" rel="stylesheet" href="build/css/site.css" />
   </head>
   <body>
@@ -39,7 +42,8 @@
             </div>
             <div class="bar location-bar">
               <div class="slider left">
-                SLIDER
+                <div id="location-slider">
+                </div>
               </div>
               <div class="button location-button">
                 <a id="location-button" href="/dialog/location">(+)</a>

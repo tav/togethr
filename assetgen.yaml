@@ -2,25 +2,31 @@
 # See the Ampify UNLICENSE file for details.
 
 generate:
-- static/js/base.js:
+- js/base.js:
     source:
+      # jquery ui
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/ui/jquery.ui.core.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/ui/jquery.ui.widget.js # <-- dep for jquery mobile too
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/ui/jquery.ui.mouse.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/ui/jquery.ui.slider.js
       # useful bits of jquery mobile
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.ui.widget.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.mobile.widget.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.mobile.core.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.mobile.event.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-mobile/jquery.mobile.vmouse.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.widget.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.core.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.event.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.vmouse.js
       # jquery plugins
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-plugins/jquery.geolocation.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-plugins/jquery.parsequery.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-plugins/jquery.url.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery-plugins/jquery.support.fixedPosition.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.geolocation.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.parsequery.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.url.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.support.fixedPosition.js
       # mvc framework
       - %(AMPIFY_ROOT)s/third_party/jslibs/underscore/underscore.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone.js
+      # XXX hack testing
+      - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone-localstorage.js
     
 
-- static/js/app.js:
+- js/app.js:
     source: 
       - raw: |
           // Public Domain (-) 2011 The Ampify Authors.
@@ -42,11 +48,18 @@ generate:
         - config-dev
     
 
-- static/gfx/*:
+- gfx/*:
     source: static/gfx/*
     type: binary
 
-- static/css/site.css:
+
+#- css/base.css:
+#    source: 
+#      - - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/ui/themes/base/jquery.ui.all.css
+#      - static/src/css/libraries.css
+#    
+#
+- css/site.css:
     source: 
       - raw: |
           /* Public Domain (-) 2011 The Ampify Authors.

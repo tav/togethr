@@ -61,14 +61,44 @@ namespace 'location', (exports) ->
   
   class LocationBar extends baseview.Widget
     
+    ignore_slide_change: false
+    
+    n: 64999 / 100000000000000000
+    p: 8
+    
     initialize: ->
-      @model.bind 'change', @render
-      @render()
+      # init the jquery.ui slider
+      target = @$ '#location-slider'
+      target.slider
+        value: 100
+        min: 25
+        max: 100
+        step: 5
+      # when @distance changes, update the slider
+      @model.bind 'change', @update
+      # when the slider changes, update the distance
+      target.bind 'slidechange', @notify
+      
+    
+    _toDistance: (value) ->
+      @n * Math.pow value, @p
+      
+    
+    _toValue: (distance) ->
+      Math.pow distance/@n, 1/@p
       
     
     
-    render: =>
-      # XXX update the display
+    notify: (event, ui) =>
+      v = ui.value
+      console.log 'notify', "slider value #{parseInt v}", "distance #{parseInt @_toDistance v}km"
+      # XXX update the distance
+    
+    
+    update: =>
+      d = @model.get 'value'
+      console.log 'update', "distance #{parseInt d}km", "slider value #{parseInt @_toValue d}"
+      # XXX move the slider
       
     
     
