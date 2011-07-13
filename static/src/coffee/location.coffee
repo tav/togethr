@@ -57,58 +57,6 @@ namespace 'location', (exports) ->
     
     
   
-  class LocationBar extends baseview.Widget
-    
-    ignore_slide_change: false
-    
-    notify_delay: 250
-    notify_pending: null
-    
-    n: 64999 / 100000000000000000
-    p: 8
-    
-    initialize: ->
-      # init the jquery.mobile slider
-      @slider = @$ '#location-slider'
-      @slider.slider theme: 'c'
-      # when @distance changes, update the slider
-      @model.bind 'change', @update
-      # when the slider changes, update the distance
-      @slider.closest('.slider').bind 'vclick scrollstop mouseup', @notify
-      # when the jquery mobile code forces the handle to receive focus
-      # make sure the scroll is flagged up
-      handle = @$ '.ui-slider-handle'
-      handle.bind 'focus', -> 
-        $(document).trigger 'silentscroll'
-      
-    
-    _toDistance: (value) ->
-      @n * Math.pow value, @p
-      
-    
-    _toValue: (distance) ->
-      Math.pow distance/@n, 1/@p
-      
-    
-    
-    notify: =>
-      v = @slider.val()
-      d = @_toDistance v
-      console.log "notify: slider value #{parseInt v}, distance #{parseInt d}km"
-      # XXX update the distance
-      true
-    
-    
-    update: =>
-      d = @model.get 'value'
-      v = @_toValue d
-      console.log "update: distance #{parseInt d}km, slider value #{parseInt v}"
-      @slider.val(v).slider 'refresh'
-      true
-      
-    
-    
-  
   ### ``Dialog`` page with google map allowing user to set their location.
   ###
   class LocationDialog extends baseview.Dialog
@@ -195,7 +143,6 @@ namespace 'location', (exports) ->
   exports.Location = Location
   exports.Here = Here
   exports.Locations = Locations
-  exports.LocationBar = LocationBar
   exports.LocationDialog = LocationDialog
   exports.SelectExistingLocationDialog = SelectExistingLocationDialog
   

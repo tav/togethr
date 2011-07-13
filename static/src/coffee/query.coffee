@@ -29,9 +29,61 @@ namespace 'query', (exports) ->
     
     
   
+  class LocationBar extends baseview.Widget
+    
+    ignore_slide_change: false
+    
+    notify_delay: 250
+    notify_pending: null
+    
+    n: 64999 / 100000000000000000
+    p: 8
+    
+    initialize: ->
+      # init the jquery.mobile slider
+      @slider = @$ '#location-slider'
+      @slider.slider theme: 'c'
+      # when @distance changes, update the slider
+      @model.bind 'change', @update
+      # when the slider changes, update the distance
+      @slider.closest('.slider').bind 'vclick scrollstop mouseup', @notify
+      # when the jquery mobile code forces the handle to receive focus
+      # make sure the scroll is flagged up
+      handle = @$ '.ui-slider-handle'
+      handle.bind 'focus', -> 
+        $(document).trigger 'silentscroll'
+      
+    
+    
+    _toDistance: (value) ->
+      @n * Math.pow value, @p
+      
+    
+    _toValue: (distance) ->
+      Math.pow distance/@n, 1/@p
+      
+    
+    
+    notify: =>
+      v = @slider.val()
+      d = @_toDistance v
+      #console.log "notify: slider value #{parseInt v}, distance #{parseInt d}km"
+      @model.set value: d
+      true
+      
+    
+    update: =>
+      d = @model.get 'value'
+      v = @_toValue d
+      #console.log "update: distance #{parseInt d}km, slider value #{parseInt v}"
+      @slider.val(v).slider 'refresh'
+      true
+      
+    
+    
+  
   class ActivityStream extends baseview.Widget
     initialize: ->
-      console.log 'ActivityStream', @collection
       @collection.bind 'add', @handleAdd
       @collection.bind 'reset', @handleReset
       
@@ -66,7 +118,7 @@ namespace 'query', (exports) ->
         el: @$ '.title-bar'
         model: @query
       
-      @location_bar = new location.LocationBar
+      @location_bar = new LocationBar
         el: @$ '.location-bar'
         model: @distance
       
@@ -81,16 +133,19 @@ namespace 'query', (exports) ->
     
     
     handleResults: (query_value, results, distance) =>
-      console.log 'QueryPage.handleResults', results.length
       # update the messages, which triggers @results_view to render
       items = (new message.Message item for item in results)
       @messages.reset items
-      # update the distance, which triggers @location_bar
-      # using a flag to avoid triggering a distance query
-      @ignore_set_distance = true
-      @distance.set 'value': distance
+      # if the distance has changed (bc the backend took over and found the
+      # optimum range)
+      the_same = @distance.get('value') is distance
+      if not the_same
+        # update the distance, which triggers @location_bar
+        # using a flag to avoid triggering a distance query
+        @ignore_set_distance = true 
+        @distance.set 'value': distance
       # scroll and blur to finish
-      y = if query_value then @title_bar.el.offset().top else 1
+      y = 1 # if query_value then @title_bar.el.offset().top else 1
       $.mobile.silentScroll y
       window.setTimeout -> 
           $(document.activeElement).blur()
@@ -109,7 +164,8 @@ namespace 'query', (exports) ->
           id: "msg-#{b}"
           content: "Message #{b}"
       ]
-      distance = distance ? Math.sqrt(Math.random() * 10000)
+      r = Math.random()
+      distance = distance ? Math.sqrt(r * r * r * 100000)
       success query_value, results, distance
       
     
@@ -127,7 +183,6 @@ namespace 'query', (exports) ->
       if @ignore_set_distance
         @ignore_set_distance = false
         return
-      console.log 'QueryPage.performDistanceQuery'
       query_value = @query.get 'value'
       distance = @distance.get 'value'
       latlng = @locations.selected.toJSON()
