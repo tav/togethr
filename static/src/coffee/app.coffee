@@ -132,6 +132,14 @@ namespace 'app', (exports) ->
   
   # main application entrypoint
   main = ->
+    # initialise the controller and provide ``app.navigate``
+    controller = new Controller
+    exports.navigate = controller.navigate
+    # start handling requests and intercepting events
+    interceptor = new util.Interceptor
+    Backbone.history.start pushState: true
+    # show the page
+    $('html').removeClass "ui-mobile-rendering"
     # if necessary fix the page footer / menu bar positioning, scrolling 1px
     # down to hide the address bar whilst we're at it
     $.support.fixedPosition (ok) -> 
@@ -140,12 +148,6 @@ namespace 'app', (exports) ->
       , 1
       
     
-    # initialise the controller and provide ``app.navigate``
-    controller = new Controller
-    exports.navigate = controller.navigate
-    # start handling requests and intercepting events
-    interceptor = new util.Interceptor
-    Backbone.history.start pushState: true
     
   
   

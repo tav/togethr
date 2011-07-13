@@ -16,6 +16,8 @@ namespace 'fix', (exports) ->
     delayTimer: null
     scrollTriggered: null
     
+    ignoreTargets: ['.ui-slider']
+    
     _startShowTimer: =>
       @_clearShowTimer()
       @delayTimer = window.setTimeout =>
@@ -45,6 +47,15 @@ namespace 'fix', (exports) ->
       
     
     
+    shouldIgnore: (target) =>
+      console.log "ignore? #{target.tagName} #{target.className}"
+      $target = $(target)
+      for selector in @ignoreTargets
+        return true if $target.closest(selector).length
+      false
+      
+    
+    
     show: =>
       @_clearShowTimer()
       @_setTop()
@@ -71,17 +82,30 @@ namespace 'fix', (exports) ->
       $w.bind "orientationchange", @update
       $d = $ document
       $d.bind "silentscroll", @update
+      
       # handle scroll start and scroll stop events
       target = if $d.scrollTop() is 0 then $w else $d
       target.bind "scrollstart", (event) =>
-          @scrollTriggered = true
-          @_clearShowTimer() 
-          @hide()
-      target.bind "scrollstop", ( event ) =>
-          @scrollTriggered = false
-          @_startShowTimer()
+          console.log 'scrollstart'
+          console.log event.target
+          if not @shouldIgnore event.target
+            @scrollTriggered = true
+            @_clearShowTimer() 
+            @hide()
+        
+      
+      target.bind "scrollstop", (event) =>
+          console.log 'scrollstop'
+          console.log event.target
+          if @scrollTriggered
+            @scrollTriggered = false
+            @_startShowTimer()
+          
+        
+      
+      
       # make sure the thing is in the right place
-      @show()
+      @update()
       
     
     

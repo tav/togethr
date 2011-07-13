@@ -67,17 +67,13 @@ namespace 'location', (exports) ->
     p: 8
     
     initialize: ->
-      # init the jquery.ui slider
-      target = @$ '#location-slider'
-      target.slider
-        value: 100
-        min: 25
-        max: 100
-        step: 5
+      # init the jquery.mobile slider
+      @slider = @$ '#location-slider'
+      @slider.slider theme: 'c'
       # when @distance changes, update the slider
       @model.bind 'change', @update
       # when the slider changes, update the distance
-      target.bind 'slidechange', @notify
+      @slider.bind 'change', @notify
       
     
     _toDistance: (value) ->
@@ -89,16 +85,19 @@ namespace 'location', (exports) ->
       
     
     
-    notify: (event, ui) =>
-      v = ui.value
-      console.log 'notify', "slider value #{parseInt v}", "distance #{parseInt @_toDistance v}km"
+    notify: =>
+      v = @slider.val()
+      d = @_toDistance v
+      console.log "notify, slider value #{parseInt v}, distance #{parseInt d}km"
       # XXX update the distance
     
     
     update: =>
       d = @model.get 'value'
-      console.log 'update', "distance #{parseInt d}km", "slider value #{parseInt @_toValue d}"
-      # XXX move the slider
+      v = @_toValue d
+      console.log "update, distance #{parseInt d}km, slider value #{parseInt v}"
+      @slider.val(v).slider 'refresh'
+      
       
     
     
