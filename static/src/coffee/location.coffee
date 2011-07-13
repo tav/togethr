@@ -52,9 +52,7 @@ namespace 'location', (exports) ->
     
     # select +here by default
     initialize: ->
-      console.log 'new Locations', @models
       @selected = @getByLabel '+here'
-      console.log '@selected', @selected
       
     
     
@@ -80,9 +78,7 @@ namespace 'location', (exports) ->
       # when the jquery mobile code forces the handle to receive focus
       # make sure the scroll is flagged up
       handle = @$ '.ui-slider-handle'
-      console.log 'handle', handle
       handle.bind 'focus', -> 
-        console.log 'XXX HELLO! XXX'
         $(document).trigger 'silentscroll'
       
     
