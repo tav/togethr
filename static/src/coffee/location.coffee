@@ -77,6 +77,13 @@ namespace 'location', (exports) ->
       @model.bind 'change', @update
       # when the slider changes, update the distance
       @slider.closest('.slider').bind 'vclick scrollstop mouseup', @notify
+      # when the jquery mobile code forces the handle to receive focus
+      # make sure the scroll is flagged up
+      handle = @$ '.ui-slider-handle'
+      console.log 'handle', handle
+      handle.bind 'focus', -> 
+        console.log 'XXX HELLO! XXX'
+        $(document).trigger 'silentscroll'
       
     
     _toDistance: (value) ->
@@ -93,6 +100,7 @@ namespace 'location', (exports) ->
       d = @_toDistance v
       console.log "notify: slider value #{parseInt v}, distance #{parseInt d}km"
       # XXX update the distance
+      true
     
     
     update: =>
@@ -100,7 +108,7 @@ namespace 'location', (exports) ->
       v = @_toValue d
       console.log "update: distance #{parseInt d}km, slider value #{parseInt v}"
       @slider.val(v).slider 'refresh'
-      
+      true
       
     
     

@@ -142,11 +142,12 @@ namespace 'app', (exports) ->
     $('html').removeClass "ui-mobile-rendering"
     # if necessary fix the page footer / menu bar positioning, scrolling 1px
     # down to hide the address bar whilst we're at it
+    window.scrollTo 0, 1
     $.support.fixedPosition (ok) -> 
         if not ok
           footer = new fix.FixedFooter el: $ '.foot'
+          $(window).load -> $.mobile.silentScroll 0, 1
       , 1
-      
     
     
   

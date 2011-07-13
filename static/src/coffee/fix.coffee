@@ -48,7 +48,7 @@ namespace 'fix', (exports) ->
     
     
     shouldIgnore: (target) =>
-      console.log "ignore? #{target.tagName} #{target.className}"
+      console.log "ignore?", target
       $target = $(target)
       for selector in @ignoreTargets
         return true if $target.closest(selector).length
@@ -57,9 +57,11 @@ namespace 'fix', (exports) ->
     
     
     show: =>
+      console.log 'showing fixed footer'
       @_clearShowTimer()
       @_setTop()
       @el.show()
+      true
       
     
     hide: =>
@@ -70,7 +72,7 @@ namespace 'fix', (exports) ->
     update: =>
       @hide true if not @delayTimer
       @_startShowTimer()
-      
+      true
     
     
     initialize: =>
@@ -81,7 +83,8 @@ namespace 'fix', (exports) ->
       $w = $ window
       $w.bind "orientationchange", @update
       $d = $ document
-      $d.bind "silentscroll", @update
+      $d.bind "silentscroll", =>
+        window.setTimeout @show, 20
       
       # handle scroll start and scroll stop events
       target = if $d.scrollTop() is 0 then $w else $d
