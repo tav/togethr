@@ -48,7 +48,6 @@ namespace 'fix', (exports) ->
     
     
     shouldIgnore: (target) =>
-      console.log "ignore?", target
       $target = $(target)
       for selector in @ignoreTargets
         return true if $target.closest(selector).length
@@ -57,7 +56,6 @@ namespace 'fix', (exports) ->
     
     
     show: =>
-      console.log 'showing fixed footer'
       @_clearShowTimer()
       @_setTop()
       @el.show()
@@ -67,16 +65,17 @@ namespace 'fix', (exports) ->
     hide: =>
       @_clearShowTimer()
       @el.hide()
+      true
       
     
     update: =>
       @hide true if not @delayTimer
       @_startShowTimer()
       true
+      
     
     
     initialize: =>
-      console.log @el
       # apply css styles required to fake a fixed footer with ``position: absolute``
       $(@el).addClass 'fixed'
       # listen for events that require an update
@@ -89,8 +88,6 @@ namespace 'fix', (exports) ->
       # handle scroll start and scroll stop events
       target = if $d.scrollTop() is 0 then $w else $d
       target.bind "scrollstart", (event) =>
-          console.log 'scrollstart'
-          console.log event.target
           if not @shouldIgnore event.target
             @scrollTriggered = true
             @_clearShowTimer() 
@@ -98,8 +95,6 @@ namespace 'fix', (exports) ->
         
       
       target.bind "scrollstop", (event) =>
-          console.log 'scrollstop'
-          console.log event.target
           if @scrollTriggered
             @scrollTriggered = false
             @_startShowTimer()
