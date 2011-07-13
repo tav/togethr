@@ -46,12 +46,12 @@ namespace 'query', (exports) ->
       # when @distance changes, update the slider
       @model.bind 'change', @update
       # when the slider changes, update the distance
-      @slider.closest('.slider').bind 'vclick scrollstop mouseup', @notify
+      @slider.closest('.slider').bind 'touchstart mousedown', =>
+        $('body').one 'touchend mouseup', @notify
+      
       # when the jquery mobile code forces the handle to receive focus
       # make sure the scroll is flagged up
-      handle = @$ '.ui-slider-handle'
-      handle.bind 'focus', -> 
-        $(document).trigger 'silentscroll'
+      @$('.ui-slider-handle').bind 'focus', -> $(document).trigger 'silentscroll'
       
     
     
