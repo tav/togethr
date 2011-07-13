@@ -9,11 +9,9 @@ generate:
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.parsequery.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.url.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.support.fixedPosition.js
-      # mvc framework
+      # backbone
       - %(AMPIFY_ROOT)s/third_party/jslibs/underscore/underscore.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone.js
-      # XXX hack testing
-      - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone-localstorage.js
     
 
 - js/mobile.js:
@@ -26,18 +24,18 @@ generate:
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.vmouse.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.event.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.core.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.transition.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.checkboxradio.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.transition.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.checkboxradio.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.textinput.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.select.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.select.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.buttonMarkup.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.button.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.button.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.slider.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.collapsible.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.controlGroup.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.fieldContain.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.listview.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.listview.filter.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.collapsible.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.controlGroup.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.fieldContain.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.listview.js
+      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.listview.filter.js
     
 
 - js/app.js:
