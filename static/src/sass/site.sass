@@ -70,16 +70,27 @@ a
   clear: both
 
 
-.slider
-  width: 80%
+// XXX basic layout hack for now
+@media all and (min-width: 320px)
+  .search-input .ui-input-search
+    width: 120px
+  .slider div.ui-slider
+    width: 160px
 
+@media all and (min-width: 480px)
+  .slider div.ui-slider, .search-input .ui-input-search
+    width: 240px
+
+@media all and (min-width: 768px)
+  .slider div.ui-slider, .search-input .ui-input-search
+    width: 384px
+
+@media all and (min-width: 1024px)
+  .slider div.ui-slider, .search-input .ui-input-search
+    width: 512px
 
 #location-slider
   display: none
-
-
-.slider div.ui-slider
-  width: 100%
 
 
 // Generic

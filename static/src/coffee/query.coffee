@@ -4,6 +4,14 @@ namespace 'query', (exports) ->
   
   class Query extends Backbone.Model
   
+  class SearchBar extends baseview.Widget
+    initialize: -> 
+      @search_input = @$ '#search-input'
+      @search_input.textinput theme: 'c'
+      
+    
+    
+  
   class TitleBar extends baseview.Widget
     initialize: -> 
       @model.bind 'change', @render
@@ -50,13 +58,16 @@ namespace 'query', (exports) ->
       @messages = new message.Messages
       @distance = new Backbone.Model
       
-      @location_bar = new location.LocationBar
-        el: @$ '.location-bar'
-        model: @distance
+      @search_bar = new SearchBar
+        el: @$ '.search-bar'
       
       @title_bar = new TitleBar
         el: @$ '.title-bar'
         model: @query
+      
+      @location_bar = new location.LocationBar
+        el: @$ '.location-bar'
+        model: @distance
       
       @results_view = new ActivityStream
         el: @$ '.main-window'
