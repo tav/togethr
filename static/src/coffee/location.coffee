@@ -10,6 +10,13 @@ namespace 'location', (exports) ->
       longitude: 0.0
       label: ''
     
+    toLatLng: ->
+      lat = @get 'latitude'
+      lng = @get 'longitude'
+      new google.maps.LatLng lat, lng
+      
+    
+  
   
   ### Special ``Location`` class that tracks the user's current geolocation.
   ###
@@ -27,8 +34,8 @@ namespace 'location', (exports) ->
         
     ###
     defaults:
-      latitude: 0.0
-      longitude: 0.0
+      latitude: 51.5197
+      longitude: -0.1408
       label: '+here'
     
     
@@ -69,46 +76,38 @@ namespace 'location', (exports) ->
       'vclick .cancel-button'                           : 'handleCancel'
     
     initialize: ->
-      
-      # XXX we've changed to using @locations
-      
-      @location = @options.location
-      # render map
-      node = @$('.map').get 0
+      @locations = @options.locations
       options = 
         mapTypeId: google.maps.MapTypeId.ROADMAP
         disableDefaultUI: true
         zoomControl: true
-      @map = new google.maps.Map node, options
-      @render()
+        zoom: 12 # XXX derived from distance?
+      @map = new google.maps.Map @$('.map').get(0), options
       
     
     
     snapshot: ->
-      @location.unbind 'change', @render
+      @locations.unbind 'selection:changed', @render
       $(window).unbind 'throttledresize orientationchange', @updateMapContainerDimensions
       
     
     restore: ->
-      @location.bind 'change', @render
+      @locations.bind 'selection:changed', @render
       $(window).bind 'throttledresize orientationchange', @updateMapContainerDimensions
+      setTimeout @render, 0
       
     
     
     updateMapContainerDimensions: =>
-      # XXX quite how to manage the dimensions of the map, I'm not sure...
       target = @$ '.map'
-      h = window.innerHeight / 2
-      h = 200 if h < 200
-      target.height(h)
+      target.height(@el.width() * 9 / 16)
       google.maps.event.trigger @map, 'resize'
       
     
     centreMap: =>
-      latlng = new google.maps.LatLng @location.latitude, @location.longitude
-      @map.setCentre(latlng)
+      latlng = @locations.selected.toLatLng()
+      @map.setCenter latlng
       
-    
     
     render: =>
       @updateMapContainerDimensions()

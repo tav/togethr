@@ -26,6 +26,7 @@ namespace 'app', (exports) ->
     
     # create the specified page
     create: (page_name) ->
+      console.log "create #{page_name}"
       switch page_name
         when 'query'
           @pages.query = new query.QueryPage
@@ -42,7 +43,8 @@ namespace 'app', (exports) ->
     
     # make sure the specified page exists (and return it)
     ensure: (page_name) ->
-      @pages[page_name] = @create page_name if not @pages[page_name]?
+      console.log "ensure #{page_name}"
+      @create page_name if not @pages[page_name]?
       @pages[page_name]
       
     
@@ -68,6 +70,7 @@ namespace 'app', (exports) ->
     
     #
     handleHome: =>
+      # @handleLocation()
       console.log 'handling home'
       @ensure 'query'
       @query.set value: ''
@@ -90,7 +93,7 @@ namespace 'app', (exports) ->
     #
     handleLocation: =>
       console.log 'handling location'
-      @ensure 'location'
+      page = @ensure 'location'
       @show 'location', 'dialog'
       
     
@@ -107,6 +110,17 @@ namespace 'app', (exports) ->
     
     
     initialize: ->
+      
+      ###
+        
+        @here = new location.Here # cookie cached, ongoing geo tracking
+        @here.fetch
+          success: ->
+            # the rest of the setup...
+          
+        
+        
+      ###
       
       # setup ``here`` and fetch any existing ``@locations``
       @here = new location.Here
@@ -141,7 +155,7 @@ namespace 'app', (exports) ->
     # show the page
     $('html').removeClass "ui-mobile-rendering"
     # if necessary fix the page footer / menu bar positioning, scrolling 1px
-    # down to hide the address bar whilst we're at it
+    # down (with a sledgehammer) to hide the address bar whilst we're at it
     window.scrollTo 0, 1
     $.support.fixedPosition (ok) -> 
         if not ok
