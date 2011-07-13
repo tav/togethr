@@ -63,6 +63,9 @@ namespace 'location', (exports) ->
     
     ignore_slide_change: false
     
+    notify_delay: 250
+    notify_pending: null
+    
     n: 64999 / 100000000000000000
     p: 8
     
@@ -73,7 +76,7 @@ namespace 'location', (exports) ->
       # when @distance changes, update the slider
       @model.bind 'change', @update
       # when the slider changes, update the distance
-      @slider.bind 'change', @notify
+      @slider.closest('.slider').bind 'vclick scrollstop mouseup', @notify
       
     
     _toDistance: (value) ->
@@ -88,14 +91,14 @@ namespace 'location', (exports) ->
     notify: =>
       v = @slider.val()
       d = @_toDistance v
-      console.log "notify, slider value #{parseInt v}, distance #{parseInt d}km"
+      console.log "notify: slider value #{parseInt v}, distance #{parseInt d}km"
       # XXX update the distance
     
     
     update: =>
       d = @model.get 'value'
       v = @_toValue d
-      console.log "update, distance #{parseInt d}km, slider value #{parseInt v}"
+      console.log "update: distance #{parseInt d}km, slider value #{parseInt v}"
       @slider.val(v).slider 'refresh'
       
       
