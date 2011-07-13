@@ -19,6 +19,7 @@ namespace 'query', (exports) ->
     
     render: => 
       value = decodeURIComponent @model.get 'value'
+      value = value.replace /\+/g, ' '
       @$('.title').text value
       if value
         @el.show()
