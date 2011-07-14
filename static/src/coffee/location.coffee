@@ -107,8 +107,8 @@ namespace 'location', (exports) ->
   class LocationDialog extends baseview.Dialog
     
     events:
-      'vclick #select-existing-location-button'         : 'handleSelect'
-      'submit .location-search-input'                   : 'handleSearch'
+      'change .existing-location-select'                : 'handleSelect'
+      'submit .location-search-form'                    : 'handleSearch'
       'vclick .label-suggestion'                        : 'handleSelectLabel'
       'vclick .save-button'                             : 'handleSave'
       'vclick .cancel-button'                           : 'handleCancel'
@@ -121,6 +121,7 @@ namespace 'location', (exports) ->
         zoomControl: true
         zoom: 12 # XXX derived from distance?
       @map = new google.maps.Map @$('.map').get(0), options
+      @geocoder = new google.maps.Geocoder
       
     
     
@@ -136,37 +137,87 @@ namespace 'location', (exports) ->
       
     
     
+    updateExistingLocationsSelect: =>
+      target = @$ '.existing-location-select'
+      options = []
+      @locations.each (item) =>
+        id = item.get 'id'
+        if id
+          if item is @locations.selected
+            options.push "<option value=\"#{id}\" selected=\"true\">#{id}</option>"
+          else
+            options.push "<option value=\"#{id}\">#{id}</option>"
+      
+      target.html options.join ''
+      target.selectmenu 'refresh', true
+      # don't let vclicks bubble
+      target.closest('.ui-select').bind 'vclick', -> false
+      
+    
+    
     updateMapContainerDimensions: =>
       target = @$ '.map'
       target.height(@el.width() * 9 / 16)
       google.maps.event.trigger @map, 'resize'
       
     
+    
     centreMap: =>
       latlng = @locations.selected.toLatLng()
       @map.setCenter latlng
       
     
+    
     render: =>
+      @updateExistingLocationsSelect()
       @updateMapContainerDimensions()
       @centreMap()
-      # update the label
       
     
     
     handleSelect: =>
+      target = @$ '.existing-location-select'
+      value = target.val()
+      console.log 'handleSelect', value
+      @locations.select value
+      false
       
     
+    
     handleSearch: =>
+      target = @$ '.location-search-input'
+      value = target.val()
+      console.log value
+      @geocoder.geocode address: value, (results, status) =>
+          if status is google.maps.GeocoderStatus.OK
+            geometry = results[0].geometry
+            @map.fitBounds geometry.bounds
+          else
+            console.warning status if console? and console.warning?
+      false
       
+    
     
     handleSelectLabel: =>
       
     
     handleSave: =>
-      
+      target = @$ '.location-search-input'
+      label = prompt 'Please give this location a short name', target.val()
+      if label
+        latlng = @map.getCenter()
+        instance = new location.Location
+          id: label
+          latitude: latlng.lat()
+          longitude: latlng.lng()
+        # XXX this just errors on a dupe
+        @locations.add instance
+        @locations.select label
+        history.go -1
+      false
     
     handleCancel: =>
+      history.go -1
       
     
     

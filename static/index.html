@@ -91,35 +91,33 @@
             <div class="body" data-role="content">
               <div class="window main-window">
                 <div class="row">
-                  <div class="button location-button select-existing-location-button">
-                    <a href="#select">Select existing location</a>
+                  <div data-role="fieldcontain">
+                    <label for="select-existing-location" class="select">Select existing location:</label>
+                    <select name="select-existing-location" class="existing-location-select"
+                        data-native-menu="false">
+                      <option value="+here">+here</option>
+                    </select>
                   </div>
                 </div>
                 <div class="row">
-                  <div class="input search-input left">
-                    <form class="location-search-form">
-                      <input class="location-search-input" type="text" name="location" />
-                    </form>
-                  </div>
+                  <form class="location-search-form">
+                    <div data-role="fieldcontain">
+                      <label for="location">Search for location</label>
+                      <input class="location-search-input" type="search" name="location" />
+                      <div class="map location-map">
+                      </div>
+                    </div>
+                  </form>
                 </div>
-                <div class="row">
-                  <div class="map location-map">
-                  </div>
-                </div>
-                <div class="row">
-                  <div class="input">
-                    <input class="location-label" type="text" name="label" />
-                    <ul class="suggestions label-suggestions">
-                    </ul>
-                  </div>
-                </div>
-                <div class="row">
-                  <div class="button save-button">
-                    <a href="#save">Save</a>
-                  </div>
-                  <div class="button cancel-button">
-                    <a href="#cancel">Cancel</a>
-                  </div>
+                <div class="row save-cancel-row">
+                  <a class="save-button"
+                      href="#save"
+                      data-role="button" 
+                      data-inline="true">Use this location</a>
+                  <a class="cancel-button" 
+                      href="#cancel"
+                      data-role="button" 
+                      data-inline="true">Cancel</a>
                 </div>
               </div>
             </div>

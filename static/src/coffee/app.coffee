@@ -62,12 +62,12 @@ namespace 'app', (exports) ->
     
     #
     handleHome: =>
-      #@handleLocation()
       console.log 'handling home'
       @ensure 'query'
       @query.set value: ''
       @show 'query', 'page'
       
+    
     
     # 
     handleQuery: (value) =>
