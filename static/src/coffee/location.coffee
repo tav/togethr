@@ -218,6 +218,7 @@ namespace 'location', (exports) ->
     
     handleCancel: =>
       history.go -1
+      false
       
     
     
