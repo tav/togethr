@@ -67,7 +67,7 @@ namespace 'query', (exports) ->
     notify: =>
       v = @slider.val()
       d = @_toDistance v
-      #console.log "notify: slider value #{parseInt v}, distance #{parseInt d}km"
+      console.log "notify: slider value #{parseInt v}, distance #{parseInt d}km"
       @model.set value: d
       true
       
@@ -75,7 +75,7 @@ namespace 'query', (exports) ->
     update: =>
       d = @model.get 'value'
       v = @_toValue d
-      #console.log "update: distance #{parseInt d}km, slider value #{parseInt v}"
+      console.log "update: distance #{parseInt d}km, slider value #{parseInt v}"
       @slider.val(v).slider 'refresh'
       true
       
