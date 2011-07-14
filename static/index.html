@@ -42,14 +42,21 @@
                       data-iconpos="notext" 
                       class="left">Bookmarks</a>
                 </div>
-                <div class="bar title-bar">
-                  <div class="button navigation-button back-button">
-                    <a rel="back" href="/">Back</a>
-                  </div>
-                  <div class="title"></div>
-                  <div class="button action-button bookmark-this-button">
-                    <a href="/dialog/addBookmark">Add bookmark</a>
-                  </div>
+                <div class="bar title-bar ui-header">
+                  <a href="/"
+                      data-role="button" 
+                      data-inline="true" 
+                      data-rel="back"
+                      data-icon="back"
+                      data-iconpos="notext" 
+                      class="left">Back</a>
+                  <a href="/dialog/addBookmark"
+                      data-role="button" 
+                      data-inline="true"
+                      data-icon="plus"
+                      data-iconpos="notext" 
+                      class="right">Add bookmark</a>
+                  <div class="title ui-title"></div>
                 </div>
                 <div class="bar location-bar">
                   <div class="slider left">
