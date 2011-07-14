@@ -51,8 +51,7 @@ namespace 'app', (exports) ->
     # show the specified page
     show: (page_name, page_type) ->
       # use the jquery mobile machinery to change to the specified page
-      url = "##{@pages[page_name].el.jqmData 'url'}"
-      $.mobile.changePage url,
+      $.mobile.changePage @pages[page_name].el,
         changeHash: false
         fromHashChange: true
       # hide or show our special case footer as appropriate
@@ -90,8 +89,8 @@ namespace 'app', (exports) ->
       
     
     #
-    handleUser: =>
-      console.log 'handling user'
+    handleUser: (username) =>
+      console.log "handling user #{username}"
       
     
     #

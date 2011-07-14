@@ -162,9 +162,11 @@
         'mobileinit', 
         function () {
           jQuery.mobile.ajaxEnabled = false;
+          jQuery.mobile.defaultPageTransition = 'none';
+          jQuery.mobile.defaultDialogTransition = 'none';
           jQuery.mobile.hashListeningEnabled = false;
-          jQuery.fn.hashchange = $.noop;
           jQuery.mobile._registerInternalEvents = $.noop;
+          jQuery.fn.hashchange = $.noop;
         }
       );
     </script>
