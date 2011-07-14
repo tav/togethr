@@ -16,26 +16,33 @@ generate:
 
 - js/mobile.js:
     source: 
-      # jquery mobile's events and form modules
+      # jquery mobile
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.ui.widget.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.widget.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.media.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.support.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.vmouse.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.event.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.page.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.core.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.transition.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.checkboxradio.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.navigation.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.transition.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.fixHeaderFooter.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.checkboxradio.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.textinput.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.select.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.select.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.buttonMarkup.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.button.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.button.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.forms.slider.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.collapsible.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.controlGroup.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.fieldContain.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.listview.js
-      #- %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.listview.filter.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.collapsible.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.controlGroup.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.fieldContain.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.listview.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.listview.filter.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.dialog.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.navbar.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.grid.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/mobile/jquery.mobile.init.js
     
 
 - js/app.js:

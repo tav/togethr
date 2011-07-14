@@ -50,27 +50,19 @@ namespace 'app', (exports) ->
     
     # show the specified page
     show: (page_name, page_type) ->
-      next_page = @pages[page_name]
-      previous_page = @current_page
-      # don't hide / show current page
-      return if _.isEqual next_page, previous_page
-      # update @current_page
-      @current_page = next_page
-      # if there's a current page sleep and hide it
-      if previous_page?
-        previous_page.snapshot()
-        previous_page.hide()
-      # wake and show the new page
-      next_page.restore()
-      next_page.show()
-      # hide or show the footer as appropriate
+      # use the jquery mobile machinery to change to the specified page
+      url = "##{@pages[page_name].el.jqmData 'url'}"
+      $.mobile.changePage url,
+        changeHash: false
+        fromHashChange: true
+      # hide or show our special case footer as appropriate
       if page_type is 'dialog' then @footer.hide() else @footer.show()
       
     
     
     #
     handleHome: =>
-      # @handleLocation()
+      #@handleLocation()
       console.log 'handling home'
       @ensure 'query'
       @query.set value: ''
@@ -93,7 +85,7 @@ namespace 'app', (exports) ->
     #
     handleLocation: =>
       console.log 'handling location'
-      page = @ensure 'location'
+      @ensure 'location'
       @show 'location', 'dialog'
       
     
@@ -146,14 +138,13 @@ namespace 'app', (exports) ->
   
   # main application entrypoint
   main = ->
+    console.log 'main()'
     # initialise the controller and provide ``app.navigate``
     controller = new Controller
     exports.navigate = controller.navigate
     # start handling requests and intercepting events
     interceptor = new util.Interceptor
     Backbone.history.start pushState: true
-    # show the page
-    $('html').removeClass "ui-mobile-rendering"
     # if necessary fix the page footer / menu bar positioning, scrolling 1px
     # down (with a sledgehammer) to hide the address bar whilst we're at it
     window.scrollTo 0, 1

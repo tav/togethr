@@ -9,68 +9,66 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>Togethr</title>
     <link rel="stylesheet" href="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.css" />
+    <link type="text/css" rel="stylesheet" href="src/css/libraries.css" />
     <link type="text/css" rel="stylesheet" href="build/css/site.css" />
   </head>
   <body>
     <div class="scroll-wrapper">
       <div class="scroll">
-        <div id="query-page" class="page">
-          <div class="head">
-            <div class="bar search-bar">
-              <div class="input search-input left">
-                <form action="/query" method="post">
-                  <input id="search-input" type="search" name="q" />
-                </form>
-              </div>
-              <div class="button advsearch-button">
-                <a href="/dialog/advsearch">ADV</a>
-              </div>
-              <div class="button navigation-button">
-                <a href="/dialog/bookmarks">BM</a>
-              </div>
-            </div>
-            <div class="bar title-bar">
-              <div class="button navigation-button back-button">
-                <a rel="back" href="/">Back</a>
-              </div>
-              <div class="title"></div>
-              <div class="button action-button bookmark-this-button">
-                <a href="/dialog/addBookmark">Add BM</a>
-              </div>
-            </div>
-            <div class="bar location-bar">
-              <div class="slider left">
-                <div data-role="fieldcontain">
-                  <input type="range" 
-                      name="location-slider" 
-                      id="location-slider" 
-                      value="100" 
-                      min="25" 
-                      max="100"
-                  />
+        <div id="query-page" class="page" data-role="page" data-fullscreen="true">
+          <div data-role="content">
+            <div class="head">
+              <div class="bar search-bar">
+                <div class="input search-input left">
+                  <form action="/query" method="post">
+                    <input id="search-input" type="search" name="q" />
+                  </form>
+                </div>
+                <div class="button advsearch-button">
+                  <a href="/dialog/advsearch">ADV</a>
+                </div>
+                <div class="button navigation-button">
+                  <a href="/dialog/bookmarks">BM</a>
                 </div>
               </div>
-              <div class="button location-button">
-                <a id="location-button" href="/dialog/location">( + )</a>
+              <div class="bar title-bar">
+                <div class="button navigation-button back-button">
+                  <a rel="back" href="/">Back</a>
+                </div>
+                <div class="title"></div>
+                <div class="button action-button bookmark-this-button">
+                  <a href="/dialog/addBookmark">Add BM</a>
+                </div>
+              </div>
+              <div class="bar location-bar">
+                <div class="slider left">
+                  <div data-role="fieldcontain">
+                    <input type="range" 
+                        name="location-slider" 
+                        id="location-slider" 
+                        value="100" 
+                        min="25" 
+                        max="100"
+                    />
+                  </div>
+                </div>
+                <div class="button location-button">
+                  <a id="location-button" href="/dialog/location">( + )</a>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="body">
-            <div class="window main-window">
-              MAIN WINDOW
+            <div class="body">
+              <div class="window main-window">
+                MAIN WINDOW
+              </div>
             </div>
           </div>
         </div>
-        <div id="location-dialog" class="dialog">
-          <div class="head">
-            <div class="bar title-bar">
-              <div class="button navigation-button back-button">
-                <a rel="back" href="/">Back</a>
-              </div>
-              <div class="title">Set Location</div>
-            </div>
+        <div id="location-dialog" class="dialog" data-role="dialog">
+          <div class="head" data-role="header">
+            <h1>Set Location</h1>
           </div>
-          <div class="body">
+          <div class="body" data-role="content">
             <div class="window main-window">
               <div class="row">
                 <div class="button location-button select-existing-location-button">
@@ -132,6 +130,17 @@
     <script type="text/javascript" 
         src="build/js/base.js">
     </script>
+    <script type="text/javascript">
+      jQuery(document).bind(
+        'mobileinit', 
+        function () {
+          jQuery.mobile.ajaxEnabled = false;
+          jQuery.mobile.hashListeningEnabled = false;
+          jQuery.fn.hashchange = $.noop;
+          jQuery.mobile._registerInternalEvents = $.noop;
+        }
+      );
+    </script>
     <script type="text/javascript"
         src="build/js/mobile.js">
     </script>
@@ -139,9 +148,16 @@
         src="build/js/app.js">
     </script>
     <script type="text/javascript">
-      $.mobile.ajaxEnabled = false;
-      $.mobile.hashListeningEnabled = false;
-      togethr.main();
+      jQuery(document).ready(
+        function () {
+          window.setTimeout(
+            function () {
+              togethr.main();
+            },
+            20
+          );
+        }
+      );
     </script>
   </body>
 </html>

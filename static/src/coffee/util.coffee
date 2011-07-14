@@ -29,7 +29,9 @@ namespace 'util', (exports) ->
     
     # test whether to go back
     shouldtriggerBack: (target) ->
-      target.attr 'rel' is 'back'
+      return true if target.attr 'rel' is 'back'
+      return true if target.closest(":jqmData(rel='back')").length > 0
+      false
       
     
     
