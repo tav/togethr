@@ -65,18 +65,26 @@ namespace 'util', (exports) ->
     
     # intercept ``vclick`` and ``submit`` events
     constructor: ->
-      $('body').bind 'vclick submit', (event) =>
+      $('body').bind 'vclick', (event) =>
+          console.log 'intercepted vclick'
           # process an event
-          target = $ event.target
+          target = $(event.target).closest 'a'
           if @shouldtriggerBack target
             window.history.go -1
           else
-            if event.type is 'submit'
-              url = @validate target.attr('action'), target
-              @handleForm url, target.serialize() if url?
-            else
-              url = @validate target.attr('href'), target
-              @handleLink url if url?
+            url = @validate target.attr('href'), target
+            @handleLink url if url?
+          false
+        
+      
+      $('body').bind 'submit', (event) =>
+          console.log 'intercepted submit'
+          target = $(event.target).closest 'form'
+          if @shouldtriggerBack target
+            window.history.go -1
+          else
+            url = @validate target.attr('action'), target
+            @handleForm url, target.serialize() if url?
           false
         
       
