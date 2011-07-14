@@ -16,8 +16,12 @@
     <div class="scroll-wrapper">
       <div class="scroll">
         <div class="page-container">
-          <div id="query-page" class="page" data-role="page" data-fullscreen="true">
-            <div data-role="content">
+          <div id="query-page" class="page" 
+              data-role="page" 
+              data-theme="c">
+            <div data-role="header">
+            </div>
+            <div class="body" data-role="content">
               <div class="head">
                 <div class="bar search-bar">
                   <div class="input search-input left">
@@ -25,12 +29,18 @@
                       <input id="search-input" type="search" name="q" />
                     </form>
                   </div>
-                  <div class="button advsearch-button">
-                    <a href="/dialog/advsearch">ADV</a>
-                  </div>
-                  <div class="button navigation-button">
-                    <a href="/dialog/bookmarks">BM</a>
-                  </div>
+                  <a href="/dialog/advsearch"
+                      data-role="button" 
+                      data-inline="true" 
+                      data-icon="arrow-d"
+                      data-iconpos="notext" 
+                      class="left">Jump to</a>
+                  <a href="/dialog/bookmarks" 
+                      data-role="button" 
+                      data-inline="true" 
+                      data-icon="grid"
+                      data-iconpos="notext" 
+                      class="left">Bookmarks</a>
                 </div>
                 <div class="bar title-bar">
                   <div class="button navigation-button back-button">
@@ -38,7 +48,7 @@
                   </div>
                   <div class="title"></div>
                   <div class="button action-button bookmark-this-button">
-                    <a href="/dialog/addBookmark">Add BM</a>
+                    <a href="/dialog/addBookmark">Add bookmark</a>
                   </div>
                 </div>
                 <div class="bar location-bar">
@@ -54,14 +64,16 @@
                     </div>
                   </div>
                   <div class="button location-button">
-                    <a id="location-button" href="/dialog/location">( + )</a>
+                    <a id="location-button" href="/dialog/location"
+                        data-role="button" 
+                        data-inline="true" 
+                        data-icon="info"
+                        data-iconpos="notext">Set location</a>
                   </div>
                 </div>
               </div>
-              <div class="body">
-                <div class="window main-window">
-                  MAIN WINDOW
-                </div>
+              <div class="window main-window">
+                MAIN WINDOW
               </div>
             </div>
           </div>
