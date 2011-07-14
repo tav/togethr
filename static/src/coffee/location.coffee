@@ -5,10 +5,8 @@ namespace 'location', (exports) ->
   ### ``Model`` class that encapsulates a specific location.
   ###
   class Location extends Backbone.Model
-    defaults:
-      latitude: 0.0
-      longitude: 0.0
-      label: ''
+    
+    localStorage: new Store 'locations'
     
     toLatLng: ->
       lat = @get 'latitude'
@@ -17,26 +15,68 @@ namespace 'location', (exports) ->
       
     
   
-  
   ### Special ``Location`` class that tracks the user's current geolocation.
   ###
   class Here extends Location
-    ###
-        # XXX HACK for testing
-        $.geolocation.find = (cb) -> cb {latitude: 51.5197, longitude: -0.1408}
-        # XXX END HACK
-        
-        # get the user's location
-        $.geolocation.find (coords) ->
-        
-            # set ``here`` to the user's location
-            here = new location.Location coords
-        
-    ###
-    defaults:
-      latitude: 51.5197
-      longitude: -0.1408
-      label: '+here'
+    
+    localStorage: new Store 'here'
+    
+    expires_after: 30 # minutes
+    
+    # is the data recent?
+    isRecent: ->
+      date_string = @get 'modified'
+      if date_string?
+        # t1 is when last stored
+        t1 = new Date date_string
+        # t2 is now
+        t2 = new Date
+        # add ``expires_after`` mins to t1
+        t1.setMinutes t1.getMinutes() + @expires_after
+        # if it's greater than t2, the date is recent
+        return true if t1 > t2
+      false
+      
+    
+    
+    # update model attributes and save to short lived cookie
+    storeLocation: (coords, silent) ->
+      # update model attributes
+      d = new Date
+      attrs =
+        latitude: coords.latitude
+        longitude: coords.longitude
+        modified: d.toUTCString()
+      @set attrs, silent: silent
+      @save()
+      
+    
+    
+    # start monitoring location, storing changes
+    startWatching: (silently) ->
+      options =
+        enableHighAccuracy: true
+        watch: true
+      $.geolocation.find (coords) => 
+          @storeLocation coords, silently
+        , $.noop
+        , options
+      
+    
+    
+    # get current location and then ``startWatching``
+    start: (callback, silentTracking) ->
+      # default silent to true
+      silentTracking or= true
+      # fetch the current location
+      $.geolocation.find (coords) =>
+          this.storeLocation coords, false
+          @startWatching silentTracking
+          callback true
+        , -> 
+          callback false
+        , enableHighAccuracy: true
+      
     
     
   
@@ -44,14 +84,12 @@ namespace 'location', (exports) ->
   ###
   class Locations extends Backbone.Collection
     
-    # get the first model matching the provided label
-    getByLabel: (label) -> 
-      @find (item) -> item.get('label') is label
-      
+    model: Location
+    localStorage: new Store 'locations'
     
-    # select a model by label and notify that the selected model has changed
-    select: (label, opts) ->
-      @selected = @getByLabel label
+    # select a model by id and notify that the selected model has changed
+    select: (id, opts) ->
+      @selected = @get id
       if not (opts? and opts.silent is true)
         @trigger 'selection:changed', @selected 
       
@@ -59,7 +97,7 @@ namespace 'location', (exports) ->
     
     # select +here by default
     initialize: ->
-      @selected = @getByLabel '+here'
+      @selected = @get '+here'
       
     
     

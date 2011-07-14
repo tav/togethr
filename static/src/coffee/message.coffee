@@ -45,7 +45,9 @@ namespace 'message', (exports) ->
     
   
   class Message extends Backbone.Model
-  
+    
+    localStorage: new Store 'messages'
+    
   class MessageEntry extends Backbone.View
     
     className: 'message-entry'
@@ -66,6 +68,7 @@ namespace 'message', (exports) ->
   class Messages extends Backbone.Collection
     
     model: Message
+    localStorage: new Store 'messages'
     
     initialize: ->
       @bind 'add', @applyView

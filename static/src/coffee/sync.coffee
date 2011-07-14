@@ -1,4 +1,4 @@
-# XXX for now, this is a noop
+###
 Backbone.sync = (method, model, options) ->
   
   resp = null
@@ -13,3 +13,4 @@ Backbone.sync = (method, model, options) ->
     options.error 'Record not found'
   
 
+###

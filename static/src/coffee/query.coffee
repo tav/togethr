@@ -171,6 +171,7 @@ namespace 'query', (exports) ->
     
     
     performQuery: =>
+      console.log 'performQuery', @locations, @query
       query_value = @query.get 'value'
       latlng = @locations.selected.toJSON()
       # XXX

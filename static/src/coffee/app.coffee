@@ -101,57 +101,67 @@ namespace 'app', (exports) ->
       
     
     
-    initialize: ->
-      
-      ###
-        
-        @here = new location.Here # cookie cached, ongoing geo tracking
-        @here.fetch
-          success: ->
-            # the rest of the setup...
-          
-        
-        
-      ###
-      
-      # setup ``here`` and fetch any existing ``@locations``
-      @here = new location.Here
+    # 
+    initialize: (@here) ->
+      # create and populate a ``@locations`` collection
       @locations = new location.Locations [@here]
       @locations.fetch add: true
-      
-      # setup and fetch any existing ``@bookmarks``
+      # create and populate a ``@bookmarks`` collection
       @bookmarks = new bookmark.Bookmarks
       @bookmarks.fetch()
-      
-      # setup ``@user`` and fetch any details
+      # create and sync a ``@user`` instance
       @user = new user.User
       @user.fetch()
-      
-      # setup ``@query``
+      # create an ``@query`` instance
       @query = new query.Query
-      
       # setup application wide ``View`` components
       @footer = new footer.FooterWidget el: $ '#footer-wrapper'
+      # ...
       
     
-    
   
-  # main application entrypoint
-  main = ->
-    console.log 'main()'
+  # init once we know we have ``here`` (the current location)
+  init = (here) ->
+    
     # initialise the controller and provide ``app.navigate``
-    controller = new Controller
+    controller = new Controller here
     exports.navigate = controller.navigate
+    
     # start handling requests and intercepting events
     interceptor = new util.Interceptor
     Backbone.history.start pushState: true
-    # if necessary fix the page footer / menu bar positioning, scrolling 1px
-    # down (with a sledgehammer) to hide the address bar whilst we're at it
-    window.scrollTo 0, 1
+    
+  
+  
+  _start = (here) ->
+    here.start (ok) =>
+      if ok
+        init here
+      else
+        alert 'Togethr.at needs to know your location.'
+        window.location.reload()
+      
+    
+  
+  
+  # main application entrypoint
+  main = ->
+    # create a ``Here`` instance
+    here = new location.Here id: '+here'
+    # see if we have +here in local storage
+    here.fetch
+      error: -> 
+        _start here
+      success: ->
+        if here.isRecent()
+          here.startWatching true
+          init here
+        else 
+          _start here
+    # if necessary fix the page footer / menu bar positioning
     $.support.fixedPosition (ok) -> 
         if not ok
           footer = new fix.FixedFooter el: $ '.foot'
-          $(window).load -> $.mobile.silentScroll 0, 1
       , 1
     
     
