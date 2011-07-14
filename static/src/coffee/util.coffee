@@ -38,10 +38,7 @@ namespace 'util', (exports) ->
       try
         app.navigate url, true
       catch err
-        try
-          console.error
-        catch err
-          # pass
+        console.error err if console? and console.error?
         
       
     
