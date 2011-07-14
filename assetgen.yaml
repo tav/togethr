@@ -5,13 +5,15 @@ generate:
 - js/base.js:
     source:
       # jquery plugins
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.cookie.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.geolocation.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.parsequery.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.url.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.support.fixedPosition.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.url.js
       # backbone
       - %(AMPIFY_ROOT)s/third_party/jslibs/underscore/underscore.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone-localstorage.js
     
 
 - js/mobile.js:
