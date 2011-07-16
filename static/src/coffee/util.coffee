@@ -8,8 +8,11 @@ namespace 'util', (exports) ->
     
     # current domain
     current_host: $.url().attr 'host'
-    # patterns matching external links to ignore
+    # patterns to ignore
     ignore_patterns: [
+      # ignore href="#" - often inserted by jquery mobile widgets
+      /^#$/,
+      # urls we want to allow the backend to handle
       /^\/api/,
       /^\/app/,
       /^\/backend/,
