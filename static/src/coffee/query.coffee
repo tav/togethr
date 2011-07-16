@@ -40,15 +40,17 @@ namespace 'query', (exports) ->
     p: 8
     
     initialize: ->
+      @locations = @options.locations
       # init the jquery.mobile slider
       @slider = @$ '#location-slider'
       @slider.slider theme: 'c'
       # when @distance changes, update the slider
       @model.bind 'change', @update
+      # when the selected location changes update the label
+      @locations.bind 'selection:changed', @label
       # when the slider changes, update the distance
       @slider.closest('.slider').bind 'touchstart mousedown', =>
         $('body').one 'touchend mouseup', @notify
-      
       # when the jquery mobile code forces the handle to receive focus
       # make sure the scroll is flagged up
       @$('.ui-slider-handle').bind 'focus', -> $(document).trigger 'silentscroll'
@@ -78,6 +80,12 @@ namespace 'query', (exports) ->
       console.log "update: distance #{parseInt d}km, slider value #{parseInt v}"
       @slider.val(v).slider 'refresh'
       true
+      
+    
+    label: =>
+      label = @locations.selected.get 'id'
+      target = @$ '#location-button .ui-btn-text'
+      target.text label
       
     
     
@@ -121,6 +129,7 @@ namespace 'query', (exports) ->
       @location_bar = new LocationBar
         el: @$ '.location-bar'
         model: @distance
+        locations: @locations
       
       @results_view = new ActivityStream
         el: @$ '.main-window'
