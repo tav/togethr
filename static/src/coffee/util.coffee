@@ -70,10 +70,9 @@ namespace 'util', (exports) ->
     constructor: ->
       $('body').bind 'vclick', (event) =>
           console.log 'intercepted vclick'
-          # process an event
           target = $(event.target).closest 'a'
           if @shouldtriggerBack target
-            window.history.go -1
+            window.history.back()
           else
             url = @validate target.attr('href'), target
             @handleLink url if url?
@@ -84,7 +83,7 @@ namespace 'util', (exports) ->
           console.log 'intercepted submit'
           target = $(event.target).closest 'form'
           if @shouldtriggerBack target
-            window.history.go -1
+            window.history.back()
           else
             url = @validate target.attr('action'), target
             @handleForm url, target.serialize() if url?
