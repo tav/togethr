@@ -175,36 +175,44 @@
     <script type="text/javascript" 
         src="build/js/base.js">
     </script>
-    <script type="text/javascript">
-      jQuery(document).bind(
-        'mobileinit', 
-        function () {
-          jQuery.mobile.ajaxEnabled = false;
-          jQuery.mobile.defaultPageTransition = 'none';
-          jQuery.mobile.defaultDialogTransition = 'none';
-          jQuery.mobile.hashListeningEnabled = false;
-          jQuery.mobile._registerInternalEvents = $.noop;
-          jQuery.fn.hashchange = $.noop;
-        }
-      );
-    </script>
-    <script type="text/javascript"
-        src="build/js/mobile.js">
-    </script>
     <script type="text/javascript"
         src="build/js/app.js">
     </script>
     <script type="text/javascript">
-      jQuery(document).ready(
-        function () {
-          window.setTimeout(
-            function () {
-              togethr.main();
-            },
-            20
-          );
-        }
-      );
+      // <![CDATA[
+      (function ($) {
+        $(document).bind(
+          // when jquery mobile is ready to be configured
+          'mobileinit', 
+          function () {
+            // get it to stop handling navigation
+            $.mobile.ajaxEnabled = false;
+            $.mobile.hashListeningEnabled = false;
+            $.fn.hashchange = $.noop;
+            // tell change page not to use transitions
+            $.mobile.defaultPageTransition = 'none';
+            $.mobile.defaultDialogTransition = 'none';
+            // and make sure it believes it's fully supported
+            $.mobile.gradeA = function () { return true; };
+          }
+        ).ready(
+          // then when the page is ready
+          function () {
+            // and the other ready handlers have run
+            window.setTimeout(
+              function () { 
+                // start the app
+                togethr.main(); 
+              }, 
+              20
+            );
+          }
+        );
+      })(jQuery);
+      // ]]>
+    </script>
+    <script type="text/javascript"
+        src="build/js/mobile.js">
     </script>
   </body>
 </html>
