@@ -84,32 +84,50 @@
               </div>
             </div>
           </div>
-          <div id="location-dialog" class="dialog" data-role="dialog">
+          <div id="location-dialog" 
+              class="dialog"
+              data-role="dialog"
+              data-fullscreen="true">
             <div class="head" data-role="header">
               <h1>Set Location</h1>
             </div>
             <div class="body" data-role="content">
               <div class="window main-window">
-                <div class="row">
-                  <div data-role="fieldcontain">
-                    <label for="select-existing-location" class="select">Select existing location:</label>
-                    <select name="select-existing-location" class="existing-location-select"
-                        data-native-menu="false">
-                      <option value="+here">+here</option>
-                    </select>
-                  </div>
+                <div class="row" data-role="fieldcontain">
+                  <label for="select-existing-location" class="select">
+                    Select an existing location:
+                  </label>
+                  <select name="select-existing-location"
+                      class="existing-location-select"
+                      data-native-menu="false">
+                    <option value="+here">+here</option>
+                  </select>
                 </div>
-                <div class="row">
+                <div class="row" data-role="fieldcontain">
                   <form class="location-search-form">
-                    <div data-role="fieldcontain">
-                      <label for="location">Search for location</label>
-                      <input class="location-search-input" type="search" name="location" />
-                      <div class="map location-map">
-                      </div>
-                    </div>
+                    <label for="location">
+                      Search for a new location:
+                    </label>
+                    <input class="location-search-input"
+                        type="search" 
+                        name="location"
+                    />
                   </form>
                 </div>
-                <div class="row save-cancel-row">
+                <div class="row" data-role="fieldcontain">
+                  <div class="map location-map">
+                  </div>
+                </div>
+                <div class="row" data-role="fieldcontain">
+                  <label for="location">
+                    Give this location a short name:
+                  </label>
+                  <input class="location-label-input" 
+                      type="text" 
+                      name="label"
+                  />
+                </div>
+                <div class="row save-cancel-row" data-role="fieldcontain">
                   <a class="save-button"
                       href="#save"
                       data-role="button" 
