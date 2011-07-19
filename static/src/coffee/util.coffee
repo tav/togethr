@@ -27,7 +27,6 @@ namespace 'util', (exports) ->
       return null if host is not @current_host
       return null for item in @ignore_patterns when relative.match item
       return null if target.closest('[rel="external"]').length > 0
-      ## ignore data-rel="back" links because they're already handled by jqm
       relative
       
     
