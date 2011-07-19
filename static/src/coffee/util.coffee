@@ -27,14 +27,14 @@ namespace 'util', (exports) ->
       return null if host is not @current_host
       return null for item in @ignore_patterns when relative.match item
       return null if target.closest('[rel="external"]').length > 0
-      # n.b.: ignore data-rel="back" links because *they're already handled* by jqm
-      return null if target.closest(':jqmData(rel="back")').length > 0
+      ## ignore data-rel="back" links because they're already handled by jqm
       relative
       
     
     # test whether to go back
     shouldtriggerBack: (target) ->
-      return true if target.closest('[rel="back"]').length > 0
+      return true if target.closest("[rel='back']").length > 0
+      return true if target.closest(':jqmData(rel="back")').length > 0
       false
       
     
@@ -69,8 +69,7 @@ namespace 'util', (exports) ->
     
     # intercept ``vclick`` and ``submit`` events
     constructor: ->
-      $('body').bind 'vclick', (event) =>
-          console.log 'intercepted vclick'
+      $('body').bind 'vclick click', (event) =>
           target = $(event.target).closest 'a'
           if @shouldtriggerBack target
             window.history.back()
@@ -78,10 +77,7 @@ namespace 'util', (exports) ->
             url = @validate target.attr('href'), target
             @handleLink url if url?
           false
-        
-      
       $('body').bind 'submit', (event) =>
-          console.log 'intercepted submit'
           target = $(event.target).closest 'form'
           if @shouldtriggerBack target
             window.history.back()
