@@ -94,8 +94,11 @@ namespace 'app', (exports) ->
     #
     handleMessage: (msgid) =>
       console.log 'handling message', msgid
+      target = message.MessagePage.generateElement msgid
+      $('.page-container').append(target)
       page = new message.MessagePage
-        model:  @messages.get msgid
+        model: @messages.get msgid
+        el: target
       @show page, 'page'
       
     

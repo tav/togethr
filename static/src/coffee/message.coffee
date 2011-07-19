@@ -12,10 +12,11 @@ namespace 'message', (exports) ->
           </div>
         </a>
       """
-    messagePage: _.template """
-        <div id="messages/<%= id %>" class="page" 
-            data-role="page" 
-            data-theme="c">
+    messagePageElement: _.template """
+          <div id="messages/<%= id %>" class="page" data-role="page" data-theme="c">
+          </div>
+      """
+    messagePageContent: _.template """
           <div data-role="header">
           </div>
           <div class="body" data-role="content">
@@ -35,7 +36,6 @@ namespace 'message', (exports) ->
               <%= content %>
             </div>
           </div>
-        </div>
       """
     
   
@@ -92,13 +92,19 @@ namespace 'message', (exports) ->
   
   class MessagePage extends baseview.Page
     
+    # static method that returns a new element
+    @generateElement: (msgid) ->
+      $(templates.messagePageElement id: msgid)
+      
+    
+    
     initialize: ->
       @model.bind 'change', @render
       context =
         id: @model.id
         content: @model.get 'content'
-      @el = $ templates.messagePage(context)
-      $('.page-container').append(@el)
+      @el.append $(templates.messagePageContent(context))
+      @el.bind 'swiperight', @handleBack
       @el.page()
       @render()
       
@@ -106,6 +112,11 @@ namespace 'message', (exports) ->
     render: =>
       # XXX
       
+    
+    
+    handleBack: =>
+      history.back()
+      false
     
     
   
