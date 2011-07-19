@@ -189,9 +189,10 @@
             $.mobile.ajaxEnabled = false;
             $.mobile.hashListeningEnabled = false;
             $.fn.hashchange = $.noop;
-            // tell change page not to use transitions
-            $.mobile.defaultPageTransition = 'none';
-            $.mobile.defaultDialogTransition = 'none';
+            // preserve scroll when more than 10px (not screen/2)
+            $.mobile.minScrollBack = 10;
+            // tell it to use vclick
+            $.mobile.useFastClick = true;
             // and make sure it believes it's fully supported
             $.mobile.gradeA = function () { return true; };
           }
