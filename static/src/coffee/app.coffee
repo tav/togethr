@@ -60,7 +60,7 @@ namespace 'app', (exports) ->
       # use the jquery mobile machinery to change to the specified page
       transition = 'none'
       if @previous_page_type?
-        if not @previous_page_type is 'dialog'
+        if not (@previous_page_type is 'dialog')
           if page_type is 'page'
             transition = 'slide'
       $.mobile.changePage page.el,
