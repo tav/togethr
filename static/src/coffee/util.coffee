@@ -26,14 +26,15 @@ namespace 'util', (exports) ->
       relative = parsed.attr 'relative'
       return null if host is not @current_host
       return null for item in @ignore_patterns when relative.match item
-      return null if target.attr 'rel' is 'external'
+      return null if target.closest('[rel="external"]').length > 0
+      # n.b.: ignore data-rel="back" links because *they're already handled* by jqm
+      return null if target.closest(':jqmData(rel="back")').length > 0
       relative
       
     
     # test whether to go back
     shouldtriggerBack: (target) ->
-      return true if target.attr 'rel' is 'back'
-      return true if target.closest(":jqmData(rel='back')").length > 0
+      return true if target.closest('[rel="back"]').length > 0
       false
       
     
