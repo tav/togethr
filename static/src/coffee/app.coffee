@@ -24,8 +24,14 @@ namespace 'app', (exports) ->
     pages: {}
     current_page: null
     
+    # cached page type
+    previous_page_type: null
+    
+    # are we handling the back or fwd button?
+    from_hash_change: true
+    
     # create the specified page
-    create: (page_name) ->
+    create: (page_name, page_id) ->
       console.log "create #{page_name}"
       switch page_name
         when 'query'
@@ -37,7 +43,6 @@ namespace 'app', (exports) ->
           @pages.location = new location.LocationDialog
             el: $ '#location-dialog'
             locations: @locations
-          
         
       
     
@@ -49,11 +54,19 @@ namespace 'app', (exports) ->
       
     
     # show the specified page
-    show: (page_name, page_type) ->
+    show: (page, page_type) ->
       # use the jquery mobile machinery to change to the specified page
-      $.mobile.changePage @pages[page_name].el,
+      transition = 'none'
+      if @previous_page_type?
+        if not @previous_page_type is 'dialog'
+          if page_type is 'page'
+            transition = 'slide'
+      $.mobile.changePage page.el,
+        transition: transition
         changeHash: false
-        fromHashChange: true
+        fromHashChange: @from_hash_change
+      @from_hash_change = true
+      @previous_page_type = page_type
       # hide or show our special case footer as appropriate
       if page_type is 'dialog' then @footer.hide() else @footer.show()
       
@@ -62,18 +75,18 @@ namespace 'app', (exports) ->
     #
     handleHome: =>
       console.log 'handling home'
-      @ensure 'query'
+      page = @ensure 'query'
       @query.set value: ''
-      @show 'query', 'page'
+      @show page, 'page'
       
     
     
     # 
     handleQuery: (value) =>
       console.log 'handling query', value
-      @ensure 'query'
+      page = @ensure 'query'
       @query.set 'value': value
-      @show 'query', 'page'
+      @show page, 'page'
       
     
     #
@@ -84,8 +97,8 @@ namespace 'app', (exports) ->
     #
     handleLocation: =>
       console.log 'handling location'
-      @ensure 'location'
-      @show 'location', 'dialog'
+      dialog = @ensure 'location'
+      @show dialog, 'dialog'
       
     
     #
@@ -97,6 +110,13 @@ namespace 'app', (exports) ->
     handle404: =>
       alert 'This was not the page you were looking for.'
       window.history.go(-1)
+      
+    
+    
+    # ...
+    navigate: (url, trigger_route) =>
+      @from_hash_change = false
+      super encodeURI(url), trigger_route
       
     
     
