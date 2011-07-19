@@ -94,6 +94,9 @@ namespace 'app', (exports) ->
     #
     handleMessage: (msgid) =>
       console.log 'handling message', msgid
+      page = new message.MessagePage
+        model:  @messages.get msgid
+      @show page, 'page'
       
     
     #

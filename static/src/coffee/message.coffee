@@ -4,42 +4,37 @@ namespace 'message', (exports) ->
   
   templates = 
     messageEntry: _.template """
-        <a href="/message/<%= id %>">
+          <div class="user left">
+            <img src="build/gfx/user.png" />
+          </div>
           <%= content %>
+          <div class="clear">
+          </div>
         </a>
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
-        <br />la
       """
     messagePage: _.template """
-        <div>
-          XXX
-          <br />
-          <%= id %>
-          <br />
-          <%= content %>
+        <div id="messages/<%= id %>" class="page" 
+            data-role="page" 
+            data-theme="c">
+          <div data-role="header">
+          </div>
+          <div class="body" data-role="content">
+            <div class="head">
+              <div class="bar title-bar ui-header">
+                <a href="/"
+                    data-role="button" 
+                    data-inline="true" 
+                    data-rel="back"
+                    data-icon="back"
+                    data-iconpos="notext" 
+                    class="left">Back</a>
+                <div class="title ui-title"><%= id %></div>
+              </div>
+            </div>
+            <div class="window main-window">
+              <%= content %>
+            </div>
+          </div>
         </div>
       """
     
@@ -52,6 +47,11 @@ namespace 'message', (exports) ->
     
     className: 'message-entry'
     
+    events:
+      'tap'               : 'showMessage'
+      'swipeleft'         : 'showMessage'
+    
+    
     initialize: ->
       @model.bind 'change', @render
       @render()
@@ -63,6 +63,13 @@ namespace 'message', (exports) ->
       $(@el).html templates.messageEntry context
       
     
+    showMessage: (event) =>
+      console.log 'MessageEntry.showMessage'
+      console.log event.type
+      url = "/message/#{@model.id}"
+      app.navigate url, true
+      false
+      
     
   
   class Messages extends Backbone.Collection
@@ -85,22 +92,23 @@ namespace 'message', (exports) ->
   
   class MessagePage extends baseview.Page
     
-    className: 'message-page'
-    
     initialize: ->
       @model.bind 'change', @render
-      @render()
-      
-    
-    
-    render: =>
       context =
         id: @model.id
         content: @model.get 'content'
-      $(@el).html templates.messagePage context
+      @el = $ templates.messagePage(context)
+      $('.page-container').append(@el)
+      @el.page()
+      @render()
+      
+    
+    render: =>
+      # XXX
       
     
     
+  
   exports.Message = Message
   exports.Messages = Messages
   exports.MessageEntry = MessageEntry

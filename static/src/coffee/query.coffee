@@ -163,15 +163,12 @@ namespace 'query', (exports) ->
     fetchMessages: (query_value, latlng, distance, success, failure) =>
       ### XXX this is fake
       ### 
-      a = Math.random()
-      b = Math.random()
-      results = [
-          id: "msg-#{a}"
-          content: "Message #{a}"
-        , 
-          id: "msg-#{b}"
-          content: "Message #{b}"
-      ]
+      results = []
+      for i in [1..10]
+        n = Math.random()
+        results.push
+          id: "msg-#{n}"
+          content: "Message #{n}"
       r = Math.random()
       distance = distance ? Math.sqrt(r * r * r * 100000)
       success query_value, results, distance
