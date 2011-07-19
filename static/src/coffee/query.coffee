@@ -115,9 +115,8 @@ namespace 'query', (exports) ->
       
       @query = @options.query
       @locations = @options.locations
-      
-      @messages = new message.Messages
-      @distance = new Backbone.Model
+      @messages = @options.messages
+      @distance = @options.distance
       
       @search_bar = new SearchBar
         el: @$ '.search-bar'

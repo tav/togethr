@@ -38,6 +38,8 @@ namespace 'app', (exports) ->
           @pages.query = new query.QueryPage
             el: $ '#query-page'
             query: @query
+            messages: @messages
+            distance: @distance
             locations: @locations
         when 'location'
           @pages.location = new location.LocationDialog
@@ -131,6 +133,10 @@ namespace 'app', (exports) ->
       # create and sync a ``@user`` instance
       @user = new user.User
       @user.fetch()
+      # create a ``@messages`` collection
+      @messages = new message.Messages
+      # create a ``@distance`` object
+      @distance = new Backbone.Model
       # create an ``@query`` instance
       @query = new query.Query
       # setup application wide ``View`` components
