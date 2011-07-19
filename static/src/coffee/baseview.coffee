@@ -2,27 +2,31 @@
 ###
 namespace 'baseview', (exports) ->
   
-  class Widget extends Backbone.View
+  class BaseView extends Backbone.View
     
-    # wake
-    restore: (args...) -> # noop
-    # sleep
-    snapshot: (args...) -> # noop
+    # All views must provide this API.
+    snapshot: -> #
+    restore: -> #
+    show: -> #
+    hide: -> #
     
-    # show
+  
+  
+  class Widget extends BaseView
+    
     show: (args...) -> $(@el).show()
-    # hide
     hide: (args...) -> $(@el).hide()
     
   
-  class Page extends Widget
+  
+  class Page extends BaseView
     
     constructor: ->
       super
       @el.bind 'pagebeforeshow', (e, ui) => @restore e, e.target, ui.prevPage
       @el.bind 'pagebeforehide', (e, ui) => @snapshot e, e.target, ui.nextPage
-      @el.live 'pageshow', (e, ui) => @show e, e.target, ui.prevPage
-      @el.live 'pagehide', (e, ui) => @hide e, e.target, ui.nextPage
+      @el.bind 'pageshow', (e, ui) => @show e, e.target, ui.prevPage
+      @el.bind 'pagehide', (e, ui) => @hide e, e.target, ui.nextPage
       
     
     
