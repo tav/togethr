@@ -4,6 +4,8 @@
 generate:
 - js/base.js:
     source:
+      # text parsing
+      - %(AMPIFY_ROOT)s/third_party/jslibs/twitter/twttr.txt.js
       # jquery plugins
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.cookie.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.geolocation.js
