@@ -1,6 +1,5 @@
 
-# `_.template` with a line added to `@process()' strings before interpolating
-# them.  The line is `code = 'util.text_processor.process(' + code + ')'`.
+# Patch `_.template` to `util.text_processor.process` strings before interpolating them.
 _.template = `function(str, data) {
   var c  = _.templateSettings;
   var tmpl = 'var __p=[],print=function(){__p.push.apply(__p,arguments);};' +
@@ -8,7 +7,9 @@ _.template = `function(str, data) {
     str.replace(/\\/g, '\\\\')
        .replace(/'/g, "\\'")
        .replace(c.interpolate, function(match, code) {
+         // XXX start patch
          code = 'util.text_processor.process(' + code + ')'
+         // XXX end patch
          return "'," + code.replace(/\\'/g, "'") + ",'";
        })
        .replace(c.evaluate || null, function(match, code) {
@@ -22,4 +23,3 @@ _.template = `function(str, data) {
   var func = new Function('obj', tmpl);
   return data ? func(data) : func;
 };`
-
