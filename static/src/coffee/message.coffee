@@ -3,19 +3,19 @@
 namespace 'message', (exports) ->
   
   templates = 
-    messageEntry: _.template """
+    messageEntry: string.template """
         <div class="user-profile-image left">
           <img src="build/gfx/user.png" />
         </div>
-        <%= content %>
+        <%~ content %>
         <div class="clear">
         </div>
       """
-    messagePageElement: _.template """
+    messagePageElement: string.template """
           <div id="message/<%= id %>" class="page" data-role="page" data-theme="c">
           </div>
       """
-    messagePageContent: _.template """
+    messagePageContent: string.template """
           <div class="head" data-role="header">
             <a href="/"
                 data-role="button" 
@@ -46,7 +46,7 @@ namespace 'message', (exports) ->
               </div>
               <!-- message -->
               <div class="row message-row message-content">
-                <%= content %>
+                <%~ content %>
               </div>
               <div class="row message-row message-comments">
                 <ul class="comments-list">
@@ -58,7 +58,7 @@ namespace 'message', (exports) ->
                             <img src="<%= comment.user.profile_image %>" />
                           </div>
                           @<%= user.username %></a>:
-                        <%= comment.content %>
+                        <%~ comment.content %>
                         <div class="clear">
                         </div>
                       </div>
