@@ -162,6 +162,9 @@ namespace 'app', (exports) ->
     interceptor = new util.Interceptor
     Backbone.history.start pushState: true
     
+    # show the UI
+    $('#wrapper').show()
+    
   
   
   _start = (here) ->

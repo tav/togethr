@@ -2,10 +2,18 @@ $footer_height: 35px
 
 // Layout elements
 
+// n.b.: `body` is used as the splash screen
 body
-  // overflow-y: hidden
+  background-color: #F0F0F0
+  background-image: url(/build/gfx/splash-320x480.png)
+  background-repeat: no-repeat
+  background-attachment: fixed
+  background-position: center
 
-.scroll-wrapper
+#wrapper
+  display: none
+
+#scroll-wrapper
   display: block
   position: relative
 

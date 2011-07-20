@@ -8,161 +8,185 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>Togethr</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/build/gfx/homescreen.png" />
+    <!--
+      Does the splash img link need to reference the correct size? If so, we
+      need server side user agent sniffing :(
+    -->
+    <!-- 
+      iphone
+    -->
+    <link rel="apple-touch-startup-image" href="/build/gfx/splash-320x480.png" />
+    <!--
+      iphone retina
+      <link rel="apple-touch-startup-image" href="/build/gfx/splash-640x960.png" />
+    -->
+    <!--
+      ipad portrait 
+      <link rel="apple-touch-startup-image" href="/build/gfx/splash-768x1024.png" />
+    -->
+    <!-- 
+      ipad landscape
+      <link rel="apple-touch-startup-image" href="/build/gfx/splash.1024x768" />
+    -->
     <link rel="stylesheet" href="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.css" />
-    <link type="text/css" rel="stylesheet" href="src/css/libraries.css" />
-    <link type="text/css" rel="stylesheet" href="build/css/site.css" />
+    <link type="text/css" rel="stylesheet" href="/src/css/libraries.css" />
+    <link type="text/css" rel="stylesheet" href="/build/css/site.css" />
   </head>
   <body>
-    <div class="scroll-wrapper">
-      <div class="scroll">
-        <div class="page-container">
-          <div id="query-page" class="page" 
-              data-role="page" 
-              data-theme="c">
-            <div data-role="header">
-            </div>
-            <div class="body" data-role="content">
-              <div class="head">
-                <div class="bar search-bar">
-                  <div class="input search-input left">
-                    <form action="/query" method="post">
-                      <input id="search-input" type="search" name="q" />
-                    </form>
-                  </div>
-                  <a href="/dialog/advsearch"
-                      data-role="button" 
-                      data-inline="true" 
-                      data-icon="arrow-d"
-                      data-iconpos="notext" 
-                      class="left">Jump to</a>
-                  <a href="/dialog/bookmarks" 
-                      data-role="button" 
-                      data-inline="true" 
-                      data-icon="grid"
-                      data-iconpos="notext" 
-                      class="left">Bookmarks</a>
-                </div>
-                <div class="bar title-bar ui-header">
-                  <a href="/"
-                      data-role="button" 
-                      data-inline="true" 
-                      data-rel="back"
-                      data-icon="back"
-                      data-iconpos="notext" 
-                      class="left">Back</a>
-                  <a href="/dialog/addBookmark"
-                      data-role="button" 
-                      data-inline="true"
-                      data-icon="plus"
-                      data-iconpos="notext" 
-                      class="right">Add bookmark</a>
-                  <div class="title ui-title"></div>
-                </div>
-                <div class="bar location-bar">
-                  <div class="slider left">
-                    <div data-role="fieldcontain">
-                      <input type="range" 
-                          name="location-slider" 
-                          id="location-slider" 
-                          value="100" 
-                          min="25" 
-                          max="100"
-                      />
+    <div id="wrapper">
+      <div id="scroll-wrapper">
+        <div class="scroll">
+          <div class="page-container">
+            <div id="query-page" class="page" 
+                data-role="page" 
+                data-theme="c">
+              <div data-role="header">
+              </div>
+              <div class="body" data-role="content">
+                <div class="head">
+                  <div class="bar search-bar">
+                    <div class="input search-input left">
+                      <form action="/query" method="post">
+                        <input id="search-input" type="search" name="q" />
+                      </form>
                     </div>
-                  </div>
-                  <div class="button location-button">
-                    <a id="location-button" href="/dialog/location"
+                    <a href="/dialog/advsearch"
                         data-role="button" 
                         data-inline="true" 
-                        data-icon="info"
-                        data-iconpos="left">+here</a>
+                        data-icon="arrow-d"
+                        data-iconpos="notext" 
+                        class="left">Jump to</a>
+                    <a href="/dialog/bookmarks" 
+                        data-role="button" 
+                        data-inline="true" 
+                        data-icon="grid"
+                        data-iconpos="notext" 
+                        class="left">Bookmarks</a>
+                  </div>
+                  <div class="bar title-bar ui-header">
+                    <a href="/"
+                        data-role="button" 
+                        data-inline="true" 
+                        data-rel="back"
+                        data-icon="back"
+                        data-iconpos="notext" 
+                        class="left">Back</a>
+                    <a href="/dialog/addBookmark"
+                        data-role="button" 
+                        data-inline="true"
+                        data-icon="plus"
+                        data-iconpos="notext" 
+                        class="right">Add bookmark</a>
+                    <div class="title ui-title"></div>
+                  </div>
+                  <div class="bar location-bar">
+                    <div class="slider left">
+                      <div data-role="fieldcontain">
+                        <input type="range" 
+                            name="location-slider" 
+                            id="location-slider" 
+                            value="100" 
+                            min="25" 
+                            max="100"
+                        />
+                      </div>
+                    </div>
+                    <div class="button location-button">
+                      <a id="location-button" href="/dialog/location"
+                          data-role="button" 
+                          data-inline="true" 
+                          data-icon="info"
+                          data-iconpos="left">+here</a>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="window main-window">
-                MAIN WINDOW
-              </div>
-            </div>
-          </div>
-          <div id="location-dialog" 
-              class="dialog"
-              data-role="dialog"
-              data-fullscreen="true">
-            <div class="head" data-role="header">
-              <h1>Set Location</h1>
-            </div>
-            <div class="body" data-role="content">
-              <div class="window main-window">
-                <div class="row" data-role="fieldcontain">
-                  <label for="select-existing-location" class="select">
-                    Select an existing location:
-                  </label>
-                  <select name="select-existing-location"
-                      class="existing-location-select"
-                      data-native-menu="false">
-                    <option value="+here">+here</option>
-                  </select>
+                <div class="window main-window">
+                  MAIN WINDOW
                 </div>
-                <div class="row" data-role="fieldcontain">
-                  <form class="location-search-form">
-                    <label for="location">
-                      Search for a new location:
+              </div>
+            </div>
+            <div id="location-dialog" 
+                class="dialog"
+                data-role="dialog"
+                data-fullscreen="true">
+              <div class="head" data-role="header">
+                <h1>Set Location</h1>
+              </div>
+              <div class="body" data-role="content">
+                <div class="window main-window">
+                  <div class="row" data-role="fieldcontain">
+                    <label for="select-existing-location" class="select">
+                      Select an existing location:
                     </label>
-                    <input class="location-search-input"
-                        type="search" 
-                        name="location"
-                    />
-                  </form>
-                </div>
-                <div class="row" data-role="fieldcontain">
-                  <div class="map location-map">
+                    <select name="select-existing-location"
+                        class="existing-location-select"
+                        data-native-menu="false">
+                      <option value="+here">+here</option>
+                    </select>
                   </div>
-                </div>
-                <div class="row" data-role="fieldcontain">
-                  <label for="location">
-                    Give this location a short name:
-                  </label>
-                  <input class="location-label-input" 
-                      type="text" 
-                      name="label"
-                  />
-                </div>
-                <div class="row save-cancel-row" data-role="fieldcontain">
-                  <a class="save-button"
-                      href="#save"
-                      data-role="button" 
-                      data-inline="true">Use this location</a>
-                  <a class="cancel-button" 
-                      href="#cancel"
-                      data-role="button" 
-                      data-inline="true">Cancel</a>
+                  <div class="row" data-role="fieldcontain">
+                    <form class="location-search-form">
+                      <label for="location">
+                        Search for a new location:
+                      </label>
+                      <input class="location-search-input"
+                          type="search" 
+                          name="location"
+                      />
+                    </form>
+                  </div>
+                  <div class="row" data-role="fieldcontain">
+                    <div class="map location-map">
+                    </div>
+                  </div>
+                  <div class="row" data-role="fieldcontain">
+                    <label for="location">
+                      Give this location a short name:
+                    </label>
+                    <input class="location-label-input" 
+                        type="text" 
+                        name="label"
+                    />
+                  </div>
+                  <div class="row save-cancel-row" data-role="fieldcontain">
+                    <a class="save-button"
+                        href="#save"
+                        data-role="button" 
+                        data-inline="true">Use this location</a>
+                    <a class="cancel-button" 
+                        href="#cancel"
+                        data-role="button" 
+                        data-inline="true">Cancel</a>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    <div id="footer-wrapper">
-      <div class="foot">
-        <div class="bar menu-bar">
-          <ul>
-            <li class="menu-icon home-button">
-              <a href="/" title="Home"
-                  data-icon="home" data-iconpos="notext" 
-                  data-theme="a"></a>
-            </li>
-            <li class="menu-highlight act-button">
-              <a href="/act" title="Act" 
-                  data-icon="star" data-iconpos="notext"
-                  data-theme="e"></a>
-            </li>
-            <li class="menu-icon settings-button">
-              <a href="/settings" title="Settings" 
-                  data-icon="gear" data-iconpos="notext"
-                  data-theme="a"></a>
-            </li>
-          </ul>
+      <div id="footer-wrapper">
+        <div class="foot">
+          <div class="bar menu-bar">
+            <ul>
+              <li class="menu-icon home-button">
+                <a href="/" title="Home"
+                    data-icon="home" data-iconpos="notext" 
+                    data-theme="a"></a>
+              </li>
+              <li class="menu-highlight act-button">
+                <a href="/act" title="Act" 
+                    data-icon="star" data-iconpos="notext"
+                    data-theme="e"></a>
+              </li>
+              <li class="menu-icon settings-button">
+                <a href="/settings" title="Settings" 
+                    data-icon="gear" data-iconpos="notext"
+                    data-theme="a"></a>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
