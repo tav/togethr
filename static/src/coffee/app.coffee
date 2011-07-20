@@ -124,7 +124,7 @@ namespace 'app', (exports) ->
     # ...
     navigate: (url, trigger_route) =>
       @from_hash_change = false
-      super encodeURI(url), trigger_route
+      super url, trigger_route
       
     
     
