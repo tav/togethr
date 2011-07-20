@@ -19,16 +19,16 @@ namespace 'string', (exports) ->
       suppressNoFollow: false
     
     # Not implemented yet, so passes through.
-    internationalise: (s) => s 
+    internationalise: (s) -> s 
     
     # Turns urls, #hashtags, @usernames and @user/lists into links.
-    autolink: (s) => twttr.txt.autoLink s, @options
+    autolink: (s) -> twttr.txt.autoLink s, @options
     
     # Escapes HTML entities.
-    escape: (s) => twttr.txt.htmlEscape s
+    escape: (s) -> twttr.txt.htmlEscape s
       
     # Escape, autolink and internationalise.
-    process: (s) => @internationalise @autolink @escape s
+    process: (s) -> @internationalise @autolink @escape s
     
     # Pass in `opts` to override the default `autolink()` configuration.
     initialize: (opts) -> _.extend(@options, opts) if opts?
@@ -78,7 +78,7 @@ namespace 'string', (exports) ->
         /'/g, "\\'"
       ).replace(
         @syntax.interpolate, 
-        (match, code) => 
+        (match, code) -> 
           code = code.replace /\\'/g, "'"
           "',#{code},'"
       ).replace(
@@ -93,7 +93,7 @@ namespace 'string', (exports) ->
           "',#{@process}(#{code}),'"
       ).replace(
         @syntax.evaluate || null, 
-        (match, code) => 
+        (match, code) -> 
           code = code.replace(/\\'/g, "'").replace(/[\r\n\t]/g, ' ')
           "');#{code}__p.push('"
       ).replace(
