@@ -90,6 +90,46 @@ namespace 'util', (exports) ->
     
     
   
+  ### `TextProcessor` auto-links, escapes and (in future) internationalises text.
+  ### 
+  class TextProcessor
+    
+    options:
+      urlClass: 'url'
+      usernameClass: 'username'
+      usernameUrlBase: '/'
+      listClass: 'badge'
+      listUrlBase: '/'
+      hashtagClass: 'hashtag'
+      hashtagUrlBase: '/query?q=%23'
+      suppressNoFollow: false
+    
+    internationalise: (s) =>
+      s
+      
+    
+    autolink: (s, opts) => 
+      options = _.clone @options
+      _.extend(options, opts) if opts?
+      twttr.txt.autoLink s, options
+      
+    
+    escape: (s) => 
+      twttr.txt.htmlEscape s
+      
+    
+    process: (s) =>
+      @internationalise @autolink @escape s
+      
+    
+    initialize: (opts) ->
+      _.extend(@options, opts) if opts?
+      
+    
+    
+  
+  exports.text_processor = new TextProcessor
+  exports.TextProcessor = TextProcessor
   exports.Interceptor = Interceptor
   
 
