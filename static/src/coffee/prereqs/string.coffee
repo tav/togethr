@@ -109,9 +109,8 @@ namespace 'string', (exports) ->
       
     
     
-    constructor: (syntax) ->
-      _.extend @syntax, syntax
-      
+    # Pass in `syntax` to override the default syntax.
+    constructor: (syntax) -> _.extend(@syntax, syntax) if syntax?
     
   
   
