@@ -270,9 +270,11 @@ namespace 'location', (exports) ->
             geometry = results[0].geometry
             @map.fitBounds geometry.bounds
             # update the label input
-            label = results[0].address_components[0].short_name
-            target = @$ '.location-label-input'
-            target.val label.toLowerCase()
+            short_name = results[0].address_components[0].short_name
+            label = @$ '.location-label-input'
+            label.val short_name.toLowerCase()
+            # close the keyboard by losing focus
+            target.blur()
           else
             console.warning status if console? and console.warning?
       false
