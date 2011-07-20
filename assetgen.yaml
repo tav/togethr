@@ -70,7 +70,7 @@ generate:
     
 
 - gfx/*:
-    source: static/gfx/*
+    source: %(AMPIFY_ROOT)s/third_party/togethr-resources/gfx/*
     type: binary
 
 
