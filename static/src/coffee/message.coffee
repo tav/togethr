@@ -72,13 +72,9 @@ namespace 'message', (exports) ->
     
     className: 'message-entry'
     
-    events:
-      'tap'               : 'showMessage'
-      'swipeleft'         : 'showMessage'
-    
-    
     initialize: ->
       @model.bind 'change', @render
+      $(@el).bind 'tap click swipeleft', @showMessage
       @render()
     
     render: =>
@@ -89,10 +85,9 @@ namespace 'message', (exports) ->
       
     
     showMessage: (event) =>
-      console.log 'MessageEntry.showMessage'
-      console.log event.type
       url = "/message/#{@model.id}"
       app.navigate url, true
+      event.stopImmediatePropagation()
       false
       
     
