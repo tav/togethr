@@ -31,7 +31,7 @@ namespace 'string', (exports) ->
     process: (s) -> @internationalise @autolink @escape s
     
     # Pass in `opts` to override the default `autolink()` configuration.
-    initialize: (opts) -> _.extend(@options, opts) if opts?
+    constructor: (opts) -> _.extend(@options, opts) if opts?
     
   
   
