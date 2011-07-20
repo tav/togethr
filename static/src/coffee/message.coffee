@@ -40,10 +40,9 @@ namespace 'message', (exports) ->
                   <div class="user-profile-image left">
                     <img src="<%= user.profile_image %>" />
                   </div>
-                  @<%= user.username %>
-                  <div class="clear">
-                  </div>
-                </a>
+                  @<%= user.username %></a>
+                <div class="clear">
+                </div>
               </div>
               <!-- message -->
               <div class="row message-row message-content">
