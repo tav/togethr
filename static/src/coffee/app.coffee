@@ -9,15 +9,13 @@ namespace 'app', (exports) ->
     # mapping of routes to handlers
     routes:
       ''                            : 'handleHome'
-      '/'                           : 'handleHome'
-      '/query?q=:value'             : 'handleQuery'
-      '/message/:msgid'             : 'handleMessage'
-      '/challenge/:challenge'       : 'handleChallenge'
-      '/dialog/location'            : 'handleLocation'
-      '/dialog/jumpto'              : 'handleJumpTo'
-      '/:user/:badge'               : 'handleBadge'
-      '/:user'                      : 'handleUser'
-      '/*'                          : 'handle404'
+      'query?q=:value'             : 'handleQuery'
+      'message/:msgid'             : 'handleMessage'
+      'challenge/:challenge'       : 'handleChallenge'
+      'dialog/location'            : 'handleLocation'
+      'dialog/jumpto'              : 'handleJumpTo'
+      ':user/:badge'               : 'handleBadge'
+      ':user'                      : 'handleUser'
       
     
     # cached page views
@@ -122,9 +120,18 @@ namespace 'app', (exports) ->
     
     
     # ...
-    navigate: (url, trigger_route) =>
-      @from_hash_change = false
-      super url, trigger_route
+    navigate: (path, trigger_route) =>
+      # If we're triggering a route programmatically by calling `app.navigate()`
+      # then flag that the route was not triggered by a location state change.
+      # This lets us pass an accurate `fromHashChange` value to 
+      # `$.mobile.changePage`.
+      @from_hash_change = false if trigger_route
+      # Normalise the path by stripping any leading `/` from it.  This lets us
+      # use absolute paths when writing hrefs, e.g.: `<a href="/foo/bar">` 
+      # whilst still support paths derived from location state changes, which
+      # come through the `Backbone.checkURL()` machinery without a leading `/`.
+      path = path.slice(1) if path.charAt(0) is '/'
+      super path, trigger_route
       
     
     
