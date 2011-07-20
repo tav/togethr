@@ -2,10 +2,9 @@
 ###
 namespace 'string', (exports) ->
   
-  ### `Processor` provides methods to `escape()`, `autolink()`, and
-    `internationalise()` strings and a convenience method, `process()`,
-    to escape, autolink and internationalise in one go.
-  ### 
+  # `Processor` provides methods to `escape()`, `autolink()`, and 
+  # `internationalise()` strings and a convenience method, `process()`,
+  # to escape, autolink and internationalise in one go.
   class Processor
     
     # `autolink()` configuration.
@@ -36,21 +35,20 @@ namespace 'string', (exports) ->
     
   
   
-  ### `TemplateFactory` borrows `_.template`s templating logic (itself based
-    on John Resig's micro templating) and adds syntax to `escape` and `process`
-    interpolated strings.
-    
-    The default syntax follows the ERB-style of `_.template` / and `eco`, with
-    one main addition of a tilda syntax `<%~ expression %>` to run interpolated
-    strings through a `new text.Processor()`s `process()` method:
-    
-    * use `<% expression %>` to evaluate without printing the return value.
-    * use `<%= expression %>` to evaluate and print the escaped return value.
-    * use `<%~ expression %>` to evaluate and print the processed return value.
-    * use `<%- expression %>` to evaluate and print the return value without
-      doing anything to it.
-    
-  ###
+  # `TemplateFactory` borrows `_.template`s templating logic (itself based
+  # on John Resig's micro templating) and adds syntax to `escape` and `process`
+  # interpolated strings.
+  # 
+  # The default syntax follows the ERB-style of `_.template` / and `eco`, with
+  # one main addition of a tilda syntax `<%~ expression %>` to process a string
+  # before interpolating:
+  # 
+  # * use `<% expression %>` to evaluate without printing the return value.
+  # * use `<%= expression %>` to evaluate and print the escaped return value.
+  # * use `<%~ expression %>` to evaluate and print the processed return value.
+  # * use `<%- expression %>` to evaluate and print the return value without
+  #   doing anything to it.
+  #
   class TemplateFactory
     
     # Full dotted path that must resolve to an `escape()` function.
