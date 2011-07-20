@@ -164,12 +164,19 @@ namespace 'query', (exports) ->
       ### XXX this is fake
       ### 
       results = []
-      for i in [1..10]
+      for i in [1..12]
         n = Math.random()
+        comments = []
+        for j in [1..8]
+          comments.push
+            content: "Comment #{Math.random()} lorum comment content ipsum dolores"
+            user:
+              username: 'username'
+              profile_image: '/build/gfx/user.png'
         results.push
           id: "msg-#{n}"
           content: "Message #{n} lorum ipsum dolores dulcit!"
-          comments: ({content: "Comment #{Math.random()}"} for j in [1..6])
+          comments: comments
           user:
             username: 'username'
             profile_image: '/build/gfx/user.png'

@@ -4,7 +4,7 @@ namespace 'message', (exports) ->
   
   templates = 
     messageEntry: _.template """
-        <div class="user left">
+        <div class="user-profile-image left">
           <img src="build/gfx/user.png" />
         </div>
         <%= content %>
@@ -37,7 +37,7 @@ namespace 'message', (exports) ->
               <!-- user -->
               <div class="row message-row message-user">
                 <a href="/<%= user.username %>" title="<%= user.username %>">
-                  <div class="user left">
+                  <div class="user-profile-image left">
                     <img src="<%= user.profile_image %>" />
                   </div>
                   @<%= user.username %>
@@ -52,7 +52,18 @@ namespace 'message', (exports) ->
               <div class="row message-row message-comments">
                 <ul class="comments-list">
                   <% _.each(comments, function(comment) { %>
-                    <li><%= comment.content %></li>
+                    <li class="comment">
+                      <div class="comment-user">
+                        <a href="/<%= comment.user.username %>" title="<%= comment.user.username %>">
+                          <div class="user-profile-image left">
+                            <img src="<%= comment.user.profile_image %>" />
+                          </div>
+                          @<%= user.username %></a>:
+                        <%= comment.content %>
+                        <div class="clear">
+                        </div>
+                      </div>
+                    </li>
                   <% }); %>
                 </ul>
               </div>
