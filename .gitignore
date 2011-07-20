@@ -18,6 +18,9 @@ live-server/instance/run
 live-server/live-server
 
 static/build/gfx/
+static/build/assets.json
+static/build/css/*.css
+static/build/js/*.js
 
 # minified css/js files
 
