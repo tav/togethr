@@ -175,7 +175,8 @@ namespace 'query', (exports) ->
               profile_image: '/build/gfx/user.png'
         results.push
           id: "msg-#{n}"
-          content: "Message #{n} lorum ipsum dolores dulcit!"
+          content: "Message #{n} #lorum ipsum #dolores dulcit!"
+          hashtags: ['lorum', 'dulcit']
           comments: comments
           user:
             username: 'username'
