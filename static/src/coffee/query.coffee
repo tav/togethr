@@ -168,7 +168,11 @@ namespace 'query', (exports) ->
         n = Math.random()
         results.push
           id: "msg-#{n}"
-          content: "Message #{n}"
+          content: "Message #{n} lorum ipsum dolores dulcit!"
+          comments: ({content: "Comment #{Math.random()}"} for j in [1..6])
+          user:
+            username: 'username'
+            profile_image: '/build/gfx/user.png'
       r = Math.random()
       distance = distance ? Math.sqrt(r * r * r * 100000)
       success query_value, results, distance
