@@ -100,13 +100,8 @@ namespace 'message', (exports) ->
       
     
     
-    ignore: (target) ->
-      
-    
-    
     # Record when and where the touch start event was triggered
     handleTouchStart: (event) => 
-      console.log 'handleTouchStart'
       @touch_started = 
         ts: +new Date
         x: event.pageX
@@ -116,31 +111,24 @@ namespace 'message', (exports) ->
     # When touch end fires, if its within 2 seconds and in the same place, show
     # the message.
     handleTouchEnd: (event) =>
-      console.log 'handleTouchEnd'
-      console.log @touch_started
       # we're only interested if touch start has been recorded
       return true if not @touch_started?
-      console.log '*'
       # within 0.5 seconds
       ts = +new Date
       if ts - 500 > @touch_started.ts
-        console.log '**'
         @touch_started = null
         return true
       # in the same place
       x = event.pageX
       y = event.pageY
       if not (x is @touch_started.x and y is @touch_started.y)
-        console.log '***'
         @touch_started = null
         return true
       # and the event didn't come from a link (e.g.: an autolinked username, etc.)
       if $(event.target).closest('a').length > 0
-        console.log '****'
         @touch_started = null
         return true
       # show the mesage
-      console.log '*****'
       @showMessage(event)
       false
     
