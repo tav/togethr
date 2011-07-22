@@ -1,6 +1,6 @@
 ### ...
 ###
-namespace 'fix', (exports) ->
+namespace 'mobone.fix', (exports) ->
   
   ### If the browser doesn't support ``position: fixed`` (ahem, Mobile Safari)
     then we need to jump through hoops to get a fixed footer along with

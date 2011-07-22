@@ -127,7 +127,7 @@ namespace 'location', (exports) ->
   
   ### ``Dialog`` page with google map allowing user to set their location.
   ###
-  class LocationDialog extends baseview.Dialog
+  class LocationDialog extends mobone.view.Dialog
     ### Works like this:
       
       Select an existing location
@@ -327,7 +327,7 @@ namespace 'location', (exports) ->
   
   ### Simple ``Dialog`` listing existing locations.
   ###
-  class SelectExistingLocationDialog extends baseview.Dialog
+  class SelectExistingLocationDialog extends view.Dialog
     # XXX todo
     
   

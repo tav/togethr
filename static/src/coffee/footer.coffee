@@ -2,7 +2,7 @@
 ###
 namespace 'footer', (exports) ->
   
-  class FooterWidget extends baseview.Widget
+  class FooterWidget extends mobone.view.Widget
     
     act_path: 'app/select/action'
     

@@ -3,7 +3,7 @@
 namespace 'message', (exports) ->
   
   templates = 
-    messageEntry: string.template """
+    messageEntry: mobone.string.template """
         <div class="user-profile-image left">
           <img src="build/gfx/user.png" />
         </div>
@@ -11,11 +11,11 @@ namespace 'message', (exports) ->
         <div class="clear">
         </div>
       """
-    messagePageElement: string.template """
+    messagePageElement: mobone.string.template """
           <div id="message/<%= id %>" class="page" data-role="page" data-theme="c">
           </div>
       """
-    messagePageContent: string.template """
+    messagePageContent: mobone.string.template """
           <div class="head" data-role="header">
             <a href="/"
                 data-role="button" 
@@ -165,7 +165,7 @@ namespace 'message', (exports) ->
     
     
   
-  class MessagePage extends baseview.Page
+  class MessagePage extends mobone.view.Page
     
     # static method that returns a new element
     @generateElement: (msgid) ->

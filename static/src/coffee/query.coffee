@@ -4,7 +4,7 @@ namespace 'query', (exports) ->
   
   class Query extends Backbone.Model
   
-  class SearchBar extends baseview.Widget
+  class SearchBar extends mobone.view.Widget
     initialize: -> 
       @search_input = @$ '#search-input'
       @search_input.textinput theme: 'c'
@@ -12,7 +12,7 @@ namespace 'query', (exports) ->
     
     
   
-  class TitleBar extends baseview.Widget
+  class TitleBar extends mobone.view.Widget
     initialize: -> 
       @model.bind 'change', @render
       
@@ -29,7 +29,7 @@ namespace 'query', (exports) ->
     
     
   
-  class LocationBar extends baseview.Widget
+  class LocationBar extends mobone.view.Widget
     
     ignore_slide_change: false
     
@@ -90,7 +90,7 @@ namespace 'query', (exports) ->
     
     
   
-  class ActivityStream extends baseview.Widget
+  class ActivityStream extends mobone.view.Widget
     initialize: ->
       @collection.bind 'add', @handleAdd
       @collection.bind 'reset', @handleReset
@@ -107,7 +107,7 @@ namespace 'query', (exports) ->
     
     
   
-  class QueryPage extends baseview.Page
+  class QueryPage extends mobone.view.Page
     
     ignore_set_distance: false
     

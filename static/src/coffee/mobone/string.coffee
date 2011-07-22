@@ -1,6 +1,6 @@
 ### String processing and template utilities.
 ###
-namespace 'string', (exports) ->
+namespace 'mobone.string', (exports) ->
   
   # `Processor` provides methods to `escape()`, `autolink()`, and 
   # `internationalise()` strings and a convenience method, `process()`,
@@ -52,9 +52,9 @@ namespace 'string', (exports) ->
   class TemplateFactory
     
     # Full dotted path that must resolve to an `escape()` function.
-    escape: 'string.processor.escape'
+    escape: 'mobone.string.processor.escape'
     # Full dotted path that must resolve to a `process()` function.
-    process: 'string.processor.process'
+    process: 'mobone.string.processor.process'
     
     syntax:
       # `<% expression %>`: evaluate without printing the return value.

@@ -174,7 +174,7 @@ namespace 'app', (exports) ->
     exports.navigate = controller.navigate
     
     # start handling requests and intercepting events
-    interceptor = new util.Interceptor
+    interceptor = new mobone.event.Interceptor
     Backbone.history.start pushState: true
     
     # show the UI
@@ -210,7 +210,7 @@ namespace 'app', (exports) ->
     # if necessary fix the page footer / menu bar positioning
     $.support.fixedPosition (ok) -> 
         if not ok
-          footer = new fix.FixedFooter el: $ '.foot'
+          footer = new mobone.fix.FixedFooter el: $ '.foot'
       , 1
     
     
