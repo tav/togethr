@@ -2,11 +2,10 @@
 ###
 namespace 'app', (exports) ->
   
-  ### ``Controller`` sets up the application and handles internal requests.
-  ###
+  # ``Controller`` sets up the application and handles internal requests.
   class Controller extends Backbone.Router
     
-    # mapping of routes to handlers
+    # `routes` maps url fragments to handler methods.
     routes:
       ''                            : 'handleHome'
       'query?q=:value'             : 'handleQuery'
@@ -72,18 +71,15 @@ namespace 'app', (exports) ->
       
     
     
-    #
     handleHome: =>
-      console.log 'handling home'
+      console.log 'handleHome'
       page = @ensure 'query'
       @query.set value: ''
       @show page, 'page'
       
     
-    
-    # 
     handleQuery: (value) =>
-      console.log 'handling query', value
+      console.log "handleQuery #{value}"
       page = @ensure 'query'
       @query.set 'value': value
       @show page, 'page'
@@ -91,7 +87,7 @@ namespace 'app', (exports) ->
     
     #
     handleMessage: (msgid) =>
-      console.log 'handling message', msgid
+      console.log "handleMessage #{msgid}"
       target = message.MessagePage.generateElement msgid
       $('.page-container').append(target)
       page = new message.MessagePage
@@ -119,7 +115,6 @@ namespace 'app', (exports) ->
       
     
     
-    # ...
     navigate: (path, trigger_route) =>
       # If we're triggering a route programmatically by calling `app.navigate()`
       # then flag that the route was not triggered by a location state change.
@@ -131,11 +126,10 @@ namespace 'app', (exports) ->
       # whilst still support paths derived from location state changes, which
       # come through the `Backbone.checkURL()` machinery without a leading `/`.
       path = path.slice(1) if path.charAt(0) is '/'
+      console.log "app.navigate #{path}"
       super path, trigger_route
       
     
-    
-    # 
     initialize: (@here) ->
       # create and populate a ``@locations`` collection
       @locations = new location.Locations [@here]
@@ -156,6 +150,7 @@ namespace 'app', (exports) ->
       @footer = new footer.FooterWidget el: $ '#footer-wrapper'
       # ...
       
+    
     
   
   # init once we know we have ``here`` (the current location)
