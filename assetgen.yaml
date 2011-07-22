@@ -56,7 +56,7 @@ generate:
           // See the Ampify UNLICENSE file for details.
           (function ($) {
       - static/src/coffee/mobone/*.coffee
-      - static/src/coffee/*.coffee
+      - static/src/coffee/togethr/*.coffee
       - raw: |
           })(jQuery);
     uglify:
