@@ -327,7 +327,7 @@ namespace 'location', (exports) ->
   
   ### Simple ``Dialog`` listing existing locations.
   ###
-  class SelectExistingLocationDialog extends view.Dialog
+  class SelectExistingLocationDialog extends mobone.view.Dialog
     # XXX todo
     
   
