@@ -14,7 +14,7 @@ namespace 'util', (exports) ->
       /^#$/,
       # urls we want to allow the backend to handle
       /^\/api/,
-      /^\/app/,
+      /^\/system/,
       /^\/backend/,
       /^\/static/
     ]

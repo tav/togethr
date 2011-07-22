@@ -7,14 +7,17 @@ namespace 'app', (exports) ->
     
     # `routes` maps url fragments to handler methods.
     routes:
-      ''                            : 'handleHome'
-      'query?q=:value'             : 'handleQuery'
-      'message/:msgid'             : 'handleMessage'
-      'challenge/:challenge'       : 'handleChallenge'
-      'dialog/location'            : 'handleLocation'
-      'dialog/jumpto'              : 'handleJumpTo'
-      ':user/:badge'               : 'handleBadge'
-      ':user'                      : 'handleUser'
+      ''                              : 'handleHome'
+      'query?q=:query'                : 'handleQuery'
+      'space/:space'                  : 'handleSpace'
+      'message/:msgid'                : 'handleMessage'
+      'app/select/location'           : 'handleSelectLocation'
+      'app/select/bookmark'           : 'handleSelectBookmark'
+      'app/select/action'             : 'handleSelectAction'
+      '*context/app/select/action'    : 'handleSelectAction'
+      'app/action/*action'            : 'handleAction'
+      '*context/app/action/*action'   : 'handleAction'
+      ':user'                         : 'handleUser'
       
     
     # cached page views
@@ -85,7 +88,10 @@ namespace 'app', (exports) ->
       @show page, 'page'
       
     
-    #
+    handleSpace: (space) =>
+      console.log "handleSpace #{space}"
+      
+    
     handleMessage: (msgid) =>
       console.log "handleMessage #{msgid}"
       target = message.MessagePage.generateElement msgid
@@ -96,22 +102,29 @@ namespace 'app', (exports) ->
       @show page, 'page'
       
     
-    #
-    handleLocation: =>
-      console.log 'handling location'
+    handleUser: (user) =>
+      console.log "handleUser #{user}"
+      
+    
+    
+    handleSelectLocation: =>
+      console.log 'handleSelectLocation'
       dialog = @ensure 'location'
       @show dialog, 'dialog'
       
     
-    #
-    handleUser: (username) =>
-      console.log "handling user #{username}"
+    handleSelectBookmark: =>
+      console.log 'handleBookmarks'
+      dialog = @ensure 'bookmarks'
+      @show dialog, 'dialog'
       
     
-    #
-    handle404: =>
-      alert 'This was not the page you were looking for.'
-      window.history.go(-1)
+    handleSelectAction: (context) =>
+      console.log "handleSelectAction #{context}"
+      
+    
+    handleAction: (context) =>
+      console.log "handleAction #{context}"
       
     
     
