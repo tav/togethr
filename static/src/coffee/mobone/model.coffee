@@ -103,61 +103,118 @@ namespace 'mobone.model', (exports) ->
     
     
   
-  
   # `LocalModel` is a `Model` that persists its data in a `LocalStore`.
   class LocalModel extends Backbone.Model
-    ###
-      => if supports localstorage
-        => start listening to local storage changes
+    
+    storage_name: null
+    track_changes: false
+    
+    # Handle storage events to update if changed and destroy if removed.
+    handleStorage: (event) =>
+      # The storage `event.key` property is not implemented in most browsers,
+      # So we inspect the `__metadata` we saved as a workaround.
+      if event.newValue? and event.newValue
+        data = JSON.parse event.newValue
+        if data.__metadata?
+          key = data.__metadata.key
+          # If the event happened to this instance.
+          if key is @storage._key @id
+            # update the model
+            @set data.data
+          
+        
       
-      // Override `Backbone.sync` to use delegate to the model or collection's
-      // *localStorage* property, which should be an instance of `Store`.
-      Backbone.sync = function(method, model, options, error) {
-        var resp;
-        var store = model.localStorage || model.collection.localStorage;
-        switch (method) {
-          case "read":    resp = model.id ? store.find(model) : store.findAll(); break;
-          case "create":  resp = store.create(model);                            break;
-          case "update":  resp = store.update(model);                            break;
-          case "delete":  resp = store.destroy(model);                           break;
-        }
-        if (resp) {
-          options.success(resp);
-        } else {
-          options.error("Record not found");
-        }
-      };
+    
+    
+    # Use `@storage` to read and store data.
+    sync: (method, target, options) ->
+      return options.error "No `localStorage`." if not @storage.storage?
+      resp = @storage[method] target
+      if resp then options.success resp else options.error "Record not found."
       
-    ###
+    
+    # Setup `@storage` and, if required, start listening to changes.
+    initialize: (attrs, opts) ->
+      opts ?= {}
+      storage_name = if opts.storage_name? then opts.storage_name else @storage_name
+      throw '`storage_name` is required' if not storage_name?
+      @storage = new LocalStore storage_name
+      track_changes = if opts.track_changes? then opts.track_changes else @track_changes
+      $(window).bind 'storage', @handleStorage if track_changes
+      
+    
+    
+  
+  # `LocalCollection` is a `Collection` that persists its data in a `LocalStore`.
+  class LocalCollection extends Backbone.Collection
+  
+    storage_name: null
+    track_changes: false
+    
+    # Handle storage events to add new records and remove deleted ones.
+    handleStorage: (event) => 
+      # The storage `event.key` property is not implemented in most browsers,
+      # So we inspect the `__metadata` we saved as a workaround.
+      if event.newValue? and event.newValue
+        data = JSON.parse event.newValue
+        if data.__metadata?
+          key = data.__metadata.key
+          # If the event happened to this collection.
+          if key is @storage.namespace
+            existing_records = @storage.records
+            @storage.refresh()
+            new_records = @storage.records
+            # add new records
+            for item in new_records
+              if not (item in existing_records)
+                @sync 'read', item, success: (resp) => @add resp
+            # remove deleted records
+            for item in existing_records
+              if not (item in new_records)
+                @remove @get item 
+      
+    
+    
+    # Use `@storage` to fetch records.
+    sync: (method, target, options) ->
+      return options.error "No `localStorage`." if not @storage.storage?
+      resp = @storage[method] target
+      if resp then options.success resp else options.error "Records not found."
+      
+    
+    # Setup `@storage` and, if required, start listening to changes.
+    initialize: (attrs, opts) ->
+      opts ?= {}
+      storage_name = if opts.storage_name? then opts.storage_name else @storage_name
+      throw '`storage_name` is required' if not storage_name?
+      @storage = new LocalStore storage_name
+      track_changes = if opts.track_changes? then opts.track_changes else @track_changes
+      $(window).bind 'storage', @handleStorage if track_changes
+      
+    
+    
+  
+  
+  # `ServerBackedLocalModel` is a `Model` that persists its data on the server
+  # *and* caches it in a `LocalStore`.
+  class ServerBackedLocalModel extends LocalModel
+    
+    # Delegates sync to `Backbone.sync` and updates `@storage` on success.
+    sync: (method, target, options) ->
+      storage = @storage
+      success = options.success
+      options.success = (resp) ->
+        storage[method] target if method isnt 'read' and storage.localStorage?
+        success resp
+        
+      
+      Backbone.sync.call this, method, this, options
+      
+    
+  
   
   # Sync with localStorage and a server server.
-  class ServerBackedLocalCollection extends Backbone.Collection
-    ###
-      init:
-        => if supports localstorage
-          => start listening to local storage changes
-      
-      read:
-        => if supports localstorage
-          => fetch from local storage
-        => fetch from the server
-      
-      create:
-        => store on server
-        => if supports localstorage
-          => store in local storage
-      
-      update:
-        => store on server
-        => if supports localstorage
-          => store in local storage
-      
-      delete:
-        => delete on server
-        => if supports localstorage
-          => store in local storage
-      
-    ###
+  class ServerBackedLocalCollection extends LocalCollection
     
     # Override `Backbone.Collection._add` to update a model if it exists already
     # rather than throwing an error.
@@ -185,12 +242,35 @@ namespace 'mobone.model', (exports) ->
       model
       
     
-  
+    
+    # If method is `read`, looks in `@storage` first and then reads from server,
+    # updating existing records when the server results come back.
+    # Otherwise delegates sync to `Backbone.sync` and updates `@storage` on success.
+    sync: (method, target, options) ->
+      
+      storage = @storage
+      success = options.success
+      
+      if method is 'read'
+        # Look in `@storage` first.
+        super
+      else
+        options.success = (resp) ->
+          # Update `@storage` when the server results come back.
+          storage[method] target if storage.localStorage?
+          success resp
+      # Fetch results from the server using `Backbone.sync`.
+      Backbone.sync.call this, method, this, options
+      
+    
+    
   
   # class LiveCollection extends Backbone.Collection
   
   exports.LocalStore = LocalStore
   exports.LocalModel = LocalModel
+  exports.LocalCollection = LocalCollection
+  exports.ServerBackedLocalModel = ServerBackedLocalModel
   exports.ServerBackedLocalCollection = ServerBackedLocalCollection
   
 
