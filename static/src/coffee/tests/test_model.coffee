@@ -5,7 +5,7 @@ $(document).ready ->
   
   module 'mobone.model', teardown: -> window.localStorage.clear()
   
-  asyncTest "Fetch a stored `LocalModel`.", ->
+  test "Fetch a stored `LocalModel`.", ->
     
     class LM extends mobone.model.LocalModel
       storage_name: 'test'
@@ -17,15 +17,13 @@ $(document).ready ->
     instance = new LM 
       id: 'a', 
       value: 'a'
-    instance.save {},
-      success: ->
-        instance = new LM id: 'a'
-        instance.fetch
-          success: ->
-            value = instance.get 'value'
-            equal value, 'a'
+    instance.save()
     
-    start()
+    instance2 = new LM id: 'a'
+    instance2.fetch()
+    
+    value = instance2.get 'value'
+    equal value, 'a'
     
   
   asyncTest "`LocalModel` tracks storage updates.", ->
@@ -53,7 +51,7 @@ $(document).ready ->
     
     
   
-  asyncTest "Stored `LocalModel` is fetched by `LocalCollection`.", ->
+  test "Stored `LocalModel` is fetched by `LocalCollection`.", ->
     
     class LM extends mobone.model.LocalModel
       storage_name: 'test'
@@ -72,8 +70,6 @@ $(document).ready ->
     instance = collection.get 'a'
     value = instance.get 'value' if instance?
     equal value, 'a'
-    
-    start()
     
   
   asyncTest "`LocalCollection` tracks adds.", ->
@@ -115,27 +111,26 @@ $(document).ready ->
       track_changes: true
       model: LM
     
+    collection = new LC
+    instance = new LM
+      id: 'n'
+      value: 'n'
+    instance.save()
+    collection.fetch()
     
-    model = new LM id: 'n', value: 'n'
-    model.save {},
-      success: ->
-        collection = new LC
-        collection.fetch
-          success: ->
-            $('body').append $ '<iframe id="test-storage-event-iframe"></iframe>'
-            iframe = $ 'iframe#test-storage-event-iframe'
-            iframe.attr 'src', "#{tests_path}html/test_collection_remove.html"
-            iframe.load ->
-              setTimeout ->
-                  model = collection.get 'n'
-                  equal model, undefined
-                  iframe.remove()
-                , 0
-              start()
-            
-          
-        
-      
+    value = instance.get 'value' if instance?
+    equal value, 'n'
+    
+    $('body').append $ '<iframe id="test-storage-event-iframe"></iframe>'
+    iframe = $ 'iframe#test-storage-event-iframe'
+    iframe.attr 'src', "#{tests_path}html/test_collection_remove.html"
+    iframe.load ->
+      setTimeout ->
+          model = collection.get 'n'
+          equal model, undefined
+          iframe.remove()
+        , 0
+      start()
     
     
   
