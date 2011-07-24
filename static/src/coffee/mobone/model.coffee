@@ -78,7 +78,7 @@ namespace 'mobone.model', (exports) ->
     
     update: (model) ->
       @_store model
-      @records.push "#{model.id}" if not "#{model.id}" in @records
+      @records.push "#{model.id}" if not ("#{model.id}" in @records)
       @_save()
       model
       
