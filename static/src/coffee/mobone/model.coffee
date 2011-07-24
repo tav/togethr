@@ -14,15 +14,36 @@ namespace 'mobone.model', (exports) ->
       
     
     _store: (model) ->
-      key = "#{@namespace}-#{model.id}"
-      value = JSON.stringify model
+      key = @_key model.id
+      item =
+        data: model.toJSON()
+        __metadata:
+          key: key,
+          modified: +new Date
+      value = JSON.stringify item
       @storage.setItem key, value
       
     
     _save: -> 
       key = @namespace
-      value = @records.join ','
+      item =
+        data: @records
+        __metadata:
+          key: key,
+          modified: +new Date
+      value = JSON.stringify item
       @storage.setItem key, value
+      
+    
+    
+    refresh: ->
+      records = []
+      if @storage?
+        value = @storage.getItem @namespace
+        if value?
+          data = JSON.parse value
+          records = data.data
+      @records = records
       
     
     
@@ -35,13 +56,24 @@ namespace 'mobone.model', (exports) ->
       model
       
     
-    read: (model) ->
-      if model?
-        key = "#{@namespace}-#{model.id}"
-        value = @storage.getItem key
-        JSON.parse value if value?
+    read: (target) ->
+      if target instanceof Backbone.Collection
+        items = []
+        for id in @records
+          value = @storage.getItem @_key id
+          data = JSON.parse value
+          items.push data.data
+        items
       else
-        JSON.parse [@storage.getItem "#{@namespace}-#{id}" for id in @records]
+        if target instanceof Backbone.Model
+          key = @_key target.id
+        else
+          key = @_key target
+        value = @storage.getItem key
+        if value?
+          data = JSON.parse value
+          data.data
+        
       
     
     update: (model) ->
