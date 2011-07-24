@@ -6,6 +6,13 @@ namespace 'mobone.model', (exports) ->
   #
   class LocalStore
     
+    stub: 'mobone:'
+    namespace: null
+    
+    _key: (id) ->
+      "#{@namespace}-#{id}"
+      
+    
     _store: (model) ->
       key = "#{@namespace}-#{model.id}"
       value = JSON.stringify model
@@ -45,7 +52,7 @@ namespace 'mobone.model', (exports) ->
       
     
     delete: (model) ->
-      key = "#{@namespace}-#{model.id}"
+      key = @_key model.id
       @storage.removeItem key
       @records = _.without @records, "#{model.id}"
       @_save()
