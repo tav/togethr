@@ -3,7 +3,6 @@
 namespace 'mobone.model', (exports) ->
   
   # `LocalStore` provides a CRUD interface to `window.localStorage`.
-  #
   class LocalStore
     
     stub: 'mobone:'
