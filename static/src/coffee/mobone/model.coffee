@@ -91,10 +91,14 @@ namespace 'mobone.model', (exports) ->
       
     
     
-    constructor: (@namespace, storage) ->
+    constructor: (namespace, storage) ->
+      # setup a (hopefully globably unique) namespace
+      namespace = namespace ? @namespace
+      throw '`namespace` is required' if not namespace?
+      @namespace = "#{@stub}#{namespace}"
+      # setup `@storage` and read in the stored `@records`
       @storage = storage ? window.localStorage
-      records = @storage.getItem @namespace
-      @records = if records then records.split ',' else []
+      @refresh()
       
     
     
