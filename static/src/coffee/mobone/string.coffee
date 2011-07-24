@@ -2,6 +2,9 @@
 ###
 namespace 'mobone.string', (exports) ->
   
+  String::startsWith = (s) -> this.lastIndexOf(s, 0) is 0
+  String::endsWith = (s) -> this.indexOf(s, this.length - s.length) isnt -1
+  
   # `Processor` provides methods to `escape()`, `autolink()`, and 
   # `internationalise()` strings and a convenience method, `process()`,
   # to escape, autolink and internationalise in one go.
