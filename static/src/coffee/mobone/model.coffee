@@ -57,6 +57,7 @@ namespace 'mobone.model', (exports) ->
     
     read: (target) ->
       if target instanceof Backbone.Collection
+        @refresh()
         items = []
         for id in @records
           value = @storage.getItem @_key id

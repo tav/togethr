@@ -28,29 +28,6 @@ $(document).ready ->
     start()
     
   
-  asyncTest "Stored `LocalModel` is fetched by `LocalCollection`.", ->
-    
-    class LM extends mobone.model.LocalModel
-      storage_name: 'test'
-    
-    class LC extends mobone.model.LocalCollection
-      storage_name: 'test'
-      model: LM
-    
-    c = new LC
-    m = new LM
-      id: 'a'
-      value: 'a'
-    m.save {},
-      success: ->
-        c.fetch
-          success: ->
-            m = c.get 'a'
-            equal m, undefined
-    
-    start()
-    
-  
   asyncTest "`LocalModel` tracks storage updates.", ->
     
     class LM extends mobone.model.LocalModel
@@ -74,6 +51,29 @@ $(document).ready ->
       start()
     
     
+    
+  
+  asyncTest "Stored `LocalModel` is fetched by `LocalCollection`.", ->
+    
+    class LM extends mobone.model.LocalModel
+      storage_name: 'test'
+    
+    class LC extends mobone.model.LocalCollection
+      storage_name: 'test'
+      model: LM
+    
+    collection = new LC
+    instance = new LM
+      id: 'a'
+      value: 'a'
+    instance.save()
+    collection.fetch()
+    
+    instance = collection.get 'a'
+    value = instance.get 'value' if instance?
+    equal value, 'a'
+    
+    start()
     
   
   asyncTest "`LocalCollection` tracks adds.", ->
