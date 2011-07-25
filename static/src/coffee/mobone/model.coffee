@@ -126,7 +126,6 @@ namespace 'mobone.model', (exports) ->
         
       
     
-    
     # Use `@storage` to read and store data.
     sync: (method, target, options) ->
       return options.error "No `localStorage`." if not @storage.storage?
@@ -174,7 +173,6 @@ namespace 'mobone.model', (exports) ->
               if not (item in new_records)
                 @remove @get item 
       
-    
     
     # Use `@storage` to fetch records.
     sync: (method, target, options) ->
