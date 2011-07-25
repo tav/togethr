@@ -203,10 +203,8 @@ namespace 'mobone.model', (exports) ->
       storage = @storage
       success = options.success
       options.success = (resp) ->
-        storage[method] target if method isnt 'read' and storage.localStorage?
+        storage[method] target if method isnt 'read' and storage.storage?
         success resp
-        
-      
       Backbone.sync.call this, method, this, options
       
     
@@ -255,8 +253,7 @@ namespace 'mobone.model', (exports) ->
         super
       else
         options.success = (resp) ->
-          # Update `@storage` when the server results come back.
-          storage[method] target if storage.localStorage?
+          storage[method] target if storage.storage?
           success resp
       # Fetch results from the server using `Backbone.sync`.
       Backbone.sync.call this, method, this, options
