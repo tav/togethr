@@ -269,6 +269,78 @@ namespace 'mobone.model', (exports) ->
     
     
   
+  # `RecentInstanceCache` listens to `model:added` events and adds models that
+  # are instances of @model.  Maintains Sorts by the used flag and
+  # follows a least recently used algorithm to limit the size of the cache.
+  class RecentInstanceCache extends Backbone.Collection
+    
+    # You must provide a specific model class.
+    model: null
+    
+    # How many instances to keep in the cache?
+    limit: 350
+    
+    # Update the `model`'s `__used` attribute to be a timestamp of now.
+    _update_used: (model) ->
+      attrs = 
+        __used: +new Date
+      opts = 
+        silent: true
+      model.set attrs, opts
+      
+    
+    
+    # Override `get` to update `__used`.
+    get: ->
+      model = super
+      if model?
+        @_update_used model
+      model
+      
+    
+    # Override `_add` to update `__used`.
+    _add: ->
+      model = super
+      if model?
+        @_update_used model
+      model
+      
+    
+    
+    # Override `add` to remove the least recently used models when the `@limit`
+    # of the number of models the cache can contain is reached.
+    add: ->
+      super
+      if @length > @limit
+        @sort()
+        to_remove = []
+        for i in [@limit..@length-1]
+          to_remove.push @at i
+        @remove to_remove
+      
+    
+    
+    # Keep the collection sorted by when `__used`.
+    comparator: (model) ->
+      0 - model.get '__used'
+      
+    
+    
+    # Add model instances that match the type of @model and are not already in
+    # the collection.
+    handleAdded: (event, model) => 
+      @add model if model instanceof @model and not @get model
+      
+    
+    
+    # Start handling `model:added` events.
+    initialize: -> 
+      $(document).bind 'model:added', @handleAdded
+      throw "You must provide @model." if not @model?
+      
+    
+    
+  
   # class LiveCollection extends Backbone.Collection
   
   exports.LocalStore = LocalStore
@@ -276,5 +348,6 @@ namespace 'mobone.model', (exports) ->
   exports.LocalCollection = LocalCollection
   exports.ServerBackedLocalModel = ServerBackedLocalModel
   exports.ServerBackedLocalCollection = ServerBackedLocalCollection
+  exports.RecentInstanceCache = RecentInstanceCache
   
 
