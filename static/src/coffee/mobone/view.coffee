@@ -14,8 +14,8 @@ namespace 'mobone.view', (exports) ->
   
   class Widget extends BaseView
     
-    show: (args...) -> $(@el).show()
-    hide: (args...) -> $(@el).hide()
+    show: -> $(@el).show()
+    hide: -> $(@el).hide()
     
   
   
