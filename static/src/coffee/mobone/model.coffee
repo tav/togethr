@@ -210,7 +210,8 @@ namespace 'mobone.model', (exports) ->
     
   
   
-  # Sync with localStorage and a server server.
+  # `ServerBackedLocalCollection` is a `Collection` that reads and writes to
+  # localStorage and a server.
   class ServerBackedLocalCollection extends LocalCollection
     
     # Override `Backbone.Collection._add` to update a model if it exists already
