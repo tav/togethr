@@ -15,7 +15,6 @@ generate:
       # backbone
       - %(AMPIFY_ROOT)s/third_party/jslibs/underscore/underscore.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone-localstorage.js
     
 
 - js/mobile.js:
