@@ -1,6 +1,6 @@
-### ...
-###
-namespace 'app', (exports) ->
+# `togethr.app` provides the client application `Controller` and the `main()`
+# entry point.
+namespace 'togethr.app', (exports, root) ->
   
   # ``Controller`` sets up the application and handles internal requests.
   class Controller extends Backbone.Router
@@ -35,14 +35,14 @@ namespace 'app', (exports) ->
       console.log "create #{page_name}"
       switch page_name
         when 'query'
-          @pages.query = new query.QueryPage
+          @pages.query = new togethr.page.QueryPage
             el: $ '#query-page'
             query: @query
             messages: @messages
             distance: @distance
             locations: @locations
         when 'location'
-          @pages.location = new location.LocationDialog
+          @pages.location = new togethr.dialog.LocationDialog
             el: $ '#location-dialog'
             locations: @locations
         
@@ -96,7 +96,7 @@ namespace 'app', (exports) ->
       console.log "handleMessage #{msgid}"
       target = message.MessagePage.generateElement msgid
       $('.page-container').append(target)
-      page = new message.MessagePage
+      page = new togethr.page.MessagePage
         model: @messages.get msgid
         el: target
       @show page, 'page'
@@ -145,22 +145,22 @@ namespace 'app', (exports) ->
     
     initialize: (@here) ->
       # create and populate a ``@locations`` collection
-      @locations = new location.Locations [@here]
+      @locations = new togethr.model.Locations [@here]
       @locations.fetch add: true
       # create and populate a ``@bookmarks`` collection
-      @bookmarks = new bookmark.Bookmarks
+      @bookmarks = new togethr.model.Bookmarks
       @bookmarks.fetch()
       # create and sync a ``@user`` instance
-      @user = new user.User
+      @user = new togethr.model.User
       @user.fetch()
       # create a ``@messages`` collection
-      @messages = new message.Messages
+      @messages = new togethr.model.Messages
       # create a ``@distance`` object
       @distance = new Backbone.Model
       # create an ``@query`` instance
-      @query = new query.Query
+      @query = new togethr.model.Query
       # setup application wide ``View`` components
-      @footer = new footer.FooterWidget el: $ '#footer-wrapper'
+      @footer = new togethr.widget.FooterWidget el: $ '#footer-wrapper'
       # ...
       
     
@@ -172,6 +172,8 @@ namespace 'app', (exports) ->
     # initialise the controller and provide ``app.navigate``
     controller = new Controller here
     exports.navigate = controller.navigate
+    root.app ?= {}
+    root.app.navigate = controller.navigate
     
     # start handling requests and intercepting events
     interceptor = new mobone.event.Interceptor
@@ -196,7 +198,7 @@ namespace 'app', (exports) ->
   # main application entrypoint
   main = ->
     # create a ``Here`` instance
-    here = new location.Here id: '+here'
+    here = new togethr.model.Here id: '+here'
     # see if we have +here in local storage
     here.fetch
       error: -> 
@@ -218,9 +220,4 @@ namespace 'app', (exports) ->
   
   exports.main = main
   
-
-
-# provide ``app.main`` as ``window.togethr.main``
-window.togethr ?= {}
-window.togethr.main = app.main
 

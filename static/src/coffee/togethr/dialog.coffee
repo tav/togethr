@@ -1,129 +1,18 @@
-### ...
-###
-namespace 'location', (exports) ->
-  
-  ### ``Model`` class that encapsulates a specific location.
-  ###
-  class Location extends Backbone.Model
-    
-    @validId: /^\+.*/ # XXX potentially expand this when addressing escaping
-    
-    localStorage: new Store 'locations'
-    
-    validate: (attrs) ->
-      if attrs
-        # make sure the id is lowercase and starts with a '+'
-        if attrs.id?
-          id = attrs.id
-          return 'id must be lowercase' if id.toLowerCase() is not id
-          return 'id must start with "+"' if not (id.charAt(0) is '+')
-          return 'invalid id' if not @constructor.validId.test id
-        # make sure the latitude and longitude are valid numbers
-        if attrs.latitude?
-          lat = attrs.latitude
-          return 'latitude must be a number' if not (typeof lat is 'number')
-          return '-90 <= latitude <= 90' if not (-90 <= lat <= 90)
-        if attrs.longitude?
-          lng = attrs.longitude
-          return 'longitude must be a number' if not (typeof lng is 'number')
-          return '-180 <= longitude <= 180' if not (-180 <= lng <= 180)
-      
-    
-    
-    toLatLng: ->
-      lat = @get 'latitude'
-      lng = @get 'longitude'
-      new google.maps.LatLng lat, lng
-      
-    
-    
-  
-  ### Special ``Location`` class that tracks the user's current geolocation.
-  ###
-  class Here extends Location
-    
-    localStorage: new Store 'here'
-    
-    expires_after: 30 # minutes
-    
-    # is the data recent?
-    isRecent: ->
-      date_string = @get 'modified'
-      if date_string?
-        # t1 is when last stored
-        t1 = new Date date_string
-        # t2 is now
-        t2 = new Date
-        # add ``expires_after`` mins to t1
-        t1.setMinutes t1.getMinutes() + @expires_after
-        # if it's greater than t2, the date is recent
-        return true if t1 > t2
-      false
-      
-    
-    
-    # update model attributes and save to short lived cookie
-    storeLocation: (coords, silent) ->
-      # update model attributes
-      d = new Date
-      attrs =
-        latitude: coords.latitude
-        longitude: coords.longitude
-        modified: d.toUTCString()
-      @set attrs, silent: silent
-      @save()
-      
-    
-    
-    # start monitoring location, storing changes
-    startWatching: (silently) ->
-      options =
-        enableHighAccuracy: true
-        watch: true
-      $.geolocation.find (coords) => 
-          @storeLocation coords, silently
-        , $.noop
-        , options
-      
-    
-    
-    # get current location and then ``startWatching``
-    start: (callback, silentTracking) ->
-      # default silent to true
-      silentTracking or= true
-      # fetch the current location
-      $.geolocation.find (coords) =>
-          this.storeLocation coords, false
-          @startWatching silentTracking
-          callback true
-        , -> 
-          callback false
-        , enableHighAccuracy: true
-      
-    
-    
-  
-  ### ``Location``s collection.
-  ###
-  class Locations extends Backbone.Collection
-    
-    model: Location
-    localStorage: new Store 'locations'
-    
-    # select a model by id and notify that the selected model has changed
-    select: (id, opts) ->
-      @selected = @get id
-      if not (opts? and opts.silent is true)
-        @trigger 'selection:changed', @selected 
-      
-    
-    
-    # select +here by default
-    initialize: ->
-      @selected = @get '+here'
-      
-    
-    
+# `togethr.dialog` provides `Backbone.View` classes that render and apply dynamic
+# behaviour to dialog pages providing a form based user interface.
+# 
+# So far we have:
+# 
+# * `LocationDialog` XXX rename
+# 
+# We need to add dialogs to:
+# 
+# * manage bookmarks
+# * jump
+# * checkin
+# * bookmark
+# * sendMessage
+namespace 'togethr.dialog', (exports) ->
   
   ### ``Dialog`` page with google map allowing user to set their location.
   ###
@@ -306,12 +195,11 @@ namespace 'location', (exports) ->
           container.addClass 'error'
           label.text 'You already have a location with this name:'
           return false
-      instance = new location.Location
+      instance = @locations.create
         id: value
         latitude: ll.lat()
         longitude: ll.lng()
       instance.save()
-      @locations.add instance
       @locations.select value
       window.history.back()
       false
@@ -325,17 +213,5 @@ namespace 'location', (exports) ->
     
     
   
-  ### Simple ``Dialog`` listing existing locations.
-  ###
-  class SelectExistingLocationDialog extends mobone.view.Dialog
-    # XXX todo
-    
-  
-  exports.Location = Location
-  exports.Here = Here
-  exports.Locations = Locations
   exports.LocationDialog = LocationDialog
-  exports.SelectExistingLocationDialog = SelectExistingLocationDialog
   
-
-
