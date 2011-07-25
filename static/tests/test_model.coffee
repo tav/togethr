@@ -305,5 +305,103 @@ $(document).ready ->
       
     
   
+  test "Add model to a `RecentInstanceCache`.", ->
+    
+    class Model extends Backbone.Model
+    
+    class Cache extends mobone.model.RecentInstanceCache
+      model: Model
+    
+    cache = new Cache
+    model = new Model
+    
+    $(document).trigger 'model:added', model
+    
+    equal cache.at(0), model
+    
+  
+  asyncTest "Add multiple models to a `RecentInstanceCache`.", ->
+    
+    class Model extends Backbone.Model
+    
+    class Cache extends mobone.model.RecentInstanceCache
+      model: Model
+    
+    cache = new Cache
+    
+    class Loop
+      i: 0
+      loop: =>
+        id = "#{@i}"
+        model = new Model id: id
+        $(document).trigger 'model:added', model
+        @i += 1
+        if @i < 3
+          setTimeout @loop, 1
+        else
+          cache.sort()
+          equal cache.at(0).id, '2'
+          equal cache.at(2).id, '0'
+          start()
+        
+      
+    
+    l = new Loop
+    l.loop()
+    
+  
+  asyncTest "Getting a model from a `RecentInstanceCache` updates used.", ->
+    
+    class Model extends Backbone.Model
+    
+    class Cache extends mobone.model.RecentInstanceCache
+      model: Model
+    
+    cache = new Cache
+    model = new Model id: 'a'
+    
+    $(document).trigger 'model:added', model
+    
+    used1 = model.get '__used'
+    
+    setTimeout ->
+        model = cache.get 'a'
+        used2 = model.get '__used'
+        ok used2 > used1
+        start()
+      , 1
+    
+    
+  
+  asyncTest "Adding too many to a `RecentInstanceCache` removes the least recently used.", ->
+    
+    class Model extends Backbone.Model
+    
+    class Cache extends mobone.model.RecentInstanceCache
+      model: Model
+      limit: 1
+    
+    cache = new Cache
+    
+    class Loop
+      i: 0
+      loop: =>
+        id = "#{@i}"
+        model = new Model id: id
+        $(document).trigger 'model:added', model
+        @i += 1
+        if @i < 2
+          setTimeout @loop, 1
+        else
+          model = cache.at 0
+          equal model.id, '1'
+          start()
+        
+      
+    
+    l = new Loop
+    l.loop()
+    
+  
   
 
