@@ -11,6 +11,7 @@ generate:
 
 - js/tests.js:
     source: 
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.mockjax.js
       - test_*.coffee
     uglify:
       - --beautify

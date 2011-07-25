@@ -3,7 +3,10 @@ $(document).ready ->
   
   tests_path = '/tests/'
   
-  module 'mobone.model', teardown: -> window.localStorage.clear()
+  module 'mobone.model', teardown: -> 
+    window.localStorage.clear()
+    $.mockjaxClear()
+  
   
   test "Fetch a stored `LocalModel`.", ->
     
@@ -132,6 +135,174 @@ $(document).ready ->
         , 0
       start()
     
+    
+  
+  asyncTest "Fetch a stored `SeverBackedLocalModel`.", ->
+    
+    class SBLM extends mobone.model.ServerBackedLocalModel
+      storage_name: 'test'
+      urlRoot: '/api/example'
+    
+    $.mockjax
+      url: '/api/example/a'
+      dataType: 'json'
+      responseText:
+        id: '1'
+        value: 'foo'
+    
+    
+    instance = new SBLM id: 'a'
+    instance.fetch
+      success: ->
+        value = instance.get 'value'
+        equal value, 'foo'
+        start()
+      
+    
+  
+  asyncTest "A stored `SeverBackedLocalModel` is cached locally.", ->
+    
+    class LM extends mobone.model.LocalModel
+      storage_name: 'test'
+    
+    class SBLM extends mobone.model.ServerBackedLocalModel
+      storage_name: 'test'
+      urlRoot: '/api/example'
+    
+    $.mockjax
+      url: '/api/example/a'
+      dataType: 'json'
+      responseText:
+        id: 'a', 
+        value: 'foo'
+      
+    
+    instance = new SBLM
+      id: 'a', 
+      value: 'foo'
+    instance.save {},
+      success: ->
+        instance = new LM id: 'a'
+        instance.fetch()
+        
+        value = instance.get 'value'
+        equal value, 'foo'
+        
+        start()
+        
+    
+    
+  
+  test "`ServerBackedLocalCollection` sync fetch from local storage.", ->
+    
+    class LM extends mobone.model.LocalModel
+      storage_name: 'test'
+    
+    instance = new LM 
+      id: 'a', 
+      value: 'foo'
+    instance.save()
+    
+    class SBLC extends mobone.model.ServerBackedLocalCollection
+      storage_name: 'test'
+      url: '/api/examples'
+    
+    $.mockjax
+      url: '/api/examples'
+      dataType: 'json'
+      responseText: []
+    
+    collection = new SBLC
+    collection.fetch 'add': true
+    
+    instance = collection.get 'a'
+    value = instance.get 'value' if instance?
+    equal value, 'foo'
+    
+  
+  asyncTest "`ServerBackedLocalCollection` async fetch from server.", ->
+    
+    class SBLC extends mobone.model.ServerBackedLocalCollection
+      storage_name: 'test'
+      url: '/api/examples'
+    
+    $.mockjax
+      url: '/api/examples'
+      dataType: 'json'
+      responseText: [{id: 'a', value: 'foo'}]
+    
+    collection = new SBLC
+    collection.fetch
+      success: ->
+        instance = collection.get 'a'
+        value = instance.get 'value' if instance?
+        equal value, 'foo'
+        start()
+        
+      
+    
+    
+  
+  asyncTest "`ServerBackedLocalCollection` fetch from local and server.", ->
+    
+    class LM extends mobone.model.LocalModel
+      storage_name: 'test'
+    
+    instance = new LM 
+      id: 'a', 
+      value: 'foo'
+    instance.save()
+    
+    class SBLC extends mobone.model.ServerBackedLocalCollection
+      storage_name: 'test'
+      url: '/api/examples'
+    
+    $.mockjax
+      url: '/api/examples'
+      dataType: 'json'
+      responseText: [{id: 'b', value: 'bar'}]
+    
+    collection = new SBLC
+    collection.fetch
+      success: ->
+        b = collection.get 'b'
+        value = b.get 'value' if b?
+        equal value, 'bar'
+        start()
+      
+    
+    a = collection.get 'a'
+    value = a.get 'value' if a?
+    equal value, 'foo'
+    
+  
+  asyncTest "`ServerBackedLocalCollection` overrides local results.", ->
+    
+    class LM extends mobone.model.LocalModel
+      storage_name: 'test'
+    
+    instance = new LM 
+      id: 'a', 
+      value: 'foo'
+    instance.save()
+    
+    class SBLC extends mobone.model.ServerBackedLocalCollection
+      storage_name: 'test'
+      url: '/api/examples'
+    
+    $.mockjax
+      url: '/api/examples'
+      dataType: 'json'
+      responseText: [{id: 'a', value: 'bar'}]
+    
+    collection = new SBLC
+    collection.fetch
+      success: ->
+        a = collection.get 'a'
+        value = a.get 'value' if a?
+        equal value, 'bar'
+        start()
+      
     
   
   
