@@ -1,7 +1,7 @@
 
 $(document).ready ->
   
-  tests_path = '/src/coffee/tests/'
+  tests_path = '/tests/'
   
   module 'mobone.model', teardown: -> window.localStorage.clear()
   

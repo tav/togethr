@@ -1,7 +1,7 @@
 generate:
 - js/mobone.js:
     source: 
-      - ../mobone/*.coffee
+      - ../src/coffee/mobone/*.coffee
     uglify:
       - --beautify
       - --no-mangle
@@ -20,17 +20,17 @@ generate:
 
 
 prereqs:
-- ../../../build/js/config-dev.js:
-    source: ../../../etc/config-dev.coffee
+- ../build/js/config-dev.js:
+    source: ../etc/config-dev.coffee
     compressed: false
 
 
 
-output.directory: ../../../build
+output.directory: ../build
 output.hashed: false
 
 env:
-  NODE_PATH.prefix: ../../../static/build/js
+  NODE_PATH.prefix: ../build/js
 
 
 profile:
