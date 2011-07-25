@@ -248,13 +248,20 @@ namespace 'mobone.model', (exports) ->
       storage = @storage
       success = options.success
       
+      # We always want to add on fetch.
+      options.add = true
+      
       if method is 'read'
-        # Look in `@storage` first.
-        super
+        # Read syncronously from local storage.
+        resp = @storage[method] target if @storage.storage?
+        # Populate the collection.
+        @add @parse resp if resp?
       else
+        # Update `@storage` when the server results come back.
         options.success = (resp) ->
           storage[method] target if storage.storage?
           success resp
+        
       # Fetch results from the server using `Backbone.sync`.
       Backbone.sync.call this, method, this, options
       
