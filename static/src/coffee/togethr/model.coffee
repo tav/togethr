@@ -15,12 +15,15 @@ namespace 'togethr.model', (exports) ->
   class Bookmark extends mobone.model.ServerBackedLocalModel
     storage_name: 'bookmarks'
     track_changes: true
+    urlRoot: '/api/bookmark'
     
   # `Bookmarks` is a collection of `Bookmark`s.
   class Bookmarks extends mobone.model.ServerBackedLocalCollection
     storage_name: 'bookmarks'
     track_changes: true
+    url: '/api/bookmarks'
     model: Bookmark
+    
   
   exports.Bookmark = Bookmark
   exports.Bookmarks = Bookmarks
@@ -30,6 +33,7 @@ namespace 'togethr.model', (exports) ->
   class Location extends mobone.model.ServerBackedLocalModel
     storage_name: 'locations'
     track_changes: true
+    urlRoot: '/api/location'
     
     @validId: /^\+.*/ # XXX potentially expand this when addressing escaping
     validate: (attrs) ->
@@ -124,6 +128,7 @@ namespace 'togethr.model', (exports) ->
   class Locations extends mobone.model.ServerBackedLocalCollection
     storage_name: 'locations'
     track_changes: true
+    url: '/api/locations'
     model: Location
     
     # select a model by id and notify that the selected model has changed
