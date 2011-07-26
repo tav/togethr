@@ -9,6 +9,17 @@ generate:
     
 
 
+generate:
+- js/togethr.js:
+    source: 
+      - ../src/coffee/togethr/*.coffee
+    uglify:
+      - --beautify
+      - --no-mangle
+      - --no-squeeze
+    
+
+
 - js/tests.js:
     source: 
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.mockjax.js
