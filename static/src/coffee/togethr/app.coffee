@@ -20,11 +20,12 @@ namespace 'togethr.app', (exports, root) ->
       ':user'                         : 'handleUser'
       
     
-    # cached page views
-    pages: {}
-    current_page: null
+    # `model` contains app global `Model` and `Collection` instances.
+    model: {}
     
-    # cached page type
+    # Cached page views.
+    pages: {}
+    # Cached page type.
     previous_page_type: null
     
     # are we handling the back or fwd button?
@@ -144,24 +145,19 @@ namespace 'togethr.app', (exports, root) ->
       
     
     initialize: (@here) ->
-      # create and populate a ``@locations`` collection
-      @locations = new togethr.model.Locations [@here]
-      @locations.fetch add: true
-      # create and populate a ``@bookmarks`` collection
-      @bookmarks = new togethr.model.Bookmarks
-      @bookmarks.fetch()
-      # create and sync a ``@user`` instance
-      @user = new togethr.model.User
-      @user.fetch()
-      # create a ``@messages`` collection
-      @messages = new togethr.model.Messages
-      # create a ``@distance`` object
-      @distance = new Backbone.Model
-      # create an ``@query`` instance
-      @query = new togethr.model.Query
-      # setup application wide ``View`` components
+      # Create and populate ``@locations`` and ``@bookmarks`` collections.
+      @model.locations = new togethr.model.Locations [@here]
+      @model.locations.fetch()
+      @model.bookmarks = new togethr.model.Bookmarks
+      @model.bookmarks.fetch()
+      # Create ``@users`` and ``messages`` caches.
+      @model.users = new togethr.model.Users
+      @model.messages = new togethr.model.Messages
+      # Create ``@query`` and ``@distance`` objects.
+      @model.query = new togethr.model.Query
+      @model.distance = new Backbone.Model # XXX should be in structured `query`
+      # Setup the application wide footer widget.
       @footer = new togethr.widget.FooterWidget el: $ '#footer-wrapper'
-      # ...
       
     
     
