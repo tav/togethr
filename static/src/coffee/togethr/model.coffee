@@ -158,7 +158,59 @@ mobone.namespace 'togethr.model', (exports) ->
   
   # `Query` encapsulate the current search query.
   class Query extends Backbone.Model
-    # XXX todo: parse query string into structured dict
+    
+    # Actions are identified by `!action'.
+    @ACTION_CHAR = '!'
+    # Spaces are identified by `+space`.
+    @SPACE_CHAR = '+'
+    
+    # Static method to parse strings into structured data.
+    @parse: (str) ->
+      
+      # Build a `data` dictionary.
+      data =
+        hashtags: []
+        badges: []
+        users: []
+        actions: []
+        spaces: []
+        keywords: []
+      
+      # Use `twttr.txt` to extract `#hashtag`s.
+      data.hashtags = twttr.txt.extractHashtags str
+      
+      # Use `twttr.txt` to extract `@user`s and `@user/badge`s.
+      for item in twttr.txt.extractMentionsOrListsWithIndices str
+        if item.listSlug
+          data.badges.push "#{item.screenName}#{item.listSlug}"
+        else
+          data.users.push item.screenName
+      
+      # Split the string on `twttr.txt.regexen.spaces`, loop through, find
+      # anything not already extracted that's at least two chars long:
+      # 
+      # * if it starts with an `@ACTION_CHAR` it's an action
+      # * if it starts with a `@SPACE_CHAR` it's a space
+      # * otherwise it's a keyword
+      already_extracted = data.hashtags.concat data.users, data.badges
+      console.log already_extracted
+      for item in str.split twttr.txt.regexen.spaces
+        if item.length > 1 and not (item.slice(1) in already_extracted)
+          if item.startsWith @ACTION_CHAR
+            data.actions.push item.slice 1
+          else if item.startsWith @SPACE_CHAR
+            data.spaces.push item.slice 1
+          else
+            data.keywords.push item
+          
+      
+      # Sort and return the `data`.
+      data[k] = v.sort() for k, v of data
+      data
+      
+    
+    
+  
   
   exports.Query = Query
   
