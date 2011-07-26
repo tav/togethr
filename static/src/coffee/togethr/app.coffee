@@ -37,7 +37,9 @@ mobone.namespace 'togethr.app', (exports, root) ->
         when 'query'
           @pages.query = new togethr.page.QueryPage
             el: $ '#query-page'
-            model: @model
+            query: @model.query
+            distance: @model.distance
+            locations: @model.locations
         when 'location'
           @pages.location = new togethr.dialog.LocationDialog
             el: $ '#location-dialog'
