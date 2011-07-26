@@ -2,13 +2,10 @@
 ###
 mobone.namespace 'mobone.string', (exports) ->
   
-  String::startsWith = (s) -> this.lastIndexOf(s, 0) is 0
-  String::endsWith = (s) -> this.indexOf(s, this.length - s.length) isnt -1
-  String::toTitleCase = (s) -> 
-    this.replace /\w\S*/g, (txt) -> 
-        "#{txt.charAt(0).toUpperCase()}#{txt.substr(1).toLowerCase()}"
-      
-    
+  String::startsWith = (s) -> @lastIndexOf(s, 0) is 0
+  String::endsWith = (s) -> -1 isnt @indexOf s, @length - s.length
+  String::toTitleCase = -> 
+    @replace /\w\S*/g, (s) -> "#{s.charAt(0).toUpperCase()}#{s.substr(1).toLowerCase()}"
   
   
   # `Processor` provides methods to `escape()`, `autolink()`, and 
