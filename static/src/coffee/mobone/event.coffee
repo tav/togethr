@@ -1,6 +1,6 @@
 ### Reusable utility classes.
 ###
-namespace 'mobone.event', (exports) ->
+mobone.namespace 'mobone.event', (exports) ->
   
   ### ``Interceptor`` sends events through ``app.navigate`` when appropriate.
   ###

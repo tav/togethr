@@ -1,4 +1,4 @@
-namespace 'mobone.math', (exports) ->
+mobone.namespace 'mobone.math', (exports) ->
   
   # Generate a UUID (see http://www.broofa.com/Tools/Math.uuid.js).
   uuid = ->

@@ -5,7 +5,19 @@
 # * `MessageEntry`
 # * `ActivityStream` (soon add to that `Map`, `ReplyStream` and `UserSummary`)
 # * `FooterWidget`
-namespace 'togethr.widget', (exports) ->
+mobone.namespace 'togethr.widget', (exports) ->
+  
+  class TogethrBar extends mobone.view.Widget
+    initialize: ->
+      @collection.bind 'selection:changed', @render
+      
+    
+    render: =>
+      target = @$ '#location-button .ui-btn-text'
+      target.text @locations.selected.get 'id'
+      
+    
+    
   
   class SearchBar extends mobone.view.Widget
     initialize: -> 

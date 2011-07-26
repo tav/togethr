@@ -1,6 +1,6 @@
 # `togethr.app` provides the client application `Controller` and the `main()`
 # entry point.
-namespace 'togethr.app', (exports, root) ->
+mobone.namespace 'togethr.app', (exports, root) ->
   
   # ``Controller`` sets up the application and handles internal requests.
   class Controller extends Backbone.Router

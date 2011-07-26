@@ -12,7 +12,7 @@
 # * checkin
 # * bookmark
 # * sendMessage
-namespace 'togethr.dialog', (exports) ->
+mobone.namespace 'togethr.dialog', (exports) ->
   
   ### ``Dialog`` page with google map allowing user to set their location.
   ###

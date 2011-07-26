@@ -1,6 +1,6 @@
 # Base ``Backbone.Model`` and ``Backbone.Collection`` classes.
 #
-namespace 'mobone.model', (exports) ->
+mobone.namespace 'mobone.model', (exports) ->
   
   # `LocalStore` provides a CRUD interface to `window.localStorage`.
   class LocalStore

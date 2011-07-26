@@ -1,6 +1,6 @@
 ### Base ``Backbone.View`` classes.
 ###
-namespace 'mobone.view', (exports) ->
+mobone.namespace 'mobone.view', (exports) ->
   
   class BaseView extends Backbone.View
     

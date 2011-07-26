@@ -9,7 +9,7 @@
 # * `User` and `Users` encapsulate `@user`s
 #
 # When implemented, will also provide `Space`, `Spaces`, `Badge` and `Badges`.
-namespace 'togethr.model', (exports) ->
+mobone.namespace 'togethr.model', (exports) ->
   
   # `Bookmark` is a named shortcut to specific context.
   class Bookmark extends mobone.model.ServerBackedLocalModel
