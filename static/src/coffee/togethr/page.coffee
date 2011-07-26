@@ -10,7 +10,7 @@
 # * `SpacePage`
 # * `UserPage`
 # * `BadgePage`
-namespace 'togethr.page', (exports) ->
+mobone.namespace 'togethr.page', (exports) ->
   
   class QueryPage extends mobone.view.Page
     ignore_set_distance: false
