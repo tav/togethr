@@ -52,7 +52,6 @@ mobone.namespace 'togethr.widget', (exports) ->
     p: 8
     
     initialize: ->
-      @locations = @options.locations
       # init the jquery.mobile slider
       @slider = @$ '#location-slider'
       @slider.slider theme: 'c'
