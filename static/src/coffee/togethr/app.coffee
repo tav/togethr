@@ -27,11 +27,10 @@ namespace 'togethr.app', (exports, root) ->
     pages: {}
     # Cached page type.
     previous_page_type: null
-    
-    # are we handling the back or fwd button?
+    # Are we handling the back or fwd button?
     from_hash_change: true
     
-    # create the specified page
+    # Create the specified page.
     create: (page_name, page_id) ->
       console.log "create #{page_name}"
       switch page_name
@@ -49,14 +48,14 @@ namespace 'togethr.app', (exports, root) ->
         
       
     
-    # make sure the specified page exists (and return it)
+    # Make sure the specified page exists (and return it).
     ensure: (page_name) ->
       console.log "ensure #{page_name}"
       @create page_name if not @pages[page_name]?
       @pages[page_name]
       
     
-    # show the specified page
+    # Show the specified page.
     show: (page, page_type) ->
       # use the jquery mobile machinery to change to the specified page
       transition = 'none'
