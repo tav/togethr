@@ -58,8 +58,6 @@ mobone.namespace 'togethr.widget', (exports) ->
       @slider.slider theme: 'c'
       # when @distance changes, update the slider
       @model.bind 'change', @update
-      # when the selected location changes update the label
-      @locations.bind 'selection:changed', @label
       # when the slider changes, update the distance
       @slider.closest('.slider').bind 'touchstart mousedown', =>
         $('body').one 'touchend mouseup', @notify
@@ -94,17 +92,13 @@ mobone.namespace 'togethr.widget', (exports) ->
       true
       
     
-    label: =>
-      label = @locations.selected.get 'id'
-      target = @$ '#location-button .ui-btn-text'
-      target.text label
-      
-    
     
   
+  exports.TogethrBar = TogethrBar
   exports.SearchBar = SearchBar
   exports.TitleBar = TitleBar
   exports.LocationBar = LocationBar
+  
   
   class MessageEntry extends Backbone.View
     className: 'message-entry'
@@ -200,6 +194,73 @@ mobone.namespace 'togethr.widget', (exports) ->
       
     
     
+    ###
+    @query.bind 'change', @performQuery
+    @locations.bind 'selection:changed', @performQuery
+    @distance.bind 'change', @performDistanceQuery
+    handleResults: (query_value, results, distance) =>
+      # update the messages, which triggers @results_view to render
+      items = (new togethr.model.Message item for item in results)
+      @messages.reset items
+      # if the distance has changed (bc the backend took over and found the
+      # optimum range)
+      the_same = @distance.get('value') is distance
+      if not the_same
+        # update the distance, which triggers @location_bar
+        # using a flag to avoid triggering a distance query
+        @ignore_set_distance = true 
+        @distance.set 'value': distance
+      # scroll and blur to finish
+      y = 1 # if query_value then @title_bar.el.offset().top else 1
+      $.mobile.silentScroll y
+      window.setTimeout -> 
+          $(document.activeElement).blur()
+        , 0
+    
+    fetchMessages: (query_value, latlng, distance, success, failure) =>
+      results = []
+      for i in [1..12]
+        n = Math.random()
+        comments = []
+        for j in [1..8]
+          comments.push
+            content: "Comment #{Math.random()} lorum comment content ipsum dolores"
+            user:
+              username: 'username'
+              profile_image: '/build/gfx/user.png'
+        results.push
+          id: "msg-#{n}"
+          content: "Message #{n} #lorum ipsum #dolores dulcit!"
+          hashtags: ['lorum', 'dulcit']
+          comments: comments
+          user:
+            username: 'username'
+            profile_image: '/build/gfx/user.png'
+      r = Math.random()
+      distance = distance ? Math.sqrt(r * r * r * 100000)
+      success query_value, results, distance
+    
+    performQuery: =>
+      console.log 'performQuery', @locations, @query
+      query_value = @query.get 'value'
+      latlng = @locations.selected.toJSON()
+      # XXX
+      @fetchMessages query_value, latlng, null, @handleResults, -> 
+          alert 'could not fetch messages'
+      
+    
+    performDistanceQuery: =>
+      if @ignore_set_distance
+        @ignore_set_distance = false
+        return
+      query_value = @query.get 'value'
+      distance = @distance.get 'value'
+      latlng = @locations.selected.toJSON()
+      # XXX
+      @fetchMessages query_value, latlng, distance, @handleResults, -> 
+          alert 'could not fetch messages'
+    
+    ###
   
   exports.ActivityStream = ActivityStream
   

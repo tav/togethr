@@ -46,6 +46,16 @@
               </div>
               <div class="body" data-role="content">
                 <div class="head">
+                  <div class="bar togethr-bar">
+                    <img src="/build/gfx/logo.png" />
+                    <div class="button location-button">
+                      <a id="location-button" href="/app/select/location"
+                          data-role="button" 
+                          data-inline="true" 
+                          data-icon="info"
+                          data-iconpos="left">+here</a>
+                    </div>
+                  </div>
                   <div class="bar search-bar">
                     <div class="input search-input left">
                       <form action="/query" method="post">
@@ -65,7 +75,7 @@
                         data-iconpos="notext" 
                         class="left">Bookmarks</a>
                   </div>
-                  <div class="bar title-bar ui-header">
+                  <!--div class="bar title-bar ui-header">
                     <a href="/"
                         data-role="button" 
                         data-inline="true" 
@@ -80,9 +90,9 @@
                         data-iconpos="notext" 
                         class="right">Add bookmark</a>
                     <div class="title ui-title"></div>
-                  </div>
+                  </div-->
                   <div class="bar location-bar">
-                    <div class="slider left">
+                    <div class="slider">
                       <div data-role="fieldcontain">
                         <input type="range" 
                             name="location-slider" 
@@ -93,17 +103,9 @@
                         />
                       </div>
                     </div>
-                    <div class="button location-button">
-                      <a id="location-button" href="/app/select/location"
-                          data-role="button" 
-                          data-inline="true" 
-                          data-icon="info"
-                          data-iconpos="left">+here</a>
-                    </div>
                   </div>
                 </div>
                 <div class="window main-window">
-                  MAIN WINDOW
                 </div>
               </div>
             </div>

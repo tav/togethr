@@ -37,16 +37,15 @@ mobone.namespace 'togethr.app', (exports, root) ->
         when 'query'
           @pages.query = new togethr.page.QueryPage
             el: $ '#query-page'
-            query: @query
-            messages: @messages
-            distance: @distance
-            locations: @locations
+            model: @model
         when 'location'
           @pages.location = new togethr.dialog.LocationDialog
             el: $ '#location-dialog'
-            locations: @locations
+            locations: @model.locations
+          
         
       
+    
     
     # Make sure the specified page exists (and return it).
     ensure: (page_name) ->
@@ -74,17 +73,21 @@ mobone.namespace 'togethr.app', (exports, root) ->
       
     
     
+    # Handle `/` by clearing any query and showing the `QueryPage`.
     handleHome: =>
       console.log 'handleHome'
       page = @ensure 'query'
-      @query.set value: ''
+      query_data = togethr.model.Query.parse ''
+      @model.query.set query_data
       @show page, 'page'
       
     
+    # Handle `/query?q=...` by setting the query value and showing the `QueryPage`.
     handleQuery: (value) =>
       console.log "handleQuery #{value}"
       page = @ensure 'query'
-      @query.set 'value': value
+      query_data = togethr.model.Query.parse value
+      @model.query.set query_data
       @show page, 'page'
       
     
