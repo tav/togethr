@@ -64,8 +64,9 @@ namespace 'togethr.model', (exports) ->
     
   
   # `Here is a special `Location` that tracks the user's current geolocation.
-  class Here extends Location
+  class Here extends mobone.model.LocalModel
     storage_name: 'here'
+    track_changes: true
     expires_after: 30 # minutes
     
     # is the data recent?
@@ -121,6 +122,10 @@ namespace 'togethr.model', (exports) ->
       
     
     
+  Here.validId = Location.validId
+  _.extend Here.prototype,
+    validate: Location.prototype.validate
+    toLatLng: Location.prototype.toLatLng
   
   # `Locations` is a collection of `Location`s.  Provides a `@selected`
   # `Location`, which defaults to `Here`.  Fires `selection:changed` when the
