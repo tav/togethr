@@ -178,90 +178,102 @@ mobone.namespace 'togethr.widget', (exports) ->
   exports.MessageEntry = MessageEntry
   
   
-  class ActivityStream extends mobone.view.Widget
-    initialize: ->
-      @collection.bind 'add', @handleAdd
-      @collection.bind 'reset', @handleReset
+  # `ResultsView` is a base class for widgets that accept a contexts.
+  class ResultsView extends mobone.view.Widget
+    
+    # Expect `@options.context`, set it to `@context`.
+    initialize: -> 
+      console.log 'new ResultsView', @options.context
+      @context = @options.context
+      @initial_results = @context.get 'initial_results'
+      @context.unset 'initial_results'
       
     
+    
+  
+  class ActivityStream extends ResultsView
+    
     handleAdd: =>
-      @el.append message.view.el
+      # @el.append message.view.el
       
     
     handleReset: =>
-      @el.html ''
-      @collection.each (message) => @el.append message.view.el
+      # @el.html ''
+      # @collection.each (message) => @el.append message.view.el
       
     
     
-    ###
-    @query.bind 'change', @performQuery
-    @locations.bind 'selection:changed', @performQuery
-    @distance.bind 'change', @performDistanceQuery
-    handleResults: (query_value, results, distance) =>
-      # update the messages, which triggers @results_view to render
-      items = (new togethr.model.Message item for item in results)
-      @messages.reset items
+    handleResults: (data) =>
+      console.log 'handleResults', data
+      @results.reset data.results
       # if the distance has changed (bc the backend took over and found the
       # optimum range)
-      the_same = @distance.get('value') is distance
-      if not the_same
+      distance = @context.get('distance')
+      if not (distance.get 'value' is data.distance)
         # update the distance, which triggers @location_bar
         # using a flag to avoid triggering a distance query
-        @ignore_set_distance = true 
-        @distance.set 'value': distance
-      # scroll and blur to finish
-      y = 1 # if query_value then @title_bar.el.offset().top else 1
-      $.mobile.silentScroll y
-      window.setTimeout -> 
-          $(document.activeElement).blur()
-        , 0
+        @ignore_set_distance = true
+        distance.set 'value': data.distance
+      
     
-    fetchMessages: (query_value, latlng, distance, success, failure) =>
-      results = []
-      for i in [1..12]
-        n = Math.random()
-        comments = []
-        for j in [1..8]
-          comments.push
-            content: "Comment #{Math.random()} lorum comment content ipsum dolores"
-            user:
-              username: 'username'
-              profile_image: '/build/gfx/user.png'
-        results.push
-          id: "msg-#{n}"
-          content: "Message #{n} #lorum ipsum #dolores dulcit!"
-          hashtags: ['lorum', 'dulcit']
-          comments: comments
-          user:
-            username: 'username'
-            profile_image: '/build/gfx/user.png'
-      r = Math.random()
-      distance = distance ? Math.sqrt(r * r * r * 100000)
-      success query_value, results, distance
+    fetchMessages: (query, location, distance, success, failure) =>
+      data = query.toJSON()
+      data.ll = "#{location.get 'latitude'},#{location.get 'longitude'}"
+      data.distance = distance.get 'value' if distance?
+      $.ajax
+        url: '/api/messages'
+        data: data
+        dataType: 'json'
+        success: success
+        error: failure
+      
+    
     
     performQuery: =>
-      console.log 'performQuery', @locations, @query
-      query_value = @query.get 'value'
-      latlng = @locations.selected.toJSON()
-      # XXX
-      @fetchMessages query_value, latlng, null, @handleResults, -> 
-          alert 'could not fetch messages'
+      console.log 'performQuery', @query
+      query = @context.get('query')
+      location = @context.get('locations').selected
+      @fetchMessages query, location, null, @handleResults, -> alert 'XXX'
       
     
     performDistanceQuery: =>
+      console.log 'performDistanceQuery', @context.query, @context.distance
       if @ignore_set_distance
         @ignore_set_distance = false
         return
-      query_value = @query.get 'value'
-      distance = @distance.get 'value'
-      latlng = @locations.selected.toJSON()
-      # XXX
-      @fetchMessages query_value, latlng, distance, @handleResults, -> 
-          alert 'could not fetch messages'
+      query = @context.get('query')
+      distance = @context.get('distance')
+      location = @context.get('locations').selected
+      @fetchMessages query, location, distance, @handleResults, -> alert 'XXX'
+      
     
-    ###
+    
+    snapshot: =>
+      @context.get('query').unbind 'change', @performQuery
+      @context.get('distance').unbind 'change', @performDistanceQuery
+      @previous_query = @context.get 'query'
+      @previous_distance = @context.get 'distance'
+      
+    
+    restore: =>
+      @context.get('query').bind 'change', @performQuery
+      @context.get('distance').bind 'change', @performDistanceQuery
+      @initial_results = @context.get 'initial_results'
+      @context.unset 'initial_results'
+      @handleResults @initial_results if @initial_results?
+      
+    
+    
+    initialize: ->
+      super
+      @results = new Backbone.Collection model: togethr.model.Message
+      @results.bind 'add', @handleAdd
+      @results.bind 'reset', @handleReset
+      @restore()
+      
+    
   
+  exports.ResultsView = ResultsView
   exports.ActivityStream = ActivityStream
   
   
