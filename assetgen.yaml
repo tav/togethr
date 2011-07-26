@@ -15,6 +15,9 @@ generate:
       # backbone
       - %(AMPIFY_ROOT)s/third_party/jslibs/underscore/underscore.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone.js
+      # dev only
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.mockjax.js
+      - static/src/coffee/dev/mock.coffee
     
 
 - js/mobile.js:
