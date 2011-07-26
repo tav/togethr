@@ -145,6 +145,7 @@ namespace 'togethr.model', (exports) ->
     
     # select +here by default
     initialize: ->
+      super
       @selected = @get '+here'
       
     
