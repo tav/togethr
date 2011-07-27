@@ -41,13 +41,14 @@
       results = []
       for i in [0..10]
         result =
+          'id': "msg-#{i}"
           'user': 'username'
           'll': settings.data.ll
           'hashtags': ['#football']
           'keywords': ['foo', 'bar']
           'actions': ['offer']
           'users': ['tav', 'thruflo']
-          'content': "!offer @tav and @thruflo foo #football bar"
+          'content': "!offer @tav and @thruflo foo #football bar #{i}"
           'created': +new Date
           'appreciation_count': Math.floor(Math.random() * 100)
           'reply_count': Math.floor(Math.random() * 3)
