@@ -177,7 +177,7 @@ mobone.namespace 'togethr.dialog', (exports) ->
         label.text 'You must give this location a short name:'
         return false
       value = "+#{value.toLowerCase()}"
-      valid = Location.validId.test value
+      valid = togethr.model.Location.validId.test value
       if not valid
         container.addClass 'error'
         label.text 'That\'s not a valid name for a location:'
