@@ -5,11 +5,25 @@
     url: '/api/locations',
     dataType: 'json',
     responseText: []
+    
+  
+  $.mockjax
+    url: '/api/locations/*',
+    dataType: 'json',
+    response: (settings) -> @responseText = settings.data
+    
   
   $.mockjax
     url: '/api/bookmarks',
     dataType: 'json',
     responseText: []
+    
+  
+  $.mockjax
+    url: '/api/bookmarks/*',
+    dataType: 'json',
+    response: (settings) -> @responseText = settings.data
+    
   
   $.mockjax
     url: '/api/messages',
