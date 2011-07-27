@@ -97,8 +97,6 @@ mobone.namespace 'togethr.dialog', (exports) ->
       
       target.html options.join ''
       target.selectmenu 'refresh', true
-      # don't let vclicks bubble
-      target.closest('.ui-select').bind 'vclick', -> false
       
     
     updateMapContainerDimensions: =>
