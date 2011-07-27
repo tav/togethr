@@ -110,24 +110,6 @@ mobone.namespace 'togethr.widget', (exports) ->
         </div>
       """
     
-    initialize: ->
-      @model.bind 'change', @render
-      @render()
-      target = $(@el)
-      target.bind 'vmousedown', @handleTouchStart
-      target.bind 'vmouseup', @handleTouchEnd
-      target.bind 'swipeleft', @showMessage
-      target.bind 'swiperight', @showParent
-      
-    
-    render: =>
-      context =
-        id: @model.id
-        content: @model.get 'content'
-      $(@el).html @template context
-      
-    
-    
     # Record when and where the touch start event was triggered
     handleTouchStart: (event) => 
       @touch_started = 
@@ -169,110 +151,154 @@ mobone.namespace 'togethr.widget', (exports) ->
       false
       
     
-    
     # Slide right to reveal the message's parent (if it has one)
     showParent: (event) => console.log "XXX showParent not implemented"
+    
+    render: =>
+      context =
+        id: @model.id
+        content: @model.get 'content'
+      $(@el).html @template context
+      
+    
+    initialize: ->
+      @model.bind 'change', @render
+      @render()
+      target = $(@el)
+      target.bind 'vmousedown', @handleTouchStart
+      target.bind 'vmouseup', @handleTouchEnd
+      target.bind 'swipeleft', @showMessage
+      target.bind 'swiperight', @showParent
+      
+    
     
   
   exports.MessageEntry = MessageEntry
   
   
-  # `ResultsView` is a base class for widgets that accept a contexts.
-  class ResultsView extends mobone.view.Widget
+  # `ActivityStream` is a `ResultsView` showing a stream of action messages.
+  class ActivityStream extends mobone.view.Widget
     
-    # Expect `@options.context`, set it to `@context`.
-    initialize: -> 
-      console.log 'new ResultsView', @options.context
-      @context = @options.context
-      @initial_results = @context.get 'initial_results'
-      @context.unset 'initial_results'
+    # When a `message` is added to `@results`, render a `MessageEntry` and trigger
+    # a `model:added` event.
+    handleAdd: (message) =>
+      # Prepend a `MessageEntry` to the stream.
+      entry = new MessageEntry model: message
+      @el.prepend entry.el
+      # Notify that the message was added.
+      $(document).trigger 'model:added', message
       
     
-    
-  
-  class ActivityStream extends ResultsView
-    
-    handleAdd: =>
-      # @el.append message.view.el
-      
-    
+    # When `@results` is reset, clear the previous messages, render a `MessageEntry`
+    # for each result and trigger a `model:added` event.
     handleReset: =>
-      # @el.html ''
-      # @collection.each (message) => @el.append message.view.el
+      # Clear the previous messages.
+      @el.html ''
+      # For each message, prepend a `MessageEntry` to the stream.
+      messages = @results.models
+      elements = []
+      for message in messages
+        entry = new MessageEntry model: message
+        elements.push entry.el
+      elements.reverse()
+      @el.prepend elements
+      # Notify that the messages were added.
+      $(document).trigger 'model:added', messages
       
     
     
-    handleResults: (data) =>
+    # When we recieve new results data, reset `@results` and, if necessary,
+    # update `@context.get('distance')`.
+    handleSuccess: (data) =>
       console.log 'handleResults', data
       @results.reset data.results
-      # if the distance has changed (bc the backend took over and found the
-      # optimum range)
+      # If the distance has changed (bc the backend took over and found the
+      # optimum range) ...
       distance = @context.get('distance')
       if not (distance.get 'value' is data.distance)
-        # update the distance, which triggers @location_bar
-        # using a flag to avoid triggering a distance query
+        # ... update the distance, using a flag to avoid triggering a new 
+        # distance query.
         @ignore_set_distance = true
         distance.set 'value': data.distance
       
     
-    fetchMessages: (query, location, distance, success, failure) =>
-      data = query.toJSON()
+    # If the query fails, do XXX.
+    handleError: => console.log 'XXX getMessages failed.'
+    
+    # Make an ajax request to GET `/api/messages` from the server.
+    getMessages: (include_distance) ->
+      data = @query.toJSON()
+      location = @locations.selected
       data.ll = "#{location.get 'latitude'},#{location.get 'longitude'}"
-      data.distance = distance.get 'value' if distance?
+      data.distance = @distance.get 'value' if include_distance?
       $.ajax
         url: '/api/messages'
         data: data
         dataType: 'json'
-        success: success
-        error: failure
+        success: @handleSuccess
+        error: @handleError
       
     
     
-    performQuery: =>
-      console.log 'performQuery', @query
-      query = @context.get('query')
-      location = @context.get('locations').selected
-      @fetchMessages query, location, null, @handleResults, -> alert 'XXX'
+    # When `@context.get 'query'` changes make a request to get messages without
+    # including a distance.
+    handleQueryChange: => 
+      @getMessages false
       
     
-    performDistanceQuery: =>
-      console.log 'performDistanceQuery', @context.query, @context.distance
+    # When `@context.get 'distance'` changes, as long as we didn't trigger it,
+    # make a request to get messages with a specific distance included.
+    handleDistanceChange: =>
       if @ignore_set_distance
         @ignore_set_distance = false
         return
-      query = @context.get('query')
-      distance = @context.get('distance')
-      location = @context.get('locations').selected
-      @fetchMessages query, location, distance, @handleResults, -> alert 'XXX'
+      @getMessages true
       
     
     
+    # Unbind from change events and record the current `@query` and `@distance`.
     snapshot: =>
-      @context.get('query').unbind 'change', @performQuery
-      @context.get('distance').unbind 'change', @performDistanceQuery
-      @previous_query = @context.get 'query'
-      @previous_distance = @context.get 'distance'
+      @query.unbind 'change', @handleQueryChange
+      @distance.unbind 'change', @handleDistanceChange
+      @previous_query = @query
+      @previous_distance = @distance
       
     
+    # Bind to change events, handle results if provided else get messages if
+    # anything has changed.
     restore: =>
-      @context.get('query').bind 'change', @performQuery
-      @context.get('distance').bind 'change', @performDistanceQuery
+      # Bind to change events.
+      @query.bind 'change', @handleQueryChange
+      @distance.bind 'change', @handleDistanceChange
+      # Handle results if provided.
       @initial_results = @context.get 'initial_results'
       @context.unset 'initial_results'
-      @handleResults @initial_results if @initial_results?
+      if @initial_results?
+        @handleResults @initial_results 
+      else # Get messages if anything has changed.
+        if @previous_query? and not _.isEqual @query, @previous_query
+          @handleQueryChange()
+        else if @previous_distance? and not _.isEqual @distance, @previous_distance
+          @handleDistanceChange() 
+        
       
     
     
+    # Unpack `@options.context`, create `@results`, bind to `add` and `reset`
+    # events and trigger a `@restore()`.
     initialize: ->
-      super
+      @context = @options.context
+      @query = @context.get 'query'
+      @distance = @context.get 'distance'
+      @locations = @context.get 'locations'
       @results = new Backbone.Collection model: togethr.model.Message
       @results.bind 'add', @handleAdd
       @results.bind 'reset', @handleReset
       @restore()
       
     
+    
   
-  exports.ResultsView = ResultsView
   exports.ActivityStream = ActivityStream
   
   
