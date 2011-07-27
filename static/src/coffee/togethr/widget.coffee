@@ -14,7 +14,7 @@ mobone.namespace 'togethr.widget', (exports) ->
     
     render: =>
       target = @$ '#location-button .ui-btn-text'
-      target.text @locations.selected.get 'id'
+      target.text @collection.selected.get 'id'
       
     
     
