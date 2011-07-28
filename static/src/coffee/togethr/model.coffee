@@ -221,6 +221,7 @@ mobone.namespace 'togethr.model', (exports) ->
   # `Messages` is a collection that contains upto the 300 most recent `Message`s.
   class Messages extends mobone.model.RecentInstanceCache
     model: Message
+    model_name: 'message'
     limit: 300
   
   exports.Message = Message
@@ -233,6 +234,7 @@ mobone.namespace 'togethr.model', (exports) ->
   # `Users` is a collection that contains upto the 20 most recent `User`s.
   class Users extends mobone.model.RecentInstanceCache
     model: User
+    model_name: 'user'
     limit: 20
   
   exports.User = User

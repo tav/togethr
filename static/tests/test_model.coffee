@@ -311,11 +311,12 @@ $(document).ready ->
     
     class Cache extends mobone.model.RecentInstanceCache
       model: Model
+      model_name: 'model'
     
     cache = new Cache
     model = new Model
     
-    $(document).trigger 'model:added', model
+    $(document).trigger 'models:added', models: [model]
     
     equal cache.at(0), model
     
@@ -326,6 +327,7 @@ $(document).ready ->
     
     class Cache extends mobone.model.RecentInstanceCache
       model: Model
+      model_name: 'model'
     
     cache = new Cache
     
@@ -334,7 +336,7 @@ $(document).ready ->
       loop: =>
         id = "#{@i}"
         model = new Model id: id
-        $(document).trigger 'model:added', model
+        $(document).trigger 'models:added', models: [model]
         @i += 1
         if @i < 3
           setTimeout @loop, 1
@@ -356,11 +358,12 @@ $(document).ready ->
     
     class Cache extends mobone.model.RecentInstanceCache
       model: Model
+      model_name: 'model'
     
     cache = new Cache
     model = new Model id: 'a'
     
-    $(document).trigger 'model:added', model
+    $(document).trigger 'models:added', models: [model]
     
     used1 = model.get '__used'
     
@@ -379,6 +382,7 @@ $(document).ready ->
     
     class Cache extends mobone.model.RecentInstanceCache
       model: Model
+      model_name: 'model'
       limit: 1
     
     cache = new Cache
@@ -388,7 +392,7 @@ $(document).ready ->
       loop: =>
         id = "#{@i}"
         model = new Model id: id
-        $(document).trigger 'model:added', model
+        $(document).trigger 'models:added', models: [model]
         @i += 1
         if @i < 2
           setTimeout @loop, 1

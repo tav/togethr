@@ -180,17 +180,17 @@ mobone.namespace 'togethr.widget', (exports) ->
   class ActivityStream extends mobone.view.Widget
     
     # When a `message` is added to `@results`, render a `MessageEntry` and trigger
-    # a `model:added` event.
+    # a `messages:added` event.
     handleAdd: (message) =>
       # Prepend a `MessageEntry` to the stream.
       entry = new MessageEntry model: message
       @el.prepend entry.el
       # Notify that the message was added.
-      $(document).trigger 'model:added', message
+      $(document).trigger 'messages:added', models: [message]
       
     
     # When `@results` is reset, clear the previous messages, render a `MessageEntry`
-    # for each result and trigger a `model:added` event.
+    # for each result and trigger a `messages:added` event.
     handleReset: =>
       # Clear the previous messages.
       @el.html ''
@@ -203,7 +203,7 @@ mobone.namespace 'togethr.widget', (exports) ->
       elements.reverse()
       @el.prepend elements
       # Notify that the messages were added.
-      $(document).trigger 'model:added', messages
+      $(document).trigger 'messages:added', models: messages
       
     
     

@@ -269,13 +269,15 @@ mobone.namespace 'mobone.model', (exports) ->
     
     
   
-  # `RecentInstanceCache` listens to `model:added` events and adds models that
-  # are instances of @model.  Maintains Sorts by the used flag and
+  # `RecentInstanceCache` listens to `"#{@model_name}s:added"` events and adds
+  # models send through the event.  Maintains sort by the `__used` flag and
   # follows a least recently used algorithm to limit the size of the cache.
   class RecentInstanceCache extends Backbone.Collection
     
     # You must provide a specific model class.
     model: null
+    # You must provide a model name
+    model_name: null
     
     # How many instances to keep in the cache?
     limit: 350
@@ -328,15 +330,41 @@ mobone.namespace 'mobone.model', (exports) ->
     
     # Add model instances that match the type of @model and are not already in
     # the collection.
-    handleAdded: (event, model) => 
-      @add model if model instanceof @model and not @get model
+    handleAdded: (event, data) => 
+      to_add = []
+      for model in data.models
+        to_add.push model if not model.id? or not @get model.id
+      console.log "adding #{to_add.length} models to", @
+      @add to_add
       
     
     
-    # Start handling `model:added` events.
+    # Select a model by id and notify that the selected model has changed.
+    select: (id, options) ->
+      options ?= {}
+      success = options.success
+      _handleSuccess = (model) =>
+        @selected = model
+        @trigger 'selection:changed', model if options.silent isnt true
+        success model
+      
+      options.success = _handleSuccess
+      model = @get id
+      if not model?
+        model = @create id: id
+        model.fetch options
+      else
+        @selected = model
+        @trigger 'selection:changed', model if options.silent isnt true
+        _handleSuccess model
+      
+    
+    
+    # Start handling `models:added` events.
     initialize: -> 
-      $(document).bind 'model:added', @handleAdded
       throw "You must provide @model." if not @model?
+      throw "You must provide @model_name." if not @model_name?
+      $(document).bind "#{@model_name}s:added", @handleAdded
       
     
     
