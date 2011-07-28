@@ -113,15 +113,51 @@
                       <option value="map">Map</option>
                     </select>
                   </div>
-                  <div class="selectable-view-container">
+                  <div class="row selectable-view-container">
                   </div>
                 </div>
               </div>
             </div>
-            <div id="location-dialog" 
-                class="dialog"
-                data-role="dialog"
-                data-fullscreen="true">
+            <!--
+              
+              Message Page
+              
+              
+            -->
+            <div id="message-page" class="page" data-role="page" data-theme="c">
+              <div class="head" data-role="header">
+                <a href="/"
+                    data-role="button" 
+                    data-inline="true" 
+                    data-rel="back"
+                    data-icon="back"
+                    class="left">Back</a>
+                <div class="right .ui-btn-right" data-inline="true">
+                  <a class="appreciate-button" href="#appreciate" data-role="button">
+                    Appreciate</a>
+                  <a class="jumpto-button" href="#jumpto" data-role="button">
+                    Jump To</a>
+                </div>
+                <h1 class="title">Message</h1>
+              </div>
+              <div class="body" data-role="content">
+                <div class="window main-window">
+                  <div class="row message-row message-user">
+                  </div>
+                  <div class="row message-row message-content">
+                  </div>
+                  <div class="row selectable-view-container">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!--
+              
+              Location Dialog
+              
+              
+            -->
+            <div id="location-dialog" class="dialog" data-role="dialog">
               <div class="head" data-role="header">
                 <h1>Set Location</h1>
               </div>
@@ -201,6 +237,38 @@
         </div>
       </div>
     </div>
+    <!--
+      
+      Templates
+      
+      
+    -->
+    <script type="text/template" id="message-listing-template">
+      <div class="user-profile-image left">
+        <img src="build/gfx/user.png" />
+      </div>
+      <%~ content %>
+      <div class="clear">
+      </div>
+    </script>
+    <script type="text/template" id="message-page-user-template">
+      <a href="/<%= user %>">
+        <div class="user-profile-image left">
+          <img src="build/gfx/user/<%= user %>.png" />
+        </div>
+        @<%= user %></a>
+      <div class="clear">
+      </div>
+    </script>
+    <script type="text/template" id="message-page-content-template">
+      <%~ content %>
+    </script>
+    <!--
+      
+      Javascript
+      
+      
+    -->
     <script type="text/javascript"
         src="http://maps.google.com/maps/api/js?sensor=true">
     </script>

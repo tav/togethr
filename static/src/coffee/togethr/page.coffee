@@ -104,101 +104,49 @@ mobone.namespace 'togethr.page', (exports) ->
     
     
   
-  exports.QueryPage = QueryPage
-  
-  
-  class MessagePage extends mobone.view.Page
+  # `MessagePage` is the main message page with `ReplyStream` results view.
+  class MessagePage extends ContextPage
+    default_results_view: 'reply_stream'
     
-    @elementTemplate: mobone.string.template """
-        <div id="message/<%= id %>" class="page" data-role="page" data-theme="c">
-        </div>
-      """
+    templates:
+      user: mobone.string.templateFromId 'message-page-user-template'
+      content: mobone.string.templateFromId 'message-page-content-template'
     
-    pageContentTemplate: mobone.string.template """
-        <div class="head" data-role="header">
-          <a href="/"
-              data-role="button" 
-              data-inline="true" 
-              data-rel="back"
-              data-icon="back"
-              data-iconpos="notext" 
-              class="left">Back</a>
-          <div class="right .ui-btn-right" data-inline="true">
-            <a href="/message/<%= id %>/appreciate" data-role="button">
-              Appreciate</a>
-            <a href="/message/<%= id %>/jumpTo" data-role="button">
-              Jump To</a>
-          </div>
-          <h1 class="title">Message</h1>
-        </div>
-        <div class="body" data-role="content">
-          <div class="window main-window">
-            <!-- user -->
-            <div class="row message-row message-user">
-              <a href="/<%= user.username %>" title="<%= user.username %>">
-                <div class="user-profile-image left">
-                  <img src="<%= user.profile_image %>" />
-                </div>
-                @<%= user.username %></a>
-              <div class="clear">
-              </div>
-            </div>
-            <!-- message -->
-            <div class="row message-row message-content">
-              <%~ content %>
-            </div>
-            <div class="row message-row message-comments">
-              <ul class="comments-list">
-                <% _.each(comments, function(comment) { %>
-                  <li class="comment">
-                    <div class="comment-user">
-                      <a href="/<%= comment.user.username %>" title="<%= comment.user.username %>">
-                        <div class="user-profile-image left">
-                          <img src="<%= comment.user.profile_image %>" />
-                        </div>
-                        @<%= user.username %></a>:
-                      <%~ comment.content %>
-                      <div class="clear">
-                      </div>
-                    </div>
-                  </li>
-                <% }); %>
-              </ul>
-            </div>
-            <!-- reply UI -->
-          </div>
-        </div>
-      """
-    
-    # static method that returns a new element
-    @generateElement: (msgid) ->
-      $(@elementTemplate id: msgid)
-      
-    
-    
-    initialize: ->
-      @model.bind 'change', @render
-      context = @model.toJSON()
-      console.log context
-      @el.append $(@pageContentTemplate(context))
-      @el.bind 'swiperight', @handleBack
-      @el.page()
-      @render()
-      
-    
-    render: =>
-      # XXX
-      
-    
-    
-    handleBack: =>
+    handleSwipeRight: (event) =>
+      # If the event was triggered from within the results stream, ignore it.
+      target = $ event.target
+      return true if target.closest('selectable-view-container').length > 0
+      # Otherwise go back.
       history.back()
       false
+      
+    
+    
+    render: ->
+      console.log 'MessagePage.render', @
+      message = @messages.selected
+      if message?
+        data = message.toJSON()
+        @$('.message-user').html @templates.user data
+        @$('.message-content').html @templates.content data
+      
+    
+    
+    # Set `@context`, bind to `selection:changed` events, bind to `swiperight`
+    # events, make the header buttons relative and `refresh()`.
+    initialize: ->
+      @context = new Backbone.Model messages: @options.messages
+      @messages = @options.messages
+      @messages.bind 'selection:changed': @refresh
+      @el.bind 'swiperight', @handleSwipeRight
+      #new mobone.view.RelativeButton el: item for item in @$ '[data-relative-path]'
+      @refresh()
+      
     
     
   
+  exports.QueryPage = QueryPage
   exports.MessagePage = MessagePage
-  
   
 
 

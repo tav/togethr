@@ -101,14 +101,7 @@ mobone.namespace 'togethr.widget', (exports) ->
   
   class MessageEntry extends Backbone.View
     className: 'message-entry'
-    template: mobone.string.template """
-        <div class="user-profile-image left">
-          <img src="build/gfx/user.png" />
-        </div>
-        <%~ content %>
-        <div class="clear">
-        </div>
-      """
+    template: mobone.string.templateFromId 'message-listing-template'
     
     # Record when and where the touch start event was triggered
     handleTouchStart: (event) => 
@@ -271,10 +264,10 @@ mobone.namespace 'togethr.widget', (exports) ->
       @query.bind 'change', @handleQueryChange
       @distance.bind 'change', @handleDistanceChange
       # Handle results if provided.
-      @initial_results = @context.get 'initial_results'
-      @context.unset 'initial_results'
-      if @initial_results?
-        @handleResults @initial_results 
+      @__initial_data = @context.get '__initial_data'
+      @context.unset '__initial_data'
+      if @__initial_data?
+        @handleResults @__initial_data 
       else # Get messages if anything has changed.
         if @previous_query? and not _.isEqual @query, @previous_query
           @handleQueryChange()
@@ -299,7 +292,10 @@ mobone.namespace 'togethr.widget', (exports) ->
     
     
   
+  class ReplyStream extends mobone.view.Widget
+  
   exports.ActivityStream = ActivityStream
+  exports.ReplyStream = ReplyStream
   
   
   class FooterWidget extends mobone.view.Widget

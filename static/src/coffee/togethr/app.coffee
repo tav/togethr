@@ -40,6 +40,10 @@ mobone.namespace 'togethr.app', (exports, root) ->
             query: @model.query
             distance: @model.distance
             locations: @model.locations
+        when 'message'
+          @pages.message = new togethr.page.MessagePage
+            el: $ '#message-page'
+            messages: @model.messages
         when 'location'
           @pages.location = new togethr.dialog.LocationDialog
             el: $ '#location-dialog'
@@ -97,14 +101,15 @@ mobone.namespace 'togethr.app', (exports, root) ->
       console.log "handleSpace #{space}"
       
     
+    # Handle `/message/:msgid` by `select()`ing the message and showing the
+    # `MessagePage`.
     handleMessage: (msgid) =>
       console.log "handleMessage #{msgid}"
-      target = message.MessagePage.generateElement msgid
-      $('.page-container').append(target)
-      page = new togethr.page.MessagePage
-        model: @messages.get msgid
-        el: target
-      @show page, 'page'
+      @model.messages.select msgid,
+        success: (model) => 
+          page = @ensure 'message'
+          @show page, 'page'
+        error: (model, resp) -> console.log "XXX could not fetch message #{resp}"
       
     
     handleUser: (user) =>
