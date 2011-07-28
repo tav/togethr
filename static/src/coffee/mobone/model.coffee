@@ -272,6 +272,10 @@ mobone.namespace 'mobone.model', (exports) ->
   # `RecentInstanceCache` listens to `"#{@model_name}s:added"` events and adds
   # models send through the event.  Maintains sort by the `__used` flag and
   # follows a least recently used algorithm to limit the size of the cache.
+  # 
+  # Also provides `select()` and `selected`, triggering a `selection:changed`
+  # event when the `selected` model changes.  When calling `select()`, if the
+  # model is not in the collection, it's fetched from the server.
   class RecentInstanceCache extends Backbone.Collection
     
     # You must provide a specific model class.
@@ -281,6 +285,9 @@ mobone.namespace 'mobone.model', (exports) ->
     
     # How many instances to keep in the cache?
     limit: 350
+    
+    # Currently selected model.
+    selected: null
     
     # Update the `model`'s `__used` attribute to be a timestamp of now.
     _update_used: (model) ->
