@@ -26,6 +26,48 @@
     
   
   $.mockjax
+    url: '/api/message/*',
+    dataType: 'json',
+    response: (settings) ->
+      id = settings.data.id
+      console.log "Faking response for /api/message/#{id}"
+      message = 
+        'id': "msg-#{i}"
+        'user': 'username'
+        'll': '51.5197248,-0.1406875'
+        'hashtags': ['#football']
+        'keywords': ['foo', 'bar']
+        'actions': ['offer']
+        'users': ['tav', 'thruflo']
+        'content': "!offer @tav and @thruflo foo #football bar #{id}"
+        'created': +new Date
+        'appreciation_count': Math.floor(Math.random() * 100)
+        'reply_count': Math.floor(Math.random() * 3)
+        '__initial_data':
+          cursor: 0
+          results: []
+      mi = parseInt id.slice(4)
+      cursor = 0
+      for i in [mi+10..mi+14]
+        result =
+          'id': "msg-#{i}"
+          'user': 'username'
+          'll': '51.5197248,-0.1406875'
+          'hashtags': ['#football']
+          'keywords': ['foo', 'bar']
+          'actions': ['offer']
+          'users': ['tav', 'thruflo']
+          'content': "!offer @tav and @thruflo foo #football bar #{i}"
+          'created': +new Date
+          'appreciation_count': Math.floor(Math.random() * 100)
+          'reply_count': Math.floor(Math.random() * 3)
+          'in_reply_to': id
+        message.__initial_data.results.push result
+      @responseText = message
+      
+  
+  
+  $.mockjax
     url: '/api/messages',
     dataType: 'json',
     response: (settings) ->
