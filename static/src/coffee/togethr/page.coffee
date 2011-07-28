@@ -139,7 +139,7 @@ mobone.namespace 'togethr.page', (exports) ->
       @messages = @options.messages
       @messages.bind 'selection:changed': @refresh
       @el.bind 'swiperight', @handleSwipeRight
-      #new mobone.view.RelativeButton el: item for item in @$ '[data-relative-path]'
+      new mobone.view.RelativeButton el: item for item in @$ '[data-relative-path]'
       @refresh()
       
     
