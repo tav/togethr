@@ -100,7 +100,7 @@ mobone.namespace 'mobone.event', (exports) ->
     
     # `shouldtriggerBack()` when target matches `back_selectors`.
     shouldtriggerBack: ->
-      selectors = @options.external_selectors
+      selectors = @options.back_selectors
       return true for item in selectors when @target.closest(item).length > 0
       false
       
