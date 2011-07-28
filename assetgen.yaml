@@ -94,6 +94,18 @@ generate:
     
 
 
+- js/tests.js:
+    source: 
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.mockjax.js
+      - static/tests/test_*.coffee
+    uglify:
+      - --beautify
+      - --no-mangle
+      - --no-squeeze
+      - --define-from-module
+      - config-dev
+    
+
 - gfx/*:
     source: %(AMPIFY_ROOT)s/third_party/togethr-resources/gfx/*
     type: binary
