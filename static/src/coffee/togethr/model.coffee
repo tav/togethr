@@ -217,6 +217,7 @@ mobone.namespace 'togethr.model', (exports) ->
   
   # `Message` encapsulates a message.
   class Message extends Backbone.Model
+    urlRoot: '/api/message'
   
   # `Messages` is a collection that contains upto the 300 most recent `Message`s.
   class Messages extends mobone.model.RecentInstanceCache
