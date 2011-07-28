@@ -114,6 +114,15 @@ mobone.namespace 'mobone.string', (exports) ->
       if data then func(data) else func
       
     
+    # Convenience method to create a template from an element id.  Works nicely
+    # with the pattern of including templates in `<script type="text/template" />`
+    # elements with unique `id=""`s.
+    templateFromId: (id, data) => 
+      target = $ "##{id}"
+      return @template target.html(), data if target.length > 0
+      console.warn "Template ##{id} does not exist" if console? and console.warn?
+      
+    
     
     # Pass in `syntax` to override the default syntax.
     constructor: (syntax) -> _.extend(@syntax, syntax) if syntax?
@@ -128,6 +137,6 @@ mobone.namespace 'mobone.string', (exports) ->
   
   factory = new TemplateFactory
   exports.template = factory.template
-  
+  exports.templateFromId = factory.templateFromId
 
 
