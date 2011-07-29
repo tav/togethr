@@ -169,18 +169,158 @@ mobone.namespace 'togethr.widget', (exports) ->
   exports.MessageEntry = MessageEntry
   
   
-  # `ActivityStream` is a `ResultsView` showing a stream of action messages.
-  class ActivityStream extends mobone.view.Widget
+  # `ResultsView` is an abstract base class abstracting out some of the logical
+  # flow of a `View` which shows query results.
+  # 
+  # `ResultsView`s must be passed `@options.context` and can be passed
+  # `@options.initial_results`.  They Set up a `@results` collection and a 
+  # `@notifications` collection and bind to their `add` and `reset` events.
+  # 
+  # If `@options.initial_results` is provided, its used to populates `@results`
+  # otherwise the view performs a `$.ajax` query.  Once populated, and after
+  # a restore, the view opens a live connection to subscribes to notifications.
+  class ResultsView extends mobone.view.Widget
     
-    # When a `message` is added to `@results`, render a `MessageEntry` and trigger
-    # a `messages:added` event.
-    handleAdd: (message) =>
-      # Prepend a `MessageEntry` to the stream.
-      entry = new MessageEntry model: message
-      @el.prepend entry.el
-      # Notify that the message was added.
-      $(document).trigger 'messages:added', models: [message]
+    # `query_url` API query endpoint.
+    query_url: '/api/query'
+    
+    # Is this a view where it makes sense to bind to infinite scroll?
+    should_bind_to_infinite_scroll: false
+    
+    # Has the view been snapshotted?
+    restoring_from_snapshot: false
+    
+    # Subclasses should override `handleAddResult()`, `handleResetResults()` and 
+    # `handleAddNotification()` and `handleResetNotifications()`.
+    handleResetNotifications: (notifications) => # noop
+    handleAddNotification: (notification) => # noop
+    handleResetResults: (results) => # noop
+    handleAddResult: (result) => # noop
+    
+    # `handleQuerySuccess()` resets `@notifications` and re-subscribes to
+    # live updates.
+    handleQuerySuccess: (data) =>
+      @notifications.reset()
+      @unsubscribe()
+      @subscribe()
       
+    
+    handleQueryError: =>
+      console.log 'XXX handle query error'
+      
+    
+    
+    # `snapshot()` unsubscribes from live updates and stops binding to scroll.
+    snapshot: =>
+      @unsubscribe()
+      @unbindFromInfiniteScroll()
+      
+    
+    # `restore()` subscribes to live updates and binds to scroll.
+    restore: =>
+      @subscribe()
+      @bindToinfiniteScroll()
+      
+    
+    
+    # When the user scrolls to the end of the listing, go get more results.
+    bindToInfiniteScroll: =>
+      #if @should_bind_to_infinite_scroll
+      # on scroll: 
+      #   data = _.extend @query.toJSON(), until: @results.getTail()
+      #   @performQuery data
+      # 
+      
+    
+    # Stop handling scroll.
+    unbindFromInfiniteScroll: => # if @should_bind_to_infinite_scroll XXX
+    
+    # Subscribe to live updates, appending to `@notifications`.
+    subscribe: =>
+      query = @generateQuery()
+      @subscription_id = $.sha1 JSON.stringify query
+      liveClient.subscribe
+        subscription_id: @subscription_id
+        query: query
+        since: @results.getHead()
+        callback: (data) =>
+          if data.subscription_id is @subscription_id
+            # `data.results` should be a list `"#{type}:#{id}"` strings.
+            to_add = []
+            for item in data.results
+              parts = item.split ':'
+              model = new Backbone.Model
+                type: parts[0]
+                id: parts[1]
+              to_add.push model
+            @notifications.add to_add
+          
+        
+      
+    
+    # Unsubscribe from live updates.
+    unsubscribe: =>
+      liveClient.unsubscribe @subscription_id if @subscription_id?
+      
+    
+    
+    # If we have any `@initial_results`, use them to populate `@results`,
+    # otherwise populate `@results` by performing a query.
+    populate: =>
+      if @initial_results?
+        @results.reset @initial_results
+        delete @initial_results
+        @handleQuerySuccess()
+      else
+        @performQuery @generateQuery()
+      
+    
+    
+    # Make a `$.ajax` request to the query API.
+    performQuery: (data) =>
+      $.ajax
+        url: @query_url
+        data: data
+        dataType: 'json'
+        error: @handleQueryError
+        success: (data) =>
+          @results.reset data.results
+          @handleQuerySuccess data
+        
+      
+    
+    
+    # Subclasses must override `generateQuery()` with a method that builds
+    # a `togethr.model.Query`.
+    generateQuery: =>
+      throw "`ResultsView` implementations must override `generateQuery()`"
+      
+    
+    
+    # Store `@context` and any `@initial_results`, set up `@results` and 
+    # `@notifications` and bind to events.
+    initialize: ->
+      # Store `@context` and any `@initial_results`.
+      @context = @options.context
+      @initial_results = @options.initial_results
+      # Set up a `@results` and bind to `add` and `reset` events.
+      @results = new togethr.model.ResultCollection
+      @results.bind 'add', @handleAddResult
+      @results.bind 'reset', @handleResetResults
+      # Set up a `@notifications` and bind to `add` events.
+      @notifications = new Backbone.Collection
+      @notifications.bind 'add', @handleAddNotification
+      @notifications.bind 'reset', @handleResetNotifications
+      # Subscribe to notifications after populating `@results`
+      @populate()
+      # Bind to inifinite scroll.
+      @bindToInfiniteScroll()
+      
+    
+    
+  
+  # `ActivityStream` is a `ResultsView` showing a stream of action messages.
+  class ActivityStream extends ResultsView
     
     # When `@results` is reset, clear the previous messages, render a `MessageEntry`
     # for each result and trigger a `messages:added` event.
