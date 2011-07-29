@@ -324,7 +324,7 @@ mobone.namespace 'togethr.widget', (exports) ->
     
     # When `@results` is reset, clear the previous messages, render a `MessageEntry`
     # for each result and trigger a `messages:added` event.
-    handleReset: =>
+    handleResetResults: =>
       # Clear the previous messages.
       @el.html ''
       # For each message, prepend a `MessageEntry` to the stream.
@@ -339,97 +339,107 @@ mobone.namespace 'togethr.widget', (exports) ->
       $(document).trigger 'messages:added', models: messages
       
     
+    # When a `message` is added to `@results`, render a `MessageEntry` and trigger
+    # a `messages:added` event.
+    handleAddResult: (message) =>
+      # Prepend a `MessageEntry` to the stream.
+      entry = new MessageEntry model: message
+      @el.prepend entry.el
+      # Notify that the message was added.
+      $(document).trigger 'messages:added', models: [message]
+      
     
-    # When we recieve new results data, reset `@results` and, if necessary,
-    # update `@context.get('distance')`.
+    # Use `super` to reset `@notifications` and re-subscribe to live updates and
+    # then update `@distance` if the server returned a different value (triggering
+    # the `LocationBar` slider to reposition).
     handleSuccess: (data) =>
-      console.log 'handleResults', data
-      @results.reset data.results
+      # Reset `@notifications` and re-subscribe to live updates.
+      super
       # If the distance has changed (bc the backend took over and found the
       # optimum range) ...
-      distance = @context.get('distance')
-      if not (distance.get 'value' is data.distance)
+      distance = @distance.get 'value'
+      if distance isnt data.distance
         # ... update the distance, using a flag to avoid triggering a new 
         # distance query.
         @ignore_set_distance = true
-        distance.set 'value': data.distance
+        @distance.set 'value': data.distance
       
     
-    # If the query fails, do XXX.
-    handleError: => console.log 'XXX getMessages failed.'
     
-    # Make an ajax request to GET `/api/messages` from the server.
-    getMessages: (include_distance) ->
+    # `generateQuery()` from `@query`, `@locations.selected` and `@distance`.
+    generateQuery: => 
       data = @query.toJSON()
       location = @locations.selected
       data.ll = "#{location.get 'latitude'},#{location.get 'longitude'}"
-      data.distance = @distance.get 'value' if include_distance?
-      $.ajax
-        url: '/api/messages'
-        data: data
-        dataType: 'json'
-        success: @handleSuccess
-        error: @handleError
+      if @include_distance
+        data.distance = @distance.get 'value' if include_distance?
+        @include_distance = false
+      data
       
     
     
-    # When `@context.get 'query'` changes make a request to get messages without
-    # including a distance.
+    # When `@context.get 'query'` changes perform a query.
     handleQueryChange: => 
-      @getMessages false
+      @performQuery @generateQuery()
       
     
     # When `@context.get 'distance'` changes, as long as we didn't trigger it,
-    # make a request to get messages with a specific distance included.
+    # perform a query with distance included.
     handleDistanceChange: =>
       if @ignore_set_distance
         @ignore_set_distance = false
-        return
-      @getMessages true
-      
-    
-    
-    # Unbind from change events and record the current `@query` and `@distance`.
-    snapshot: =>
-      @query.unbind 'change', @handleQueryChange
-      @distance.unbind 'change', @handleDistanceChange
-      @previous_query = @query
-      @previous_distance = @distance
-      
-    
-    # Bind to change events, handle results if provided else get messages if
-    # anything has changed.
-    restore: =>
-      # Bind to change events.
-      @query.bind 'change', @handleQueryChange
-      @distance.bind 'change', @handleDistanceChange
-      # Handle results if provided.
-      @__initial_data = @context.get '__initial_data'
-      @context.unset '__initial_data'
-      if @__initial_data?
-        @handleResults @__initial_data 
-      else # Get messages if anything has changed.
-        if @previous_query? and not _.isEqual @query, @previous_query
-          @handleQueryChange()
-        else if @previous_distance? and not _.isEqual @distance, @previous_distance
-          @handleDistanceChange() 
+      else
+        @include_distance = true
+        @performQuery @generateQuery()
         
       
     
     
-    # Unpack `@options.context`, create `@results`, bind to `add` and `reset`
-    # events and trigger a `@restore()`.
+    # If we have any `@initial_results`, use them to populate `@results`,
+    # otherwise do nothing.
+    populate: =>
+      if @initial_results?
+        @results.reset @initial_results
+        delete @initial_results
+        @handleQuerySuccess()
+      
+    
+    
+    snapshot: =>
+      super
+      @query.unbind 'change', @handleQueryChange
+      @distance.unbind 'change', @handleDistanceChange
+      @locations.unbind 'selection:changed', @handleQueryChange
+      @previous_query = @query
+      @previous_distance = @distance
+      @previous_location = @locations.selected
+      
+    
+    restore: =>
+      @query.bind 'change', @handleQueryChange
+      @distance.bind 'change', @handleDistanceChange
+      @locations.bind 'selection:changed', @handleQueryChange
+      if not _.isEqual @query, @previous_query
+        @handleQueryChange()
+      else if not _.isEqual @locations.selected, @previous_location
+        @handleQueryChange()
+      else if not _.isEqual @distance, @previous_distance
+        @handleDistanceChange()
+      else
+        super
+      
+    
+    
     initialize: ->
       @context = @options.context
       @query = @context.get 'query'
       @distance = @context.get 'distance'
       @locations = @context.get 'locations'
-      @results = new Backbone.Collection model: togethr.model.Message
-      @results.bind 'add', @handleAdd
-      @results.bind 'reset', @handleReset
-      @restore()
+      @query.bind 'change', @handleQueryChange
+      @distance.bind 'change', @handleDistanceChange
+      @locations.bind 'selection:changed', @handleQueryChange
+      super
       
-    
     
   
   class ReplyStream extends mobone.view.Widget
