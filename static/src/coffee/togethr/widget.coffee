@@ -488,8 +488,7 @@ mobone.namespace 'togethr.widget', (exports) ->
     initialize: ->
       bar = @$ '.menu-bar'
       bar.navbar()
-      act_button = new mobone.view.RelativeButton
-        el: @$ '.act-button a'
+      act_button = new mobone.view.RelativeButton el: @$ '.act-button a'
       
     
   
