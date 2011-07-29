@@ -164,7 +164,8 @@ mobone.namespace 'togethr.app', (exports, root) ->
       @model.messages = new togethr.model.Messages
       # Create ``@query`` and ``@distance`` objects.
       @model.query = new togethr.model.Query
-      @model.distance = new Backbone.Model # XXX should be in structured `query`
+      @model.query.set togethr.model.Query.parse ''
+      @model.distance = new Backbone.Model
       # Setup the application wide footer widget.
       @footer = new togethr.widget.FooterWidget el: $ '#footer-wrapper'
       

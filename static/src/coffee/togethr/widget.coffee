@@ -395,16 +395,6 @@ mobone.namespace 'togethr.widget', (exports) ->
       
     
     
-    # If we have any `@initial_results`, use them to populate `@results`,
-    # otherwise do nothing.
-    populate: =>
-      if @initial_results?
-        @results.reset @initial_results
-        delete @initial_results
-        @handleQuerySuccess()
-      
-    
-    
     snapshot: =>
       super
       @query.unbind 'change', @handleQueryChange
