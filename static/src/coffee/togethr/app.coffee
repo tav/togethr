@@ -92,7 +92,7 @@ mobone.namespace 'togethr.app', (exports, root) ->
     handleQuery: (value) =>
       console.log "handleQuery #{value}"
       page = @ensure 'query'
-      query_data = togethr.model.Query.parse value
+      query_data = togethr.model.Query.parse mobone.string.decode value
       @model.query.set query_data
       @show page, 'page'
       

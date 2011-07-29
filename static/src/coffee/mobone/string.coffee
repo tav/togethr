@@ -8,6 +8,13 @@ mobone.namespace 'mobone.string', (exports) ->
     @replace /\w\S*/g, (s) -> "#{s.charAt(0).toUpperCase()}#{s.substr(1).toLowerCase()}"
   
   
+  # `decode()` a uri component and convert pluses to spaces.
+  decode: (str) ->
+    str = decodeURIComponent str
+    str.replace /\+/g, ' '
+    
+  
+  
   # `Processor` provides methods to `escape()`, `autolink()`, and 
   # `internationalise()` strings and a convenience method, `process()`,
   # to escape, autolink and internationalise in one go.
@@ -129,6 +136,8 @@ mobone.namespace 'mobone.string', (exports) ->
     
   
   
+  exports.decode = decode
+  
   exports.Processor = Processor
   exports.TemplateFactory = TemplateFactory
   
@@ -138,5 +147,6 @@ mobone.namespace 'mobone.string', (exports) ->
   factory = new TemplateFactory
   exports.template = factory.template
   exports.templateFromId = factory.templateFromId
+  
 
 
