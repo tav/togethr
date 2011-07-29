@@ -193,13 +193,18 @@ mobone.namespace 'togethr.dialog', (exports) ->
           container.addClass 'error'
           label.text 'You already have a location with this name:'
           return false
+      
       instance = @locations.create
         id: value
         latitude: ll.lat()
         longitude: ll.lng()
-      instance.save()
-      @locations.select value
-      window.history.back()
+      instance.save {},
+        success: =>
+          @locations.select value
+          window.history.back()
+        error: =>
+          console.log 'XXX error saving location'
+        
       false
       
     
