@@ -121,37 +121,31 @@ mobone.namespace 'togethr.page', (exports) ->
       user: mobone.string.templateFromId 'message-page-user-template'
       content: mobone.string.templateFromId 'message-page-content-template'
     
+    # If the event was triggered from within the results stream, ignore it.
+    # Otherwise go back.
     handleSwipeRight: (event) =>
-      # If the event was triggered from within the results stream, ignore it.
-      target = $ event.target
-      return true if target.closest('selectable-view-container').length > 0
-      # Otherwise go back.
+      return if $(event.target).closest('selectable-view-container').length > 0
       history.back()
       false
       
     
-    
+    # Update the user and message content.
     render: ->
-      console.log 'MessagePage.render', @
       message = @messages.selected
-      if message?
-        data = message.toJSON()
-        @$('.message-user').html @templates.user data
-        @$('.message-content').html @templates.content data
+      data = message.toJSON()
+      @$('.message-user').html @templates.user data
+      @$('.message-content').html @templates.content data
       
     
-    
     # Set `@context`, bind to `selection:changed` events, bind to `swiperight`
-    # events, make the header buttons relative and `refresh()`.
+    # events and make the header buttons relative.
     initialize: ->
       @context = new Backbone.Model messages: @options.messages
       @messages = @options.messages
-      @messages.bind 'selection:changed': @refresh
+      @messages.bind 'selection:changed', @reset
       @el.bind 'swiperight', @handleSwipeRight
       new mobone.view.RelativeButton el: item for item in @$ '[data-relative-path]'
-      @refresh()
       
-    
     
   
   exports.QueryPage = QueryPage
