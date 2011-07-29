@@ -442,8 +442,44 @@ mobone.namespace 'togethr.widget', (exports) ->
       
     
   
-  class ReplyStream extends mobone.view.Widget
   
+  class ReplyStream extends ResultsView
+    
+    # When `@results` is reset, clear the previous messages, render a `MessageEntry`
+    # for each result and trigger a `messages:added` event.
+    handleResetResults: =>
+      # For each message, prepend a `MessageEntry` to the stream.
+      messages = @results.models
+      elements = []
+      for message in messages
+        entry = new MessageEntry model: message
+        elements.push entry.el
+      elements.reverse()
+      @el.prepend elements
+      # Notify that the messages were added.
+      $(document).trigger 'messages:added', models: messages
+      
+    
+    # When a `message` is added to `@results`, render a `MessageEntry` and trigger
+    # a `messages:added` event.
+    handleAddResult: (message) =>
+      # Prepend a `MessageEntry` to the stream.
+      entry = new MessageEntry model: message
+      @el.prepend entry.el
+      # Notify that the message was added.
+      $(document).trigger 'messages:added', models: [message]
+      
+    
+    
+    # `generateQuery` for replies to `@messages.selected`.
+    generateQuery: =>
+      messages = @context.get 'messages'
+      in_reply_to: messages.selected.get 'id'
+      
+    
+    
+  
+  exports.ResultsView = ResultsView
   exports.ActivityStream = ActivityStream
   exports.ReplyStream = ReplyStream
   
