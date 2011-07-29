@@ -9,7 +9,7 @@ mobone.namespace 'mobone.string', (exports) ->
   
   
   # `decode()` a uri component and convert pluses to spaces.
-  decode: (str) ->
+  decode = (str) ->
     str = decodeURIComponent str
     str.replace /\+/g, ' '
     
