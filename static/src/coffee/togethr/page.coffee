@@ -82,8 +82,8 @@ mobone.namespace 'togethr.page', (exports) ->
     
     
     # Tell the current results view to snapshot and restore when the page does.
-    snapshot: => @current_results_view.snapshot() if @current_results_view
-    restore: => @current_results_view.restore() if @current_results_view
+    snapshot: => @current_results_view.snapshot() if @current_results_view?
+    restore: => @current_results_view.restore() if @current_results_view?
     
     # Bind to `.results-view-select` `change` events.
     initialize: ->
