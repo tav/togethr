@@ -351,6 +351,7 @@ mobone.namespace 'mobone.model', (exports) ->
       options ?= {}
       success = options.success
       _handleSuccess = (model) =>
+        console.log 'RecentInstanceCache.select _handleSuccess', model
         @selected = model
         @trigger 'selection:changed', model if options.silent isnt true
         success model
@@ -361,8 +362,6 @@ mobone.namespace 'mobone.model', (exports) ->
         model = @create id: id
         model.fetch options
       else
-        @selected = model
-        @trigger 'selection:changed', model if options.silent isnt true
         _handleSuccess model
       
     
