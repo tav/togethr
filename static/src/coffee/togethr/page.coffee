@@ -97,9 +97,7 @@ mobone.namespace 'togethr.page', (exports) ->
         query: @options.query
         distance: @options.distance
         locations: @options.locations
-      # XXX we don't actually want: `@context.query.bind 'change', @refresh` here
-      # (but we will for messages and other contexts).
-      @refresh()
+      @reset()
       # XXX Setup select view widget.
       # ... `selectResultsView view_name` ...
       # Setup the top, search and location bars.
