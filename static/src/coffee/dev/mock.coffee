@@ -1,5 +1,10 @@
-# Mock `$.ajax` and `ampify.live` whilst in development.
+# Mock `$.ajax` and `liveClient` whilst in development.
 (->
+  
+  window.liveClient =
+    subscribe: -> # noop
+    unsubscribe: -> # noop
+  
   
   $.mockjax
     url: '/api/locations',
