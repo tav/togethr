@@ -10,6 +10,7 @@ generate:
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.cookie.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.geolocation.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.parsequery.js
+      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.sha1.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.support.fixedPosition.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.url.js
       # backbone
