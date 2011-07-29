@@ -469,13 +469,23 @@ mobone.namespace 'togethr.widget', (exports) ->
       $(document).trigger 'messages:added', models: [message]
       
     
+    centreMap: =>
+      latlng = @locations.selected.toLatLng()
+      console.log latlng
+      @map.setCenter latlng
+      
+    
     snapshot: =>
       super
+      @locations.unbind 'selection:changed', @centreMap
       # unbind from map moves
       
     
     restore: =>
       # bind to map moves
+      @locations.bind 'selection:changed', @centreMap
+      if not _.isEqual @locations.selected, @previous_location
+        @centreMap()
       super
       
     
@@ -493,7 +503,7 @@ mobone.namespace 'togethr.widget', (exports) ->
         zoomControl: true
         zoom: 12
       @map = new google.maps.Map node, options
-      
+      @locations.bind 'selection:changed', @centreMap
       ## XXX lets not bind to map moves for now.
       ##google.maps.event.addListener @map, 'dragstart', @handleDragStart
       ##google.maps.event.addListener @map, 'dragend', @handleDragEnd
