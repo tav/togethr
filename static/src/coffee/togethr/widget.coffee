@@ -433,7 +433,78 @@ mobone.namespace 'togethr.widget', (exports) ->
     
   
   
+  # A basic stub `Map` view.
+  class Map extends ActivityStream
+    
+    addMarker: (message) =>
+      # Get the latitude and longitude.
+      ll = message.get 'll'
+      parts = ll.split ','
+      latitude = parseFloat parts[0]
+      longitude = parseFloat parts[1]
+      # Make a marker image.
+      image = new google.maps.MarkerImage "build/gfx/user/#{message.get 'user'}.png"
+      image.scaledSize = new google.maps.Size 25, 25
+      # Add the marker to the map.
+      marker = new google.maps.Marker
+        visible: true
+        icon: image
+        map: @map
+        position: new google.maps.LatLng latitude, longitude
+      
+    
+    handleResetResults: =>
+      ## Clear the previous messages.
+      #item.setMap null for item in @map.markers
+      # `addMarker` for each message.
+      @addMarker message for message in @results.models
+      # Notify that the messages were added.
+      $(document).trigger 'messages:added', models: @results.models
+      
+    
+    handleAddResult: (message) =>
+      # `addMarker`
+      @addMarker message
+      # Notify that the message was added.
+      $(document).trigger 'messages:added', models: [message]
+      
+    
+    snapshot: =>
+      super
+      # unbind from map moves
+      
+    
+    restore: =>
+      # bind to map moves
+      super
+      
+    
+    initialize: ->
+      super
+      # Setup a map.
+      @el.append $ '<div class="map-results-view"></div>'
+      target = @$ '.map-results-view'
+      target.height $(window).height()
+      node = target.get 0
+      options = 
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+        disableDefaultUI: true
+        center: @locations.selected.toLatLng()
+        zoomControl: true
+        zoom: 12
+      @map = new google.maps.Map node, options
+      
+      ## XXX lets not bind to map moves for now.
+      ##google.maps.event.addListener @map, 'dragstart', @handleDragStart
+      ##google.maps.event.addListener @map, 'dragend', @handleDragEnd
+      
+      # XXX todo: set bounds appropriately
+      
+    
+    
+  
   class ReplyStream extends ResultsView
+    
     
     # When `@results` is reset, clear the previous messages, render a `MessageEntry`
     # for each result and trigger a `messages:added` event.
@@ -471,6 +542,7 @@ mobone.namespace 'togethr.widget', (exports) ->
   
   exports.ResultsView = ResultsView
   exports.ActivityStream = ActivityStream
+  exports.Map = Map
   exports.ReplyStream = ReplyStream
   
   
