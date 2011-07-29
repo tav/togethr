@@ -105,9 +105,9 @@ mobone.namespace 'togethr.app', (exports, root) ->
     # `MessagePage`.
     handleMessage: (msgid) =>
       console.log "handleMessage #{msgid}"
+      page = @ensure 'message'
       @model.messages.select msgid,
         success: (model) => 
-          page = @ensure 'message'
           @show page, 'page'
         error: (model, resp) -> console.log "XXX could not fetch message #{resp}"
       
