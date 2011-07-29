@@ -242,4 +242,18 @@ mobone.namespace 'togethr.model', (exports) ->
   exports.Users = Users
   
   
+  # `ResultCollection` is a collection that provides `getHead()` and `getTail()`
+  # methods.
+  class ResultCollection extends Backbone.Collection
+    
+    # XXX need to be implemented to return `since` and `before` for head and
+    # tail.
+    
+    getHead: -> 0 # XXX
+    getTail: -> 0 # XXX
+    
+    
+  
+  exports.ResultCollection = ResultCollection
+  
 
