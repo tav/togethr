@@ -12,67 +12,78 @@
 # * `BadgePage`
 mobone.namespace 'togethr.page', (exports) ->
   
-  # `ContextPage` is a base class abstracting out:
+  # `ContextPage` is a base class abstracting out some of the logical flow of
+  # a `Page` which represents a particular context (like a @user or a #hashtag).
   # 
-  # * accepting a context which may or may not have an initial result set in it
-  # * selecting a default `ResultsView` when the context is first set / changes
-  # * passing the context through to the selected `ResultsView`
+  # It provides methods to:
   # 
-  # `ContextPage` follows the same ensure / create / show algorithm to lazy-create
-  # results views that the the `togethr.app.Controller` uses for page views.
+  # * `reset()` which renders and creates a new default `ResultView`
+  # * `update()` which renders and creates a new current `ResultView`
+  # * `select()` which creates a new selected `ResultView`
+  # 
+  # These methods all require subclasses to provide `@context` (and optionally
+  # also look for `@initial_results`), which they pass through to the `ResultView`
+  # when creating it.
   class ContextPage extends mobone.view.Page
     
-    # Subclasses must provide the name of the `default_results_view`, e.g.: 'map'.
-    default_results_view: null
+    # Subclasses must provide a default results view name, e.g.: 'activity_stream'.
+    # By convention, `results_view_name` creates a `togethr.widget.ResultsViewName`.
+    default_results_view_name: null
     
-    # `results_views` and `current_results_view` cache lazy-created results views.
-    results_views: {}
+    current_results_view_name: null
     current_results_view: null
     
-    # `createResultsView` creates and returns the specified results view, passing
-    # `@context` through to it.
-    createResultsView: (name) ->
-      console.log "createResultsView #{name}"
-      # By convention, `view_name` creates a `togethr.widget.ViewName`.
-      view_class_name = ''
-      for item in name.split '_'
-        view_class_name += item.toTitleCase()
-      ViewClass = togethr.widget[view_class_name]
-      # All results views are given the same container as `@el`.
-      @results_views[name] = new ViewClass
+    # `_create(results_view)` creates and returns the specified results view,
+    # passing `@context` through to it.
+    _create: (results_view_name) =>
+      # Require `@context` and `results_view_name`.
+      throw "`ContextPage`s must provide `@context`." if not @context?
+      throw "`results_view_name` is required." if not results_view_name?
+      # By convention, `results_view_name` creates a `togethr.widget.ResultsViewName`.
+      class_name = ''
+      class_name += item.toTitleCase() for item in results_view_name.split '_'
+      ResultsView = togethr.widget[class_name]
+      # Kill the `current_results_view`.
+      if @current_results_view?
+        @current_results_view.snapshot()
+        @current_results_view.el.html ''
+        delete @current_results_view
+      # Store the results view name and return the results view.
+      @current_results_view_name = results_view_name
+      @current_results_view = new ResultsView
         el: @$ '.selectable-view-container'
         context: @context
-      @results_views[name]
+        initial_results: @initial_results
+      # Make sure it's a `ResultsView`
+      if @current_results_view not instanceof togethr.widget.ResultsView
+        throw "#{ResultsView} is not a `ResultsView`" 
       
     
     
-    # `createResultsView` shows the specified results view and updates it with
-    # the latest `@context`.
-    selectResultsView: (name) =>
-      # Snapshot and hide any current results view.
-      if @current_results_view?
-        prev = @current_results_view
-        prev.snapshot()
-        prev.hide()
-      # If the results view exists, wake it and update the context.
-      if @results_views[name]?
-        next = @results_views[name]
-        next.restore()
-        next.show()
-      # Otherwise create it (which implicitly wakes it and passes in the context).
-      else
-        next = @createResultsView name
-      # Store the current results view.
-      @current_results_view = next
-      
+    # `render()` does nothing by default.
+    render: => # noop
     
-    
-    # `refresh` re`render()`s and switches to the `@default_results_view`.
-    refresh: =>
+    # `reset()` renders and creates a new default results view.
+    reset: =>
       @render()
-      @selectResultsView @default_results_view
+      @_create @default_results_view
       
     
+    # `update()` renders and creates a new current result view.
+    update: =>
+      @render()
+      @_create @current_results_view_name ? @default_results_view
+      
+    
+    # `select()` creates a new selected `ResultView`.
+    select: (results_view_name) =>
+      @_create results_view_name ? @default_results_view
+      
+    
+    
+    # Tell the current results view to snapshot and restore when the page does.
+    snapshot: => @current_results_view.snapshot() if @current_results_view
+    restore: => @current_results_view.restore() if @current_results_view
     
   
   # `QueryPage` is the main search / results page.
