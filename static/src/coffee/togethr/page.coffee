@@ -85,6 +85,15 @@ mobone.namespace 'togethr.page', (exports) ->
     snapshot: => @current_results_view.snapshot() if @current_results_view
     restore: => @current_results_view.restore() if @current_results_view
     
+    # Bind to `.results-view-select` `change` events.
+    initialize: ->
+      target = @$ '.results-view-select'
+      target.val @default_results_view_name
+      target.selectmenu 'refresh', true
+      target.bind 'change', => @select target.val()
+      
+    
+    
   
   # `QueryPage` is the main search / results page.
   class QueryPage extends ContextPage
@@ -109,7 +118,7 @@ mobone.namespace 'togethr.page', (exports) ->
       @widgets.location_bar = new togethr.widget.LocationBar
         el: @$ '.location-bar'
         model: @options.distance
-      
+      super
     
     
   
@@ -145,7 +154,7 @@ mobone.namespace 'togethr.page', (exports) ->
       @messages.bind 'selection:changed', @reset
       @el.bind 'swiperight', @handleSwipeRight
       new mobone.view.RelativeButton el: item for item in @$ '[data-relative-path]'
-      
+      super
     
   
   exports.QueryPage = QueryPage
