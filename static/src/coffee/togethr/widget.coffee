@@ -219,7 +219,7 @@ mobone.namespace 'togethr.widget', (exports) ->
     # `restore()` subscribes to live updates and binds to scroll.
     restore: =>
       @subscribe()
-      @bindToinfiniteScroll()
+      @bindToInfiniteScroll()
       
     
     
