@@ -7,32 +7,32 @@
   
   
   $.mockjax
-    url: '/api/locations',
-    dataType: 'json',
+    url: '/api/locations'
+    dataType: 'json'
     responseText: []
     
   
   $.mockjax
-    url: '/api/locations/*',
-    dataType: 'json',
+    url: '/api/locations/*'
+    dataType: 'json'
     response: (settings) -> @responseText = settings.data
     
   
   $.mockjax
-    url: '/api/bookmarks',
-    dataType: 'json',
+    url: '/api/bookmarks'
+    dataType: 'json'
     responseText: []
     
   
   $.mockjax
-    url: '/api/bookmarks/*',
-    dataType: 'json',
+    url: '/api/bookmarks/*'
+    dataType: 'json'
     response: (settings) -> @responseText = settings.data
     
   
   $.mockjax
-    url: '/api/message/*',
-    dataType: 'json',
+    url: '/api/messages/*'
+    dataType: 'json'
     response: (settings) ->
       id = settings.data.id
       console.log "Faking response for /api/message/#{id}"
@@ -73,8 +73,8 @@
   
   
   $.mockjax
-    url: '/api/messages',
-    dataType: 'json',
+    url: '/api/messages'
+    dataType: 'json'
     response: (settings) ->
       console.log 'Faking response for /api/messages'
       # fake a cursor for now
