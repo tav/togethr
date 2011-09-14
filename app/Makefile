@@ -1,0 +1,6 @@
+# Public Domain (-) 2011 The Togethr Authors.
+# See the Togethr UNLICENSE file for details.
+
+dev:
+	dev_appserver.py .
+
