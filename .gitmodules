@@ -1,0 +1,3 @@
+[submodule "third_party/ampify"]
+	path = third_party/ampify
+	url = https://github.com/tav/ampify.git
