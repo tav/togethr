@@ -1,2 +1,0 @@
-var DEBUG;
-DEBUG = false;
