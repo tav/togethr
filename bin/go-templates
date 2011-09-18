@@ -1,0 +1,103 @@
+#! /usr/bin/env python
+
+# Public Domain (-) 2011 The Togethr Authors.
+# See the Togethr UNLICENSE file for details.
+
+import sys
+
+from os import listdir, stat
+from os.path import basename, join, splitext
+from time import sleep
+
+# ------------------------------------------------------------------------------
+# Templates Packer
+# ------------------------------------------------------------------------------
+
+def pack_templates(pkg, templates_directory, output_filepath, cache, exit=False):
+
+    if cache:
+        changed = 0
+    else:
+        changed = 1
+
+    for filename in listdir(templates_directory):
+        if filename.startswith('.'):
+            continue
+        filepath = join(templates_directory, filename)
+        filename = splitext(filename)[0]
+        info = stat(filepath)
+        if (filename not in cache) or (cache[filename][0] < info.st_mtime):
+            file = open(filepath, 'rb')
+            data = file.read()
+            file.close()
+            cache[filename] = (info.st_mtime, data, filepath)
+            changed = 1
+
+    if not changed:
+        return
+
+    output = [
+        '// DO NOT EDIT.\n',
+        '// Auto-generated templates file.\n\n',
+        'package %s\n\n' % pkg,
+        'var templates = map[string]string{\n'
+        ]
+
+    for key in cache:
+        data = cache[key][1]
+        if '`' in data:
+            print "ERROR: Backquote character ` found in: %s" % cache[key][2]
+            if exit:
+                sys.exit(1)
+            return
+        output.append('\t"%s": `' % key)
+        output.append(data)
+        output.append('`,\n')
+
+    output.append('}\n\n')
+
+    output = ''.join(output)
+    target = open(output_filepath, 'wb')
+    target.write(output)
+    target.close()
+
+    print "Successfully generated: %s" % output_filepath
+
+# ------------------------------------------------------------------------------
+# Script Main
+# ------------------------------------------------------------------------------
+
+def main(argv=None):
+
+    if argv is None:
+        argv = sys.argv[1:]
+
+    watch = False
+    while '--watch' in argv:
+        argv.remove('--watch')
+        watch = True
+
+    if len(argv) != 3:
+        script = basename(sys.argv[0])
+        print "Usage: %s <pkg-name> <templates-directory> <output-file.go>" % script
+        print
+        print "Options:"
+        print "    --watch    repack when files in the templates directory change"
+        sys.exit()
+
+    pkg, templates_directory, output_filepath = argv
+    cache = {}
+
+    if watch:
+        while 1:
+            pack_templates(pkg, templates_directory, output_filepath, cache, 0)
+            sleep(1.0)
+    else:
+        pack_templates(pkg, templates_directory, output_filepath, cache, 1)
+
+# ------------------------------------------------------------------------------
+# Self Execution
+# ------------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    main()
