@@ -1,3 +1,6 @@
+// Changes to this file by The Togethr Authors are in the Public Domain.
+// See the Togethr UNLICENSE file for details.
+
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -626,7 +629,6 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // It is still necessary to invoke http.Serve(), typically in a go statement.
 func (server *Server) HandleHTTP(rpcPath, debugPath string) {
 	http.Handle(rpcPath, server)
-	http.Handle(debugPath, debugHTTP{server})
 }
 
 // HandleHTTP registers an HTTP handler for RPC messages to DefaultServer
