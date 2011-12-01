@@ -13,7 +13,10 @@ generate:
       - %(AMPIFY_ROOT)s/third_party/jslibs/underscore/underscore.js
       - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone.js
       # mobone (n.b.: strip down)
-      - %(AMPIFY_ROOT)s/third_party/mobone/*.coffee
+      - third_party/mobone/_namespace.coffee
+      - third_party/mobone/event.coffee
+      - third_party/mobone/math.coffee
+      - third_party/mobone/string.coffee
 
 - client.js:
     source: 
