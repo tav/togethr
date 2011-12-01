@@ -10,6 +10,9 @@ app-server/instance/log
 app-server/instance/run
 app-server/app-server
 
+app/build/*
+app/pkg/togethr/chrome.go
+
 bin/logo.small.png
 bin/logo.png
 
