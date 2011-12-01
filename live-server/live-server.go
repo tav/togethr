@@ -7,9 +7,8 @@
 package main
 
 import (
-	"amp/argo"
 	"amp/livequery"
-	"amp/logging"
+	"amp/log"
 	"amp/optparse"
 	"amp/runtime"
 	"amp/tlsconf"
@@ -20,13 +19,15 @@ import (
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
-	"http"
 	"io"
 	"io/ioutil"
-	"json"
 	"mime"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -101,9 +102,59 @@ func handleLiveMessages() {
 		case 1:
 			go subscribe(message[1:])
 		default:
-			logging.Error("Got unexpected X-Live payload: %s", message)
+			log.Error("Got unexpected X-Live payload: %s", message)
 		}
 	}
+}
+
+// -----------------------------------------------------------------------------
+// Micro-Argo Decoder
+// -----------------------------------------------------------------------------
+
+type ArgoDecoder struct {
+	b       *bytes.Buffer
+	scratch []byte
+}
+
+func (dec *ArgoDecoder) ReadString() (string, error) {
+	varint, err := binary.ReadVarint(dec.b)
+	if err != nil {
+		return "", err
+	}
+	size := int(varint)
+	if len(dec.scratch) > size {
+		dec.scratch = make([]byte, size)
+	}
+	_, err = dec.b.Read(dec.scratch[:size])
+	if err != nil {
+		return "", err
+	}
+	return string(dec.scratch[:size]), nil
+}
+
+func (dec *ArgoDecoder) ReadStringSlice() ([]string, error) {
+	varint, err := binary.ReadVarint(dec.b)
+	if err != nil {
+		return nil, err
+	}
+	length := int(varint)
+	output := make([]string, length)
+	for i := 0; i < length; i++ {
+		varint, err = binary.ReadVarint(dec.b)
+		if err != nil {
+			return nil, err
+		}
+		size := int(varint)
+		if len(dec.scratch) > size {
+			dec.scratch = make([]byte, size)
+		}
+		_, err = dec.b.Read(dec.scratch[:size])
+		if err != nil {
+			return nil, err
+		}
+		output[i] = string(dec.scratch[:size])
+	}
+	return output, nil
 }
 
 // -----------------------------------------------------------------------------
@@ -117,19 +168,19 @@ var pubsub = livequery.New()
 //     <item-id> [<key>, ...]
 //
 func publish(message []byte) {
-	buffer := bytes.NewBuffer(message)
-	decoder := &argo.Decoder{buffer}
-	itemID, err := decoder.ReadString()
+	buf := bytes.NewBuffer(message)
+	dec := &ArgoDecoder{buf, make([]byte, 20)}
+	itemID, err := dec.ReadString()
 	if err != nil {
-		logging.Error("Error decoding X-Live Publish ItemID %s %s", message, err)
+		log.Error("Error decoding X-Live Publish ItemID %s %s", message, err)
 		return
 	}
 	if itemID == "" {
 		return
 	}
-	keys, err := decoder.ReadStringArray()
+	keys, err := dec.ReadStringSlice()
 	if err != nil {
-		logging.Error("Error decoding X-Live Publish Keys %s %s", message, err)
+		log.Error("Error decoding X-Live Publish Keys %s %s", message, err)
 		return
 	}
 	pubsub.Publish(itemID, keys)
@@ -142,26 +193,26 @@ func publish(message []byte) {
 // The two sets of keys are assumed to be disjoint sets, i.e. they have no
 // elements in common.
 func subscribe(message []byte) {
-	buffer := bytes.NewBuffer(message)
-	decoder := &argo.Decoder{buffer}
-	sqid, err := decoder.ReadString()
+	buf := bytes.NewBuffer(message)
+	dec := &ArgoDecoder{buf, make([]byte, 20)}
+	sqid, err := dec.ReadString()
 	if err != nil {
-		logging.Error("Error decoding X-Live Subscribe SQID %s %s", message, err)
+		log.Error("Error decoding X-Live Subscribe SQID %s %s", message, err)
 		return
 	}
 	if sqid == "" {
 		return
 	}
-	keys1, err := decoder.ReadStringArray()
+	keys1, err := dec.ReadStringSlice()
 	if err != nil {
-		logging.Error("Error decoding X-Live Subscribe Keys-1 %s %s", message, err)
+		log.Error("Error decoding X-Live Subscribe Keys-1 %s %s", message, err)
 		return
 	}
 	var keys2 []string
-	if buffer.Len() > 0 {
-		keys2, err = decoder.ReadStringArray()
+	if buf.Len() > 0 {
+		keys2, err = dec.ReadStringSlice()
 		if err != nil {
-			logging.Error("Error decoding X-Live Subscribe Keys-2 %s %s", message, err)
+			log.Error("Error decoding X-Live Subscribe Keys-2 %s %s", message, err)
 			return
 		}
 	}
@@ -240,7 +291,7 @@ func (frontend *Frontend) isValidHost(host string) (valid bool) {
 		return true
 	}
 	if frontend.validWildcard {
-		splitHost := strings.Split(host, ".", 2)
+		splitHost := strings.SplitN(host, ".", 2)
 		if len(splitHost) != 2 {
 			return
 		}
@@ -296,9 +347,9 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		}
 		// Special case /.well-known/oauth.json?callback= requests.
 		if reqPath == "/.well-known/oauth.json" && req.URL.RawQuery != "" {
-			query, err := http.ParseQuery(req.URL.RawQuery)
+			query, err := url.ParseQuery(req.URL.RawQuery)
 			if err != nil {
-				logging.Error("Error parsing oauth.json query string %q: %s",
+				log.Error("Error parsing oauth.json query string %q: %s",
 					req.URL.RawQuery, err)
 				serveError400(conn, originalHost, req)
 				return
@@ -337,9 +388,9 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 		// Handle long-polling Comet requests.
 		if strings.HasPrefix(reqPath, frontend.cometPrefix) {
-			query, err := http.ParseQuery(req.URL.RawQuery)
+			query, err := url.ParseQuery(req.URL.RawQuery)
 			if err != nil {
-				logging.Error("Error parsing Comet query string %q: %s",
+				log.Error("Error parsing Comet query string %q: %s",
 					req.URL.RawQuery, err)
 				serveError400(conn, originalHost, req)
 				return
@@ -364,7 +415,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Open a connection to the upstream server.
 	upstreamConn, err := net.Dial("tcp", frontend.upstreamAddr)
 	if err != nil {
-		logging.Error("Couldn't connect to upstream: %s", err)
+		log.Error("Couldn't connect to upstream: %s", err)
 		serveError502(conn, originalHost, req)
 		return
 	}
@@ -395,7 +446,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Send the request to the upstream server.
 	err = req.Write(upstream)
 	if err != nil {
-		logging.Error("Error writing to the upstream server: %s", err)
+		log.Error("Error writing to the upstream server: %s", err)
 		serveError502(conn, originalHost, req)
 		return
 	}
@@ -403,7 +454,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Parse the response from upstream.
 	resp, err := http.ReadResponse(bufio.NewReader(upstream), req)
 	if err != nil {
-		logging.Error("Error parsing response from upstream: %s", err)
+		log.Error("Error parsing response from upstream: %s", err)
 		serveError502(conn, originalHost, req)
 		return
 	}
@@ -422,7 +473,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			// If the X-Live header was set, parse it into an int.
 			liveLength, err = strconv.Atoi(xLive)
 			if err != nil {
-				logging.Error("Error converting X-Live header value %q: %s", xLive, err)
+				log.Error("Error converting X-Live header value %q: %s", xLive, err)
 				serveError500(conn, originalHost, req)
 				return
 			}
@@ -442,7 +493,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			gzipSet = true
 			respBody, err = gzip.NewReader(resp.Body)
 			if err != nil {
-				logging.Error("Error reading gzipped response from upstream: %s", err)
+				log.Error("Error reading gzipped response from upstream: %s", err)
 				serveError500(conn, originalHost, req)
 				return
 			}
@@ -455,7 +506,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		liveMessage := make([]byte, liveLength)
 		n, err := respBody.Read(liveMessage)
 		if n != liveLength || err != nil {
-			logging.Error("Error reading X-Live response from upstream: %s", err)
+			log.Error("Error reading X-Live response from upstream: %s", err)
 			serveError500(conn, originalHost, req)
 			return
 		}
@@ -463,7 +514,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		// Read the response to send back to the original request.
 		body, err = ioutil.ReadAll(respBody)
 		if err != nil {
-			logging.Error("Error reading non X-Live response from upstream: %s", err)
+			log.Error("Error reading non X-Live response from upstream: %s", err)
 			serveError500(conn, originalHost, req)
 			return
 		}
@@ -473,19 +524,19 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 			buffer := &bytes.Buffer{}
 			encoder, err := gzip.NewWriter(buffer)
 			if err != nil {
-				logging.Error("Error creating a new gzip Writer: %s", err)
+				log.Error("Error creating a new gzip Writer: %s", err)
 				serveError500(conn, originalHost, req)
 				return
 			}
 			n, err = encoder.Write(body)
 			if n != len(body) || err != nil {
-				logging.Error("Error writing to the gzip Writer: %s", err)
+				log.Error("Error writing to the gzip Writer: %s", err)
 				serveError500(conn, originalHost, req)
 				return
 			}
 			err = encoder.Close()
 			if err != nil {
-				logging.Error("Error finalising the write to the gzip Writer: %s", err)
+				log.Error("Error finalising the write to the gzip Writer: %s", err)
 				serveError500(conn, originalHost, req)
 				return
 			}
@@ -499,7 +550,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 		// Read the full response body.
 		body, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			logging.Error("Error reading response from upstream: %s", err)
+			log.Error("Error reading response from upstream: %s", err)
 			serveError502(conn, originalHost, req)
 			return
 		}
@@ -554,14 +605,14 @@ func handleWebSocket(conn *websocket.Conn) {
 	respStatus := http.StatusOK
 	defer func() {
 		conn.Close()
-		logRequest(HTTPS_WEBSOCKET, respStatus, conn.Request.Host, conn.Request)
+		logRequest(HTTPS_WEBSOCKET, respStatus, conn.Request().Host, conn.Request())
 	}()
 	request := make([]byte, 1024)
 	for {
 		n, err := conn.Read(request)
 		if err != nil {
 			if debugMode {
-				logging.Error("Error reading on WebSocket: %s", err)
+				log.Error("Error reading on WebSocket: %s", err)
 			}
 			break
 		}
@@ -583,7 +634,7 @@ func handleWebSocket(conn *websocket.Conn) {
 // -----------------------------------------------------------------------------
 
 func getLiveItems(request string) ([]byte, int) {
-	reqs := strings.Split(request, ",", -1)
+	reqs := strings.Split(request, ",")
 	if len(reqs) == 0 {
 		return nil, http.StatusBadRequest
 	}
@@ -594,7 +645,7 @@ func getLiveItems(request string) ([]byte, int) {
 		data["items"] = result
 		response, err := json.Marshal(data)
 		if err != nil {
-			logging.Error("ERROR encoding JSON: %s for: %v", err, data)
+			log.Error("ERROR encoding JSON: %s for: %v", err, data)
 			return nil, http.StatusInternalServerError
 		}
 		return response, http.StatusOK
@@ -611,7 +662,7 @@ func getLiveItems(request string) ([]byte, int) {
 		data["refresh"] = qids
 		response, err := json.Marshal(data)
 		if err != nil {
-			logging.Error("ERROR encoding JSON: %s for: %v", err, data)
+			log.Error("ERROR encoding JSON: %s for: %v", err, data)
 			return nil, http.StatusInternalServerError
 		}
 		return response, http.StatusOK
@@ -631,11 +682,11 @@ func logRequest(proto, status int, host string, request *http.Request) {
 	} else {
 		ip = request.RemoteAddr[0:splitPoint]
 	}
-	logging.InfoData("ls", proto, status, request.Method, host, request.RawURL,
+	log.InfoData("ls", proto, status, request.Method, host, request.URL,
 		ip, request.UserAgent(), request.Referer())
 }
 
-func filterRequestLog(record *logging.Record) (write bool, data []interface{}) {
+func filterRequestLog(record *log.Record) (write bool, data []interface{}) {
 	items := record.Items
 	itemLength := len(items)
 	if itemLength > 1 {
@@ -671,7 +722,7 @@ func getErrorInfo(directory, filename string) ([]byte, string) {
 	}
 	buffer := make([]byte, info.Size)
 	_, err = file.Read(buffer[:])
-	if err != nil && err != os.EOF {
+	if err != nil && err != io.EOF {
 		runtime.StandardError(err)
 	}
 	return buffer, fmt.Sprintf("%d", info.Size)
@@ -713,7 +764,7 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 					runtime.StandardError(err)
 				}
 				_, err = file.Read(content[:])
-				if err != nil && err != os.EOF {
+				if err != nil && err != io.EOF {
 					runtime.StandardError(err)
 				}
 				mimetype := mime.TypeByExtension(filepath.Ext(name))
@@ -741,7 +792,7 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 // steps involved in setting up and running a new HTTPS Frontend.
 func initFrontend(status, host string, port int, officialHost, validAddress, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticCache string, staticFiles map[string]*StaticFile, staticMaxAge int64) *Frontend {
 
-	var err os.Error
+	var err error
 
 	// Exit if the config values for the paths of the server's certificate or
 	// key haven't been specified.
@@ -978,7 +1029,7 @@ func main() {
 
 	// Print the default YAML config file if the ``-g`` flag was specified.
 	if *genConfig {
-		opts.PrintDefaultConfigFile()
+		opts.PrintDefaultConfigFile("live-server")
 		runtime.Exit(0)
 	}
 
@@ -987,7 +1038,7 @@ func main() {
 
 	var instanceDirectory string
 	var configPath string
-	var err os.Error
+	var err error
 
 	// Assume the parent directory of the config as the instance directory.
 	if len(args) >= 1 {
@@ -1056,7 +1107,7 @@ func main() {
 
 		// Generate a list of all the acceptor node addresses and exit if we
 		// couldn't find the address four ourselves at the given index.
-		for _, acceptor := range strings.Split(*acceptors, ",", -1) {
+		for _, acceptor := range strings.Split(*acceptors, ",") {
 			acceptor = strings.TrimSpace(acceptor)
 			if acceptor != "" {
 				if index == *acceptorIndex {
@@ -1122,31 +1173,31 @@ func main() {
 	// Initialise the TLS config.
 	tlsconf.Init()
 
-	// Setup the file and console logging.
+	// Setup the file and console log.
 	var rotate int
 
 	switch *logRotate {
 	case "daily":
-		rotate = logging.RotateDaily
+		rotate = log.RotateDaily
 	case "hourly":
-		rotate = logging.RotateHourly
+		rotate = log.RotateHourly
 	case "never":
-		rotate = logging.RotateNever
+		rotate = log.RotateNever
 	default:
 		runtime.Error("ERROR: Unknown log rotation format %q\n", *logRotate)
 	}
 
 	if !*noConsoleLog {
-		logging.AddConsoleLogger()
-		logging.AddConsoleFilter(filterRequestLog)
+		log.AddConsoleLogger()
+		// log.AddConsoleFilter(filterRequestLog)
 	}
 
-	_, err = logging.AddFileLogger("live-server", logPath, rotate, logging.InfoLog)
+	_, err = log.AddFileLogger("live-server", logPath, rotate, log.InfoLog)
 	if err != nil {
 		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
 	}
 
-	_, err = logging.AddFileLogger("error", logPath, rotate, logging.ErrorLog)
+	_, err = log.AddFileLogger("error", logPath, rotate, log.ErrorLog)
 	if err != nil {
 		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
 	}
@@ -1195,13 +1246,13 @@ func main() {
 	}()
 
 	// Register the signal handlers for SIGUSR1 and SIGUSR2.
-	runtime.RegisterSignalHandler(os.SIGUSR1, func() {
+	runtime.SignalHandlers[os.SIGUSR1] = func() {
 		maintenanceChannel <- true
-	})
+	}
 
-	runtime.RegisterSignalHandler(os.SIGUSR2, func() {
+	runtime.SignalHandlers[os.SIGUSR2] = func() {
 		maintenanceChannel <- false
-	})
+	}
 
 	// Let the user know how many CPUs we're currently running on.
 	fmt.Printf("Running live-server with %d CPUs:\n", runtime.CPUCount)
