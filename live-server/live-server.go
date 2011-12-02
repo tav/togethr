@@ -122,7 +122,7 @@ func (dec *ArgoDecoder) ReadString() (string, error) {
 		return "", err
 	}
 	size := int(varint)
-	if len(dec.scratch) > size {
+	if len(dec.scratch) < size {
 		dec.scratch = make([]byte, size)
 	}
 	_, err = dec.b.Read(dec.scratch[:size])
@@ -145,7 +145,7 @@ func (dec *ArgoDecoder) ReadStringSlice() ([]string, error) {
 			return nil, err
 		}
 		size := int(varint)
-		if len(dec.scratch) > size {
+		if len(dec.scratch) < size {
 			dec.scratch = make([]byte, size)
 		}
 		_, err = dec.b.Read(dec.scratch[:size])
