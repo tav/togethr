@@ -19,7 +19,6 @@ import (
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -111,17 +110,24 @@ func handleLiveMessages() {
 // Micro-Argo Decoder
 // -----------------------------------------------------------------------------
 
+type OverflowError string
+
+func (err OverflowError) Error() string {
+	return string(err)
+}
+
+var overflow = OverflowError("argo: integer overflow")
+
 type ArgoDecoder struct {
 	b       *bytes.Buffer
 	scratch []byte
 }
 
 func (dec *ArgoDecoder) ReadString() (string, error) {
-	varint, err := binary.ReadVarint(dec.b)
+	size, err := dec.ReadSize()
 	if err != nil {
 		return "", err
 	}
-	size := int(varint)
 	if len(dec.scratch) < size {
 		dec.scratch = make([]byte, size)
 	}
@@ -133,18 +139,16 @@ func (dec *ArgoDecoder) ReadString() (string, error) {
 }
 
 func (dec *ArgoDecoder) ReadStringSlice() ([]string, error) {
-	varint, err := binary.ReadVarint(dec.b)
+	length, err := dec.ReadSize()
 	if err != nil {
 		return nil, err
 	}
-	length := int(varint)
 	output := make([]string, length)
 	for i := 0; i < length; i++ {
-		varint, err = binary.ReadVarint(dec.b)
+		size, err := dec.ReadSize()
 		if err != nil {
 			return nil, err
 		}
-		size := int(varint)
 		if len(dec.scratch) < size {
 			dec.scratch = make([]byte, size)
 		}
@@ -155,6 +159,26 @@ func (dec *ArgoDecoder) ReadStringSlice() ([]string, error) {
 		output[i] = string(dec.scratch[:size])
 	}
 	return output, nil
+}
+
+func (dec *ArgoDecoder) ReadSize() (int, error) {
+	var shift uint
+	var val int
+	for i := 0; ; i++ {
+		b, err := dec.b.ReadByte()
+		if err != nil {
+			return 0, nil
+		}
+		if b < 128 {
+			if i > 9 || i == 9 && b > 1 {
+				return val, overflow
+			}
+			return val | int(b)<<shift, nil
+		}
+		val |= int(b&127) << shift
+		shift += 7
+	}
+	return 0, nil
 }
 
 // -----------------------------------------------------------------------------
@@ -1077,8 +1101,8 @@ func main() {
 		runtime.StandardError(err)
 	}
 
-	// Initialise the Ampify runtime -- which will run ``live-server`` on
-	// multiple processors if possible.
+	// Initialise the runtime -- which will run ``live-server`` on multiple
+	// processors if possible.
 	runtime.Init()
 
 	// Handle running as an Acceptor node if ``--run-as-acceptor`` was
