@@ -334,10 +334,16 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	originalHost := req.Host
 
+	// Set default headers.
+	headers := conn.Header()
+	headers.Set("X-Content-Type-Options", "nosniff")
+	headers.Set("X-Frame-Options", "SAMEORIGIN")
+	headers.Set("X-XSS-Protection", "0")
+
 	// Redirect all requests to the "official" public host if the Host header
 	// doesn't match.
 	if !frontend.isValidHost(originalHost) {
-		conn.Header().Set("Location", frontend.redirectURL)
+		headers.Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
 		logRequest(HTTPS_REDIRECT, http.StatusMovedPermanently, originalHost, req)
@@ -346,7 +352,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	// Return the HTTP 503 error page if we're in maintenance mode.
 	if frontend.maintenanceMode {
-		headers := conn.Header()
 		headers.Set(contentType, textHTML)
 		headers.Set(contentLength, error503Length)
 		conn.WriteHeader(http.StatusServiceUnavailable)
@@ -360,7 +365,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Handle requests for any files exposed within the static directory.
 	if staticFile, ok := frontend.staticFiles[reqPath]; ok {
 		expires := time.SecondsToUTC(time.Seconds() + frontend.staticMaxAge)
-		headers := conn.Header()
 		headers.Set("Expires", expires.Format(http.TimeFormat))
 		headers.Set("Cache-Control", frontend.staticCache)
 		headers.Set("Etag", staticFile.etag)
@@ -425,7 +429,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 				return
 			}
 			response, status := getLiveItems(queryReq[0])
-			headers := conn.Header()
 			headers.Set(contentType, applicationJSON)
 			headers.Set(contentLength, fmt.Sprintf("%d", len(response)))
 			conn.WriteHeader(status)
@@ -484,9 +487,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	}
 
 	defer resp.Body.Close()
-
-	// Get the original request header.
-	headers := conn.Header()
 
 	// Set a variable to hold the X-Live header value if present.
 	var liveLength int
