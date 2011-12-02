@@ -686,24 +686,6 @@ func logRequest(proto, status int, host string, request *http.Request) {
 		ip, request.UserAgent(), request.Referer())
 }
 
-func filterRequestLog(record *log.Record) (write bool, data []interface{}) {
-	items := record.Items
-	itemLength := len(items)
-	if itemLength > 1 {
-		identifier := items[0]
-		switch identifier.(type) {
-		case string:
-			switch identifier.(string) {
-			case "ls":
-				return true, items[2 : itemLength-2]
-			case "m":
-				return true, items[1:itemLength]
-			}
-		}
-	}
-	return true, data
-}
-
 // -----------------------------------------------------------------------------
 // Utility Functions
 // -----------------------------------------------------------------------------
@@ -797,10 +779,10 @@ func initFrontend(status, host string, port int, officialHost, validAddress, cer
 	// Exit if the config values for the paths of the server's certificate or
 	// key haven't been specified.
 	if cert == "" {
-		runtime.Error("ERROR: The %s-cert config value hasn't been specified.\n", status)
+		runtime.Error("The %s-cert config value hasn't been specified.", status)
 	}
 	if key == "" {
-		runtime.Error("ERROR: The %s-key config value hasn't been specified.\n", status)
+		runtime.Error("The %s-key config value hasn't been specified.", status)
 	}
 
 	// Initialise a fresh TLS Config.
@@ -816,8 +798,7 @@ func initFrontend(status, host string, port int, officialHost, validAddress, cer
 	tlsConfig.Certificates = make([]tls.Certificate, 1)
 	tlsConfig.Certificates[0], err = tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		runtime.Error("ERROR: Couldn't load %s certificate/key pair: %s\n",
-			status, err)
+		runtime.Error("Couldn't load %s certificate/key pair: %s", status, err)
 	}
 
 	// Instantiate the associated variables and listener for the HTTPS Frontend.
@@ -825,7 +806,7 @@ func initFrontend(status, host string, port int, officialHost, validAddress, cer
 	frontendAddr := fmt.Sprintf("%s:%d", host, port)
 	frontendConn, err := net.Listen("tcp", frontendAddr)
 	if err != nil {
-		runtime.Error("ERROR: Cannot listen on %s: %v\n", frontendAddr, err)
+		runtime.Error("Cannot listen on %s: %v", frontendAddr, err)
 	}
 
 	frontendListener := tls.NewListener(frontendConn, tlsConfig)
@@ -863,7 +844,7 @@ func initFrontend(status, host string, port int, officialHost, validAddress, cer
 	go func() {
 		err = http.Serve(frontendListener, frontend)
 		if err != nil {
-			runtime.Error("ERROR serving %s HTTPS Frontend: %s\n", status, err)
+			runtime.Error("Couldn't serve %s HTTPS Frontend: %s", status, err)
 		}
 	}()
 
@@ -1033,6 +1014,14 @@ func main() {
 		runtime.Exit(0)
 	}
 
+	// Setup the console logger early.
+	if !*noConsoleLog {
+		log.AddConsoleLogger()
+		log.ConsoleFilters["ls"] = func(items []interface{}) (bool, []interface{}) {
+			return true, items[2 : len(items)-2]
+		}
+	}
+
 	// Set the debug mode flag if the ``-d`` flag was specified.
 	debugMode = *debug
 
@@ -1098,7 +1087,7 @@ func main() {
 
 		// Exit if the `--acceptor-index`` is negative.
 		if *acceptorIndex < 0 {
-			runtime.Error("ERROR: The --acceptor-index cannot be negative.\n")
+			runtime.Error("The --acceptor-index cannot be negative.")
 		}
 
 		var index int
@@ -1120,7 +1109,7 @@ func main() {
 		}
 
 		if selfAddress == "" {
-			runtime.Error("ERROR: Couldn't determine the address for the acceptor.\n")
+			runtime.Error("Couldn't determine the address for the acceptor.")
 		}
 
 		// Initialise the process-related resources.
@@ -1138,7 +1127,7 @@ func main() {
 	dirInfo, err := os.Stat(staticPath)
 	if err == nil {
 		if !dirInfo.IsDirectory() {
-			runtime.Error("ERROR: %q is not a directory\n", staticPath)
+			runtime.Error("Static path %q is not a directory", staticPath)
 		}
 	} else {
 		runtime.StandardError(err)
@@ -1157,7 +1146,7 @@ func main() {
 	dirInfo, err = os.Stat(errorPath)
 	if err == nil {
 		if !dirInfo.IsDirectory() {
-			runtime.Error("ERROR: %q is not a directory\n", errorPath)
+			runtime.Error("Error path %q is not a directory", errorPath)
 		}
 	} else {
 		runtime.StandardError(err)
@@ -1173,7 +1162,7 @@ func main() {
 	// Initialise the TLS config.
 	tlsconf.Init()
 
-	// Setup the file and console log.
+	// Setup the file loggers.
 	var rotate int
 
 	switch *logRotate {
@@ -1184,22 +1173,17 @@ func main() {
 	case "never":
 		rotate = log.RotateNever
 	default:
-		runtime.Error("ERROR: Unknown log rotation format %q\n", *logRotate)
-	}
-
-	if !*noConsoleLog {
-		log.AddConsoleLogger()
-		// log.AddConsoleFilter(filterRequestLog)
+		runtime.Error("Unknown log rotation format %q", *logRotate)
 	}
 
 	_, err = log.AddFileLogger("live-server", logPath, rotate, log.InfoLog)
 	if err != nil {
-		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
+		runtime.Error("Couldn't initialise logfile: %s", err)
 	}
 
 	_, err = log.AddFileLogger("error", logPath, rotate, log.ErrorLog)
 	if err != nil {
-		runtime.Error("ERROR: Couldn't initialise logfile: %s\n", err)
+		runtime.Error("Couldn't initialise logfile: %s", err)
 	}
 
 	var liveMode bool
@@ -1303,7 +1287,7 @@ func main() {
 	httpAddr := fmt.Sprintf("%s:%d", *httpHost, *httpPort)
 	httpListener, err := net.Listen("tcp", httpAddr)
 	if err != nil {
-		runtime.Error("ERROR: Cannot listen on %s: %v\n", httpAddr, err)
+		runtime.Error("Cannot listen on %s: %v", httpAddr, err)
 	}
 
 	hsts := ""
@@ -1321,7 +1305,7 @@ func main() {
 	go func() {
 		err = http.Serve(httpListener, redirector)
 		if err != nil {
-			runtime.Error("ERROR serving HTTP Redirector: %s\n", err)
+			runtime.Error("Couldn't serve HTTP Redirector: %s", err)
 		}
 	}()
 
