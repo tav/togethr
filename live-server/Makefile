@@ -1,5 +1,5 @@
-# Public Domain (-) 2010-2011 The Ampify Authors.
-# See the Ampify UNLICENSE file for details.
+# Public Domain (-) 2010-2011 The Togethr Authors.
+# See the Togethr UNLICENSE file for details.
 
 include $(GOROOT)/src/Make.inc
 
