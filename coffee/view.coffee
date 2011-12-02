@@ -17,6 +17,14 @@ define 'togethr.view', (exports, root) ->
       @storage.getItem @._ns(key)
       
     
+    get_or_create: (key, defaultFactory) ->
+      value = @get key
+      if not value?
+        value = defaultFactory()
+        @set key, value
+      value
+      
+    
     remove: (key) ->
       @storage.removeItem @._ns(key)
       
@@ -24,6 +32,14 @@ define 'togethr.view', (exports, root) ->
     constructor: (suffix) ->
       @ns = "at.togethr.#{suffix}"
       @storage = window.localStorage
+      
+    
+  
+  # As above for `window.sessionStorage`.
+  class Session extends Storage
+    constructor: (suffix) ->
+      super suffix
+      @storage = window.sessionStorage
       
     
   
@@ -66,7 +82,7 @@ define 'togethr.view', (exports, root) ->
     '''
     
     message: tmpl '''
-      <li>
+      <li data-created="<%- created %>">
         <p>
           <span>
             To: <%~ to %>
@@ -89,15 +105,25 @@ define 'togethr.view', (exports, root) ->
       'click a.logout':         'handleLogout'
     
     
+    _getSQID: ->
+      session_id = @session.get_or_create 'sid', -> mobone.math.uuid()
+      query_id = mobone.math.uuid()
+      @sqid = "#{session_id}:#{query_id}"
+      @sqid
+      
+    
     handleCreate: ->
       $form = @el.find 'form.create'
-      qs = $form.serialize()
-      qs = "#{qs}&username=#{encodeURIComponent(@storage.get 'username')}"
-      $.getJSON '/create', qs, (response) ->
-          if 'success' of response
-            # pass
-          else
-            alert 'Yikes that didn\'t work'
+      if not @storage.get 'username'
+        alert 'You must be logged in to create a message'
+      else
+        qs = $form.serialize()
+        qs = "#{qs}&by=#{encodeURIComponent(@storage.get 'username')}"
+        $.getJSON '/create', qs, (response) ->
+            if 'success' of response
+              $form.get(0).reset()
+            else
+              alert 'Yikes that didn\'t work'
           
         
       
@@ -106,11 +132,13 @@ define 'togethr.view', (exports, root) ->
     
     handleSearch: ->
       $form = @el.find 'form.search'
-      $.getJSON '/search', $form.serialize(), (response) ->
+      sqid = @_getSQID()
+      qs = $form.serialize()
+      $.getJSON '/search', "#{qs}&sqid=#{sqid}", (response) ->
+          console.log response
           if 'success' of response
-            # pass
-            console.log 'response.results'
-            console.log response.results
+            $.each response.results, (i, result) -> 
+                @results.prepend @message result
           else
             alert 'Yikes that didn\'t work'
           
@@ -154,7 +182,9 @@ define 'togethr.view', (exports, root) ->
     
     initialize: ->
       @el.html @chrome()
+      @results = @el.find 'ul.results'
       @storage = new Storage 'single-page-view'
+      @session = new Session 'session'
       @el.find('.login-logout li').hide()
       if @storage.get 'username'
         @_doLogin() 
