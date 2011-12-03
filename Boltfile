@@ -31,6 +31,6 @@ def build_chrome():
     chrome = tmpl.strip() % data
 
     # write to file
-    sock = open('app/pkg/togethr/chrome.go', 'w')
+    sock = open('app/togethr/chrome.go', 'w')
     sock.write(chrome)
     sock.close()
