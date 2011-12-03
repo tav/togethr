@@ -1,17 +1,7 @@
 # specific files/directories
 
-.appengine_java_sdk
-.appengine_python_sdk
-
-appengine/assets.json
-appengine/static/
-
-app-server/instance/log
-app-server/instance/run
-app-server/app-server
-
 app/build/*
-app/pkg/togethr/chrome.go
+app/togethr/chrome.go
 
 bin/logo.small.png
 bin/logo.png
@@ -19,11 +9,6 @@ bin/logo.png
 live-server/instance/log
 live-server/instance/run
 live-server/live-server
-
-static/build/gfx/
-static/build/assets.json
-static/build/css/*.css
-static/build/js/*.js
 
 # minified css/js files
 
