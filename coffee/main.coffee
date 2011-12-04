@@ -1,11 +1,8 @@
+# Public Domain (-) 2011 The Togethr Authors.
+# See the Togethr UNLICENSE file for details.
+
 define 'main', (exports, root) ->
 
-  exports.run = ->
+  exports.run = (body) ->
 
-    if self isnt top
-      top.location = self.location
-      return
-
-    $body = $ '#body'
-    view = new togethr.view.SinglePageView el: $body
-    $body.show()
+    view = new togethr.view.SinglePageView el: $(body)
