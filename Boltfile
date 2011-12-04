@@ -25,7 +25,8 @@ def build_chrome():
     # process the assets
     data = json.loads(assets)
     init = data.pop('init.js')
-    assets = [str(data[k]) for k in sorted(data)]
+    data.pop('site.css')
+    assets = dict((str(k), str(v)) for k, v in data.items())
 
     # render the template
     sock = open('chrome.tmpl')
