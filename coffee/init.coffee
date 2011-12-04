@@ -6,6 +6,7 @@
   # Define config params.
   analyticsHost = '.togethr.at'
   analyticsId = 'UA-90176-30'
+  bgColor = "#252525"
   static = '/.static/'
   typekit = ''
 
@@ -15,7 +16,7 @@
     return
 
   # Grab the <head> and <body>.
-  head = doc.head or doc.getElementsByTagName('style')[0].parentNode
+  head = doc.head or doc.getElementsByTagName('script')[0].parentNode
   body = doc.body
 
   # Utility function to load the CSS stylesheet at the given `path`.
@@ -66,6 +67,9 @@
     body.appendChild c
 
     return
+
+  # Set the body background colour to avoid overly delayed flashes.
+  body.style.backgroundColor = bgColor
 
   # Compute variables relating to the progress indicator.
   width = 240 # [keep this synced with the sass]
