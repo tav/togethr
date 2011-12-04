@@ -19,24 +19,39 @@ generate:
       - third_party/mobone/string.coffee
 
 - client.js:
-    source: 
+    source:
       - raw: |
           /* Public Domain (-) 2011 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
-      - coffee/*.coffee
-      - raw: |
-          main.run();
+      - coffee/main.coffee
+      - coffee/view.coffee
     
+- init.js:
+    source:
+      - raw: |
+          /* Public Domain (-) 2011 The Togethr Authors.
+           * See the Togethr UNLICENSE file for details. */
+      - coffee/init.coffee
+
 - gfx/*:
-    source: %(AMPIFY_ROOT)s/third_party/togethr-resources/gfx/*
+    source: gfx/*
     type: binary
 
-- style.css:
-    source: 
+- site.css:
+    source:
       - raw: |
           /* Public Domain (-) 2011 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
-      - sass/*.sass
+      - sass/site.sass
+    embed.path.root: static
+    embed.url.base: /.static/
+
+- update.css:
+    source:
+      - raw: |
+          /* Public Domain (-) 2011 The Togethr Authors.
+           * See the Togethr UNLICENSE file for details. */
+      - sass/update.sass
 
 output.directory: app/build
 output.hashed: true
