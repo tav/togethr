@@ -950,11 +950,11 @@ func main() {
 	noLivequery := opts.BoolConfig("no-livequery", false,
 		"disable the LiveQuery node and WebSocket/Comet support [false]")
 
-	websocketPrefix := opts.StringConfig("websocket-prefix", "/.ws/",
-		"URL path prefix for WebSocket requests [/.ws/]")
+	websocketPrefix := opts.StringConfig("websocket-prefix", "/.live/ws",
+		"URL path prefix for WebSocket requests [/.live/ws]")
 
-	cometPrefix := opts.StringConfig("comet-prefix", "/.live/",
-		"URL path prefix for Comet requests [/.live/]")
+	cometPrefix := opts.StringConfig("comet-prefix", "/.live/poll",
+		"URL path prefix for Comet requests [/.live/poll]")
 
 	livequeryHost := opts.StringConfig("livequery-host", "",
 		"the host to bind the LiveQuery node to")
