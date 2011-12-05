@@ -8,39 +8,41 @@ define 'togethr.view', (exports, root) ->
   class Storage
     _ns: (key) ->
       "#{@ns}.#{key}"
-
+    
     set: (key, value) ->
       @storage.setItem @._ns(key), value
-
-
+      
+    
     get: (key) ->
       @storage.getItem @._ns(key)
-
-
+      
+    
     get_or_create: (key, defaultFactory) ->
       value = @get key
       if not value?
         value = defaultFactory()
         @set key, value
       value
-
-
+      
+    
     remove: (key) ->
       @storage.removeItem @._ns(key)
-
-
+      
+    
     constructor: (suffix) ->
       @ns = "at.togethr.#{suffix}"
       @storage = window.localStorage
-
-
-
+      
+    
+  
   # As above for `window.sessionStorage`.
   class Session extends Storage
     constructor: (suffix) ->
       super suffix
       @storage = window.sessionStorage
-
+      
+    
+  
   class LoginBar extends Backbone.View
     chrome: tmpl '''
       <div class="strip">
@@ -63,19 +65,19 @@ define 'togethr.view', (exports, root) ->
         </ul>
       </div>
     '''
-
+    
     events:
       'submit form.login':      'handleLogin'
       'click a.login':          'toggleLogin'
       'click a.logout':         'handleLogout'
-
+    
     _doLogin: ->
       username = @storage.get 'username'
       @$('.login-logout li').hide()
       @$('.login-logout li.username').text username
       @$('.login-logout li.logged-in').show()
-
-
+      
+    
     handleLogin: ->
       value = @$('form.login input').val()
       candidate = $.trim(value).toLowerCase()
@@ -85,21 +87,22 @@ define 'togethr.view', (exports, root) ->
         @storage.set 'username', candidate
         @_doLogin()
       false
-
-
+      
+    
     toggleLogin: ->
       $target = @$ '.login-form-container'
       $target.toggle()
       false
-
-
+      
+    
     handleLogout: ->
       @storage.remove 'username'
       @$('.login-logout li').hide()
       @$('.login-logout li.username').text ''
       @$('.login-logout li.login').show()
       false
-
+      
+    
     initialize: ->
       @el.append @chrome()
       @storage = new Storage 'single-page-view'
@@ -108,9 +111,9 @@ define 'togethr.view', (exports, root) ->
         @_doLogin()
       else
         @$('.login-logout li.login').show()
-
-
-
+      
+    
+  
   class ContainerView extends Backbone.View
 
     chrome: tmpl '''
@@ -129,7 +132,7 @@ define 'togethr.view', (exports, root) ->
         </ul>
       </div>
     '''
-
+    
     message: tmpl '''
       <li data-created="<%- created %>">
         <p>
@@ -145,19 +148,19 @@ define 'togethr.view', (exports, root) ->
         </p>
       </li>
     '''
-
+    
     events:
       'submit .create':         'handleCreate'
       'submit .search':         'handleSearch'
-
-
+      
+    
     _getSQID: ->
       session_id = @session.get_or_create 'sid', -> mobone.math.uuid()
       query_id = mobone.math.uuid()
       @sqid = "#{session_id}:#{query_id}"
       @sqid
-
-
+      
+    
     handleCreate: ->
       $form = @$ 'form.create'
       if not @storage.get 'username'
@@ -170,12 +173,9 @@ define 'togethr.view', (exports, root) ->
               $form.get(0).reset()
             else
               alert 'Yikes that didn\'t work'
-
-
-
       false
-
-
+      
+    
     handleSearch: ->
       $form = @$ 'form.search'
       sqid = @_getSQID()
@@ -188,24 +188,23 @@ define 'togethr.view', (exports, root) ->
                 @results.prepend @message result
           else
             alert 'Yikes that didn\'t work'
-
-
-
       false
-
-
+      
+    
     initialize: ->
       @el.append @chrome()
       @results = @$ 'ul.results'
       @storage = new Storage 'single-page-view'
       @session = new Session 'session'
-
-
+      
+    
+  
   class SinglePageView extends Backbone.View
-
+    
     initialize: ->
       @login_bar = new LoginBar el: @el
       @container_view = new ContainerView el: @el
-
-
+      
+    
+  
   exports.SinglePageView = SinglePageView
