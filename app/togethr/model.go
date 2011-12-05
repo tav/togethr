@@ -3,17 +3,19 @@
 
 package togethr
 
+/* From, By, []To, []About, Aspect, Refs, Unpacked Value, Words in Message */
+
 type Item struct { /* Parent: User */
-	Created   int64    `json:"created"`
-	Head      bool     `json:"-"`
-	Index     []string `json:"-"` /* From, By, []To, []About, Aspect, Refs, Unpacked Value, Words in Message */
-	Message   string   `json:"msg"`
-	Parent1   string   `json:"-"`
-	Parent2   string   `json:"-"`
-	Parent3   string   `json:"-"`
-	Value     []byte   `json:"-"`
-	ValueType int      `json:"-"`
-	Version   int      `json:"-"`
-	To        string   `json:"to"`
-	By        string   `json:"by"`
+	Created   int64 `json:"created"`
+	Head      bool
+	Index     []string
+	Message   string `json:"msg"`
+	Parent1   string
+	Parent2   string
+	Parent3   string
+	Value     []byte
+	ValueType int
+	Version   int
+	To        string `json:"to"`
+	By        string `json:"by"`
 }

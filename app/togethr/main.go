@@ -26,8 +26,10 @@ var (
 	SUBSCRIBE = []byte{1}
 )
 
+var chromeBytes = []byte(chrome)
+
 func handle(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, chrome)
+	w.Write(chromeBytes)
 }
 
 func create(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +89,7 @@ func create(w http.ResponseWriter, r *http.Request) {
 
 func search(w http.ResponseWriter, r *http.Request) {
 
+    ctx := appengine.NewContext(r)
 	q := strings.Split(strings.ToLower(r.FormValue("q")), " ")
 	index := make(map[string]bool)
 	sqid := r.FormValue("sqid")
@@ -104,17 +107,16 @@ func search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx := appengine.NewContext(r)
 	query := datastore.NewQuery("M999")
-	for _, term := range index {
+	for term := range index {
 		query.Filter("Index =", term)
 	}
 	query.Order("-Created")
-	results := make([]*Item, 0)
+	results := make([]Item, 0)
 
 	for iterator := query.Run(ctx); ; {
-		var item *Item
-		_, err := iterator.Next(item)
+		var item Item
+		_, err := iterator.Next(&item)
 		if err == datastore.Done {
 			break
 		}
@@ -144,7 +146,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Live", fmt.Sprintf("%d", buf.Len()))
 
 	jenc := json.NewEncoder(buf)
-	jenc.Encode(map[string][]*Item{"success": results})
+	jenc.Encode(map[string]interface{}{"success": true, "results": results})
 
 	io.Copy(w, buf)
 
