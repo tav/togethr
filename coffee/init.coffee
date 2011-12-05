@@ -200,6 +200,7 @@
   JS "https://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js", false, ->
     JS "#{static}#{ASSETS['base.js']}", false, ->
       JS "#{static}#{ASSETS['client.js']}", false, ->
+        main.increment = incr
         main.run(container)
         finish()
 
