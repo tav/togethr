@@ -40,11 +40,8 @@ define 'togethr.view', (exports, root) ->
     constructor: (suffix) ->
       super suffix
       @storage = window.sessionStorage
-      
-    
-  
-  class SinglePageView extends Backbone.View
-    
+
+  class LoginBar extends Backbone.View
     chrome: tmpl '''
       <div class="strip">
         <ul class="login-logout">
@@ -65,6 +62,58 @@ define 'togethr.view', (exports, root) ->
           </li>
         </ul>
       </div>
+    '''
+
+    events:
+      'submit form.login':      'handleLogin'
+      'click a.login':          'toggleLogin'
+      'click a.logout':         'handleLogout'
+
+    _doLogin: ->
+      username = @storage.get 'username'
+      @$('.login-logout li').hide()
+      @$('.login-logout li.username').text username
+      @$('.login-logout li.logged-in').show()
+
+
+    handleLogin: ->
+      value = @$('form.login input').val()
+      candidate = $.trim(value).toLowerCase()
+      if not valid_username.test candidate
+        alert 'That\'s not a valid username.'
+      else
+        @storage.set 'username', candidate
+        @_doLogin()
+      false
+
+
+    toggleLogin: ->
+      $target = @$ '.login-form-container'
+      $target.toggle()
+      false
+
+
+    handleLogout: ->
+      @storage.remove 'username'
+      @$('.login-logout li').hide()
+      @$('.login-logout li.username').text ''
+      @$('.login-logout li.login').show()
+      false
+
+    initialize: ->
+      @el.append @chrome()
+      @storage = new Storage 'single-page-view'
+      @$('.login-logout li').hide()
+      if @storage.get 'username'
+        @_doLogin()
+      else
+        @$('.login-logout li.login').show()
+
+
+
+  class ContainerView extends Backbone.View
+
+    chrome: tmpl '''
       <div class="container">
         <form class="create">
           <h4>Create</h4>
@@ -96,24 +145,21 @@ define 'togethr.view', (exports, root) ->
         </p>
       </li>
     '''
-    
-    events: 
+
+    events:
       'submit .create':         'handleCreate'
       'submit .search':         'handleSearch'
-      'submit form.login':      'handleLogin'
-      'click a.login':          'toggleLogin'
-      'click a.logout':         'handleLogout'
-    
-    
+
+
     _getSQID: ->
       session_id = @session.get_or_create 'sid', -> mobone.math.uuid()
       query_id = mobone.math.uuid()
       @sqid = "#{session_id}:#{query_id}"
       @sqid
-      
-    
+
+
     handleCreate: ->
-      $form = @el.find 'form.create'
+      $form = @$ 'form.create'
       if not @storage.get 'username'
         alert 'You must be logged in to create a message'
       else
@@ -124,76 +170,41 @@ define 'togethr.view', (exports, root) ->
               $form.get(0).reset()
             else
               alert 'Yikes that didn\'t work'
-          
-        
-      
+
+
+
       false
-      
-    
+
+
     handleSearch: ->
-      $form = @el.find 'form.search'
+      $form = @$ 'form.search'
       sqid = @_getSQID()
       qs = $form.serialize()
       $.getJSON '/search', "#{qs}&sqid=#{sqid}", (response) ->
           console.log response
           if 'success' of response
-            $.each response.results, (i, result) -> 
+            $.each response.results, (i, result) ->
                 @results.prepend @message result
           else
             alert 'Yikes that didn\'t work'
-          
-        
-      
+
+
+
       false
-      
-    
-    
-    _doLogin: ->
-      username = @storage.get 'username'
-      @el.find('.login-logout li').hide()
-      @el.find('.login-logout li.username').text username
-      @el.find('.login-logout li.logged-in').show()
-      
-    
-    handleLogin: ->
-      value = @el.find('form.login input').val()
-      candidate = $.trim(value).toLowerCase()
-      if not valid_username.test candidate
-        alert 'That\'s not a valid username.'
-      else
-        @storage.set 'username', candidate
-        @_doLogin()
-      false
-      
-    
-    toggleLogin: ->
-      $target = @el.find '.login-form-container'
-      $target.toggle()
-      false
-      
-    
-    handleLogout: ->
-      @storage.remove 'username'
-      @el.find('.login-logout li').hide()
-      @el.find('.login-logout li.username').text ''
-      @el.find('.login-logout li.login').show()
-      false
-    
-    
+
+
     initialize: ->
-      @el.html @chrome()
-      @results = @el.find 'ul.results'
+      @el.append @chrome()
+      @results = @$ 'ul.results'
       @storage = new Storage 'single-page-view'
       @session = new Session 'session'
-      @el.find('.login-logout li').hide()
-      if @storage.get 'username'
-        @_doLogin() 
-      else
-        @el.find('.login-logout li.login').show()
-      
-    
-  
+
+
+  class SinglePageView extends Backbone.View
+
+    initialize: ->
+      @login_bar = new LoginBar el: @el
+      @container_view = new ContainerView el: @el
+
+
   exports.SinglePageView = SinglePageView
-  
-
-
