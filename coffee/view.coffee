@@ -1,40 +1,40 @@
 define 'togethr.view', (exports, root) ->
-  
+
   tmpl = mobone.string.template
-  
+
   valid_username = /^\w+$/
-  
+
   # Namespaces wrapper around `window.localStorage`.
   class Storage
     _ns: (key) ->
       "#{@ns}.#{key}"
-    
+
     set: (key, value) ->
       @storage.setItem @._ns(key), value
-      
-    
+
+
     get: (key) ->
       @storage.getItem @._ns(key)
-      
-    
+
+
     get_or_create: (key, defaultFactory) ->
       value = @get key
       if not value?
         value = defaultFactory()
         @set key, value
       value
-      
-    
+
+
     remove: (key) ->
       @storage.removeItem @._ns(key)
-      
-    
+
+
     constructor: (suffix) ->
       @ns = "at.togethr.#{suffix}"
       @storage = window.localStorage
-      
-    
-  
+
+
+
   # As above for `window.sessionStorage`.
   class Session extends Storage
     constructor: (suffix) ->
@@ -129,7 +129,7 @@ define 'togethr.view', (exports, root) ->
         </ul>
       </div>
     '''
-    
+
     message: tmpl '''
       <li data-created="<%- created %>">
         <p>
