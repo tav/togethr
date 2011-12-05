@@ -1,5 +1,5 @@
-// Public Domain (-) 2010-2011 The Ampify Authors.
-// See the Ampify UNLICENSE file for details.
+// Public Domain (-) 2010-2011 The Togethr Authors.
+// See the Togethr UNLICENSE file for details.
 
 // Live Server
 // ===========
@@ -19,7 +19,6 @@ import (
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -111,17 +110,24 @@ func handleLiveMessages() {
 // Micro-Argo Decoder
 // -----------------------------------------------------------------------------
 
+type OverflowError string
+
+func (err OverflowError) Error() string {
+	return string(err)
+}
+
+var overflow = OverflowError("argo: integer overflow")
+
 type ArgoDecoder struct {
 	b       *bytes.Buffer
 	scratch []byte
 }
 
 func (dec *ArgoDecoder) ReadString() (string, error) {
-	varint, err := binary.ReadVarint(dec.b)
+	size, err := dec.ReadSize()
 	if err != nil {
 		return "", err
 	}
-	size := int(varint)
 	if len(dec.scratch) < size {
 		dec.scratch = make([]byte, size)
 	}
@@ -133,18 +139,16 @@ func (dec *ArgoDecoder) ReadString() (string, error) {
 }
 
 func (dec *ArgoDecoder) ReadStringSlice() ([]string, error) {
-	varint, err := binary.ReadVarint(dec.b)
+	length, err := dec.ReadSize()
 	if err != nil {
 		return nil, err
 	}
-	length := int(varint)
 	output := make([]string, length)
 	for i := 0; i < length; i++ {
-		varint, err = binary.ReadVarint(dec.b)
+		size, err := dec.ReadSize()
 		if err != nil {
 			return nil, err
 		}
-		size := int(varint)
 		if len(dec.scratch) < size {
 			dec.scratch = make([]byte, size)
 		}
@@ -155,6 +159,26 @@ func (dec *ArgoDecoder) ReadStringSlice() ([]string, error) {
 		output[i] = string(dec.scratch[:size])
 	}
 	return output, nil
+}
+
+func (dec *ArgoDecoder) ReadSize() (int, error) {
+	var shift uint
+	var val int
+	for i := 0; ; i++ {
+		b, err := dec.b.ReadByte()
+		if err != nil {
+			return 0, nil
+		}
+		if b < 128 {
+			if i > 9 || i == 9 && b > 1 {
+				return val, overflow
+			}
+			return val | int(b)<<shift, nil
+		}
+		val |= int(b&127) << shift
+		shift += 7
+	}
+	return 0, nil
 }
 
 // -----------------------------------------------------------------------------
@@ -310,10 +334,16 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	originalHost := req.Host
 
+	// Set default headers.
+	headers := conn.Header()
+	headers.Set("X-Content-Type-Options", "nosniff")
+	headers.Set("X-Frame-Options", "SAMEORIGIN")
+	headers.Set("X-XSS-Protection", "0")
+
 	// Redirect all requests to the "official" public host if the Host header
 	// doesn't match.
 	if !frontend.isValidHost(originalHost) {
-		conn.Header().Set("Location", frontend.redirectURL)
+		headers.Set("Location", frontend.redirectURL)
 		conn.WriteHeader(http.StatusMovedPermanently)
 		conn.Write(frontend.redirectHTML)
 		logRequest(HTTPS_REDIRECT, http.StatusMovedPermanently, originalHost, req)
@@ -322,7 +352,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	// Return the HTTP 503 error page if we're in maintenance mode.
 	if frontend.maintenanceMode {
-		headers := conn.Header()
 		headers.Set(contentType, textHTML)
 		headers.Set(contentLength, error503Length)
 		conn.WriteHeader(http.StatusServiceUnavailable)
@@ -336,7 +365,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Handle requests for any files exposed within the static directory.
 	if staticFile, ok := frontend.staticFiles[reqPath]; ok {
 		expires := time.SecondsToUTC(time.Seconds() + frontend.staticMaxAge)
-		headers := conn.Header()
 		headers.Set("Expires", expires.Format(http.TimeFormat))
 		headers.Set("Cache-Control", frontend.staticCache)
 		headers.Set("Etag", staticFile.etag)
@@ -401,7 +429,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 				return
 			}
 			response, status := getLiveItems(queryReq[0])
-			headers := conn.Header()
 			headers.Set(contentType, applicationJSON)
 			headers.Set(contentLength, fmt.Sprintf("%d", len(response)))
 			conn.WriteHeader(status)
@@ -460,9 +487,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	}
 
 	defer resp.Body.Close()
-
-	// Get the original request header.
-	headers := conn.Header()
 
 	// Set a variable to hold the X-Live header value if present.
 	var liveLength int
@@ -1077,8 +1101,8 @@ func main() {
 		runtime.StandardError(err)
 	}
 
-	// Initialise the Ampify runtime -- which will run ``live-server`` on
-	// multiple processors if possible.
+	// Initialise the runtime -- which will run ``live-server`` on multiple
+	// processors if possible.
 	runtime.Init()
 
 	// Handle running as an Acceptor node if ``--run-as-acceptor`` was

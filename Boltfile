@@ -1,4 +1,8 @@
+# Public Domain (-) 2011 The Togethr Authors.
+# See the Togethr UNLICENSE file for details.
+
 import json
+
 from bolt.api import *
 
 chrome_tmpl = """// Public Domain (-) 2011 The Togethr Authors.
@@ -12,23 +16,25 @@ const chrome = `%s`"""
 
 @task
 def build_chrome():
-    
+
     # read the assetgen manifest json
     sock = open('app/build/assets.json')
-    assets = json.loads(sock.read())
+    assets = sock.read().strip()
     sock.close()
-    
+
+    # process the assets
+    data = json.loads(assets)
+    init = data.pop('init.js')
+    data.pop('site.css')
+    assets = dict((str(k), str(v)) for k, v in data.items())
+
     # render the template
     sock = open('chrome.tmpl')
     tmpl = chrome_tmpl % sock.read()
     sock.close()
-    
-    data = dict((k.replace('.', '_'), v) for k, v in assets.items())
-    chrome = tmpl % data
-    
+    chrome = tmpl.strip() % dict(assets=assets, init=init)
+
     # write to file
-    sock = open('app/pkg/togethr/chrome.go', 'w')
+    sock = open('app/togethr/chrome.go', 'w')
     sock.write(chrome)
     sock.close()
-    
-

@@ -1,5 +1,5 @@
-# Public Domain (-) 2011 The Ampify Authors.
-# See the Ampify UNLICENSE file for details.
+# Public Domain (-) 2011 The Togethr Authors.
+# See the Togethr UNLICENSE file for details.
 
 generate:
 - base.js:
@@ -19,23 +19,39 @@ generate:
       - third_party/mobone/string.coffee
 
 - client.js:
-    source: 
-      - coffee/*.coffee
+    source:
+      - raw: |
+          /* Public Domain (-) 2011 The Togethr Authors.
+           * See the Togethr UNLICENSE file for details. */
+      - coffee/main.coffee
+      - coffee/view.coffee
     
-
+- init.js:
+    source:
+      - raw: |
+          /* Public Domain (-) 2011 The Togethr Authors.
+           * See the Togethr UNLICENSE file for details. */
+      - coffee/init.coffee
 
 - gfx/*:
-    source: %(AMPIFY_ROOT)s/third_party/togethr-resources/gfx/*
+    source: gfx/*
     type: binary
 
-
-- style.css:
-    source: 
+- site.css:
+    source:
       - raw: |
-          /* Public Domain (-) 2011 The Ampify Authors.
-           * See the Ampify UNLICENSE file for details. */
-      - sass/*.sass
+          /* Public Domain (-) 2011 The Togethr Authors.
+           * See the Togethr UNLICENSE file for details. */
+      - sass/site.sass
+    embed.path.root: static
+    embed.url.base: /.static/
 
+- update.css:
+    source:
+      - raw: |
+          /* Public Domain (-) 2011 The Togethr Authors.
+           * See the Togethr UNLICENSE file for details. */
+      - sass/update.sass
 
 output.directory: app/build
 output.hashed: true
@@ -44,9 +60,7 @@ output.manifest: app/build/assets.json
 env:
   NODE_PATH.prefix: app/build
 
-
 profile.dev:
   css.compressed: false
   js.compressed: false
   output.hashed: false
-

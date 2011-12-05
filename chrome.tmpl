@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <meta charset=utf-8>
 <title>Togethr</title>
-<noscript>Sorry, your browser needs to support JavaScript.</noscript>
-<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js">
-</script>
-<script src="/static/%(base_js)s"></script>
-<script src="/static/%(client_js)s"></script>
-<link type="text/css" rel="stylesheet" href="/static/%(style_css)s" />
-<style>body { display: none; }</style>
+<script>ASSETS = %(assets)s</script>
+<body>
+<script src=/.static/%(init)s></script>
+<noscript>Sorry, your browser needs <a href=http://enable-javascript.com>JavaScript enabled</a>.</noscript>

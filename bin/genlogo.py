@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
-# Public Domain (-) 2011 The Ampify Authors.
-# See the Ampify UNLICENSE file for details.
+# Public Domain (-) 2011 The Togethr Authors.
+# See the Togethr UNLICENSE file for details.
 
 """Generate the togethr.at logo."""
 
