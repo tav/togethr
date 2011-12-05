@@ -180,10 +180,11 @@ define 'togethr.view', (exports, root) ->
       $form = @$ 'form.search'
       sqid = @_getSQID()
       qs = $form.serialize()
-      $.getJSON '/search', "#{qs}&sqid=#{sqid}", (response) ->
+      $.getJSON '/search', "#{qs}&sqid=#{sqid}", (response) =>
           console.log response
           if 'success' of response
-            $.each response.results, (i, result) ->
+            @results.html ''
+            $.each response.results, (i, result) =>
                 @results.prepend @message result
           else
             alert 'Yikes that didn\'t work'
