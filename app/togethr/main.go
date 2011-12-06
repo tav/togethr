@@ -11,6 +11,7 @@ import (
 	"http"
 	"io"
 	"json"
+	"os"
 	"strings"
 	"time"
 )
@@ -36,10 +37,10 @@ func create(w http.ResponseWriter, r *http.Request) {
 
 	by := r.FormValue("by")
 	toRaw := r.FormValue("to")
-	to := strings.Split(strings.ToLower(toRaw), " ")
+	to := strings.Split(strings.TrimSpace(strings.ToLower(toRaw)), " ")
 	msg := r.FormValue("msg")
 
-	words := strings.Split(strings.ToLower(msg), " ")
+	words := strings.Split(strings.TrimSpace(strings.ToLower(msg)), " ")
 	index := make([]string, len(to)+len(words)+1)
 
 	i := 1
@@ -69,7 +70,6 @@ func create(w http.ResponseWriter, r *http.Request) {
 	key, err := datastore.Put(ctx, datastore.NewIncompleteKey(ctx, "M999", nil), item)
 	if err != nil {
 		fmt.Fprint(w, `{"failure": true}`)
-		// http.Error(w, err.String(), http.StatusInternalServerError)
 		return
 	}
 
@@ -89,11 +89,13 @@ func create(w http.ResponseWriter, r *http.Request) {
 
 func search(w http.ResponseWriter, r *http.Request) {
 
-    ctx := appengine.NewContext(r)
+	ctx := appengine.NewContext(r)
 	q := strings.Split(strings.ToLower(r.FormValue("q")), " ")
-	index := make(map[string]bool)
+	terms := make([]string, len(q))
 	sqid := r.FormValue("sqid")
 
+	i := 0
+buildTerms:
 	for _, term := range q {
 		if strings.HasPrefix(term, "by:") {
 			term = BY_HEADER + term[3:]
@@ -102,29 +104,34 @@ func search(w http.ResponseWriter, r *http.Request) {
 		} else {
 			term = WORD_HEADER + term
 		}
-		if len(term) > 1 {
-			index[term] = true
+		for j := 0; j <= i; j++ {
+			if terms[j] == term {
+				continue buildTerms
+			}
 		}
+		terms[i] = term
+		i++
 	}
 
-	query := datastore.NewQuery("M999")
-	for term := range index {
-		query.Filter("Index =", term)
-	}
-	query.Order("-Created")
+	var err os.Error
 	results := make([]Item, 0)
 
-	for iterator := query.Run(ctx); ; {
-		var item Item
-		_, err := iterator.Next(&item)
-		if err == datastore.Done {
-			break
+	by := r.FormValue("by")
+	if len(by) == 0 {
+		results, err = getResults(ctx, terms, by, results)
+	} else {
+		users := strings.Split(by, ",")
+		for i := 0; i < len(users); i++ {
+			results, err = getResults(ctx, terms, users[i], results)
+			if err != nil {
+				break
+			}
 		}
-		if err != nil {
-			fmt.Fprint(w, `{"failure": true}`)
-			return
-		}
-		results = append(results, item)
+	}
+
+	if err != nil {
+		fmt.Fprint(w, `{"failure": true}`)
+		return
 	}
 
 	buf := &bytes.Buffer{}
@@ -132,17 +139,8 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	buf.Write(SUBSCRIBE)
 	enc.WriteString(sqid)
+	enc.WriteStringSlice(terms)
 
-	realIndex := make([]string, len(index))
-	i := 0
-	for term := range index {
-		realIndex[i] = term
-		i++
-	}
-	enc.WriteStringSlice(realIndex)
-
-	// fmt.Fprintf(w, "%d", buf.Len())
-	// return
 	w.Header().Set("X-Live", fmt.Sprintf("%d", buf.Len()))
 
 	jenc := json.NewEncoder(buf)
@@ -150,6 +148,29 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	io.Copy(w, buf)
 
+}
+
+func getResults(ctx appengine.Context, terms []string, by string, results []Item) ([]Item, os.Error) {
+	query := datastore.NewQuery("M999")
+	for i := 0; i < len(terms); i++ {
+		query.Filter("Index =", terms[i])
+	}
+	if len(by) != 0 {
+		query.Filter("Index =", BY_HEADER+by)
+	}
+	query.Order("-Created")
+	for iterator := query.Run(ctx); ; {
+		var item Item
+		_, err := iterator.Next(&item)
+		if err == datastore.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, item)
+	}
+	return results, nil
 }
 
 func init() {
