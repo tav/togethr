@@ -14,31 +14,36 @@ package togethr
 
 const chrome = `%s`
 
-const test_chrome = `%s`"""
+const testChrome = `%s`"""
 
 @task
 def build_chrome():
 
-    # read the assetgen manifest json
+    # Read the assetgen manifest JSON.
     sock = open('app/build/assets.json')
     assets = sock.read().strip()
     sock.close()
 
-    # process the assets
-    data = json.loads(assets)
-    init = data.pop('init.js')
-    data.pop('site.css')
-    assets = dict((str(k), str(v)) for k, v in data.items())
+    # Process the assets.
+    manifest = json.loads(assets)
+    init = manifest.pop('init.js')
+    assets = {}
+    data = dict(assets=assets, init=init)
+    for k, v in manifest.items():
+        data[k.replace('.', '_')] = str(v)
+        if k.startswith('qunit') or k.startswith('test'):
+            continue
+        assets[str(k)] = str(v)
 
-    # render the template
-    sock1 = open('chrome.tmpl')
-    sock2 = open('test.tmpl')
+    # Render the template.
+    sock1 = open('template/chrome.tmpl')
+    sock2 = open('template/test.tmpl')
     tmpl = chrome_tmpl % (sock1.read(), sock2.read())
     sock1.close()
     sock2.close()
-    chrome = tmpl.strip() % dict(assets=assets, init=init)
+    chrome = tmpl.strip() % data
 
-    # write to file
+    # Write to the file.
     sock = open('app/togethr/chrome.go', 'w')
     sock.write(chrome)
     sock.close()
