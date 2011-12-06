@@ -12,7 +12,9 @@ chrome_tmpl = """// Public Domain (-) 2011 The Togethr Authors.
 
 package togethr
 
-const chrome = `%s`"""
+const chrome = `%s`
+
+const test_chrome = `%s`"""
 
 @task
 def build_chrome():
@@ -29,9 +31,11 @@ def build_chrome():
     assets = dict((str(k), str(v)) for k, v in data.items())
 
     # render the template
-    sock = open('chrome.tmpl')
-    tmpl = chrome_tmpl % sock.read()
-    sock.close()
+    sock1 = open('chrome.tmpl')
+    sock2 = open('test.tmpl')
+    tmpl = chrome_tmpl % (sock1.read(), sock2.read())
+    sock1.close()
+    sock2.close()
     chrome = tmpl.strip() % dict(assets=assets, init=init)
 
     # write to file

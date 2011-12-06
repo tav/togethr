@@ -33,6 +33,12 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	w.Write(chromeBytes)
 }
 
+var testChromeBytes = []byte(test_chrome)
+
+func handleTest(w http.ResponseWriter, r *http.Request) {
+	w.Write(testChromeBytes)
+}
+
 func create(w http.ResponseWriter, r *http.Request) {
 
 	by := r.FormValue("by")
@@ -175,6 +181,7 @@ func getResults(ctx appengine.Context, terms []string, by string, results []Item
 
 func init() {
 	http.DefaultServeMux.Handle("/", http.HandlerFunc(handle))
+	http.HandleFunc("/test", handleTest)
 	http.HandleFunc("/create", create)
 	http.HandleFunc("/search", search)
 }

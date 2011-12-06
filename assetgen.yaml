@@ -34,6 +34,14 @@ generate:
            * See the Togethr UNLICENSE file for details. */
       - coffee/init.coffee
 
+- test.js:
+    source:
+      - raw: |
+          /* Public Domain (-) 2011 The Togethr Authors.
+           * See the Togethr UNLICENSE file for details. */
+      - coffee/tests/test_live.coffee
+    
+
 - gfx/*:
     source: gfx/*
     type: binary
