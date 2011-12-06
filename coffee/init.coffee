@@ -29,7 +29,7 @@
 
   # Check if certain "modern" browser features are available. If not, prompt the
   # user to use a more recent browser.
-  if not postMessage? or not localStorage?
+  if not postMessage? or not localStorage? or not FormData?
 
     CSS ASSETS['update.css']
     browsers = [
@@ -96,7 +96,7 @@
     return
 
   # TODO(tav): Select the bidi stylesheet depending on session info.
-  style = ASSETS['site.data.css']
+  style = ASSETS['site.css']
 
   # Load the CSS stylesheet and initialise the progress indicator once it has
   # been loaded.
@@ -164,19 +164,18 @@
     s.type = 'text/javascript'
     if async
       s.async = true
-    if callback
-      s.onload = ->
-        if not s.isLoaded
-          s.isLoaded = true
-          incr()
-          callback()
-        return
-      s.onreadystatechange = ->
-        if (s.readyState is "loaded" or s.readyState is "complete") and not s.isLoaded
-          s.isLoaded = true
-          incr()
-          callback()
-        return
+    s.onload = ->
+      if not s.isLoaded
+        s.isLoaded = true
+        incr()
+        callback() if callback
+      return
+    s.onreadystatechange = ->
+      if (s.readyState is "loaded" or s.readyState is "complete") and not s.isLoaded
+        s.isLoaded = true
+        incr()
+        callback() if callback
+      return
     s.src = path
     head.appendChild s
     return s
@@ -197,12 +196,11 @@
   body.appendChild container
 
   # Load the scripts.
-  JS "https://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js", false, ->
-    JS "#{static}#{ASSETS['base.js']}", false, ->
-      JS "#{static}#{ASSETS['client.js']}", false, ->
-        main.increment = incr
-        main.run(container)
-        finish()
+  JS "#{static}#{ASSETS['base.js']}", false, ->
+    JS "#{static}#{ASSETS['client.js']}", false, ->
+      main.step = incr
+      main.run(container)
+      finish()
 
   return
 
