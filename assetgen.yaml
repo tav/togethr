@@ -2,8 +2,10 @@
 # See the Togethr UNLICENSE file for details.
 
 generate:
+
 - base.js:
     source:
+      - resource/jquery/jquery.min.js
       # text parsing
       - %(AMPIFY_ROOT)s/third_party/jslibs/twitter/twttr.txt.js
       # jquery plugins
@@ -17,6 +19,7 @@ generate:
       - third_party/mobone/event.coffee
       - third_party/mobone/math.coffee
       - third_party/mobone/string.coffee
+    compressed: true
 
 - client.js:
     source:
@@ -34,17 +37,17 @@ generate:
            * See the Togethr UNLICENSE file for details. */
       - coffee/init.coffee
 
-- test.js:
-    source:
-      - raw: |
-          /* Public Domain (-) 2011 The Togethr Authors.
-           * See the Togethr UNLICENSE file for details. */
-      - coffee/tests/test_live.coffee
-    
-
 - gfx/*:
-    source: gfx/*
+    source: resource/gfx/*
     type: binary
+
+- qunit.css:
+    source:
+      - resource/qunit/qunit.css
+
+- qunit.js:
+    source:
+      - resource/qunit/qunit.js
 
 - site.css:
     source:
@@ -52,8 +55,16 @@ generate:
           /* Public Domain (-) 2011 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
       - sass/site.sass
+    embed.only: yes
     embed.path.root: static
     embed.url.base: /.static/
+
+- test.js:
+    source:
+      - raw: |
+          /* Public Domain (-) 2011 The Togethr Authors.
+           * See the Togethr UNLICENSE file for details. */
+      - coffee/tests/test_live.coffee
 
 - update.css:
     source:
