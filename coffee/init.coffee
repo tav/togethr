@@ -198,8 +198,7 @@
   # Load the scripts.
   JS "#{static}#{ASSETS['base.js']}", false, ->
     JS "#{static}#{ASSETS['client.js']}", false, ->
-      main.step = incr
-      main.run(container)
+      togethr.run(container, incr)
       finish()
 
   return
