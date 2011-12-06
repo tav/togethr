@@ -27,6 +27,52 @@
     head.appendChild s
     return s
 
+  # Compute variables relating to the progress indicator.
+  width = 240 # [keep this synced with the sass]
+  step = target = width / 10
+  finished = false
+
+  incr = ->
+    if (target + step) > width
+      target = width
+    else
+      target += step
+
+  finish = ->
+    target = width
+    finished = true
+
+  # Utility function to load the JavaScript at the given `path`.
+  JS = (path, async, callback) ->
+    s = doc.createElement 'script'
+    s.type = 'text/javascript'
+    if async
+      s.async = true
+    s.onload = ->
+      if not s.isLoaded
+        s.isLoaded = true
+        incr()
+        callback() if callback
+      return
+    s.onreadystatechange = ->
+      if (s.readyState is "loaded" or s.readyState is "complete") and not s.isLoaded
+        s.isLoaded = true
+        incr()
+        callback() if callback
+      return
+    s.src = path
+    head.appendChild s
+    return s
+
+  # Load Google Analytics.
+  if doc.location.hostname isnt "localhosts"
+    root._gaq = [
+      ['_setAccount', analyticsId]
+      ['_setDomainName', analyticsHost]
+      ['_trackPageview']
+    ]
+    JS "https://ssl.google-analytics.com/ga.js", true
+
   # Check if certain "modern" browser features are available. If not, prompt the
   # user to use a more recent browser.
   if not postMessage? or not localStorage? or not FormData?
@@ -70,21 +116,6 @@
 
   # Set the body background colour to avoid overly delayed flashes.
   body.style.backgroundColor = bgColor
-
-  # Compute variables relating to the progress indicator.
-  width = 240 # [keep this synced with the sass]
-  step = target = width / 10
-  finished = false
-
-  incr = ->
-    if (target + step) > width
-      target = width
-    else
-      target += step
-
-  finish = ->
-    target = width
-    finished = true
 
   # Utility function to repeatedly verify that a predicate has been satisfied
   # relating to some DOM element.
@@ -157,37 +188,6 @@
 
       progress()
       return
-
-  # Utility function to load the JavaScript at the given `path`.
-  JS = (path, async, callback) ->
-    s = doc.createElement 'script'
-    s.type = 'text/javascript'
-    if async
-      s.async = true
-    s.onload = ->
-      if not s.isLoaded
-        s.isLoaded = true
-        incr()
-        callback() if callback
-      return
-    s.onreadystatechange = ->
-      if (s.readyState is "loaded" or s.readyState is "complete") and not s.isLoaded
-        s.isLoaded = true
-        incr()
-        callback() if callback
-      return
-    s.src = path
-    head.appendChild s
-    return s
-
-  # Load Google Analytics.
-  if doc.location.hostname isnt "localhost"
-    root._gaq = [
-      ['_setAccount', analyticsId]
-      ['_setDomainName', analyticsHost]
-      ['_trackPageview']
-    ]
-    JS "https://ssl.google-analytics.com/ga.js", true
 
   # Create the root #body element.
   container = doc.createElement 'div'
