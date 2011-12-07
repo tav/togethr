@@ -337,8 +337,6 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 	// Set default headers.
 	headers := conn.Header()
 	headers.Set("X-Content-Type-Options", "nosniff")
-	headers.Set("X-Frame-Options", "SAMEORIGIN")
-	headers.Set("X-XSS-Protection", "0")
 
 	// Redirect all requests to the "official" public host if the Host header
 	// doesn't match.
