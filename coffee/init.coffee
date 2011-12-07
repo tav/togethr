@@ -65,7 +65,7 @@
     return s
 
   # Load Google Analytics.
-  if doc.location.hostname isnt "localhosts"
+  if doc.location.hostname isnt "localhost"
     root._gaq = [
       ['_setAccount', analyticsId]
       ['_setDomainName', analyticsHost]
@@ -75,13 +75,16 @@
 
   # Check if certain "modern" browser features are available. If not, prompt the
   # user to use a more recent browser.
-  if not postMessage? or not localStorage? or not FormData?
+  if not postMessage? or not localStorage? or not FormData? or not ProgressEvent?
 
     CSS ASSETS['update.css']
+
+    # We can hopefully add IE and Opera to this list once IE 10 and Opera 12 are
+    # officially released.
     browsers = [
-      ['chrome', 'Chrome', 'http://www.google.com/chrome']
-      ['firefox', 'Firefox', 'http://getfirefox.com']
-      ['safari', 'Safari', 'http://www.apple.com/safari/']
+      ['chrome', 'Chrome', 'http://www.google.com/chrome', '15']
+      ['firefox', 'Firefox', 'http://getfirefox.com', '8']
+      ['safari', 'Safari', 'http://www.apple.com/safari/', '5']
     ]
 
     c = doc.createElement 'div'
@@ -91,7 +94,7 @@
     hr = doc.createElement 'hr'
     ul = doc.createElement 'ul'
 
-    for [id, name, url] in browsers
+    for [id, name, url, version] in browsers
       img = "gfx/browser.#{id}.png"
       li = doc.createElement 'li'
       li.innerHTML = """
@@ -100,7 +103,7 @@
         </a>
         <div>
           <a href="#{url}" title="Upgrade to the latest #{name}">
-            #{name}
+            #{name} #{version}+
           </a>
         </div>
         </a>
