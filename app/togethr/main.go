@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"togethr/rpc"
 )
 
 const (
@@ -27,16 +28,45 @@ var (
 	SUBSCRIBE = []byte{1}
 )
 
-var chromeBytes = []byte(chrome)
-
-func handle(w http.ResponseWriter, r *http.Request) {
-	w.Write(chromeBytes)
+func render(c []byte, w http.ResponseWriter) {
+	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+	w.Header().Set("X-XSS-Protection", "0")
+	w.Write(c)
 }
 
-var testChromeBytes = []byte(test_chrome)
-
-func handleTest(w http.ResponseWriter, r *http.Request) {
-	w.Write(testChromeBytes)
+func handle(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	// Fast path the root request.
+	if path == "/" {
+		render(chromeBytes, w)
+		return
+	}
+	switch path[1] {
+	case '.':
+		switch path {
+		case "/.rpc":
+			rpc.Handle(path, w, r)
+		case "/.test":
+			render(testChromeBytes, w)
+		default:
+			if strings.HasPrefix(path, "/.get/") {
+				rpc.HandleGet(path[6:], w, r)
+			} else {
+				http.NotFound(w, r)
+			}
+		}
+	case '_':
+		switch path {
+		case "/_ah/start":
+			startBackend(w, r)
+		case "/_ah/stop":
+			stopBackend(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	default:
+		render(chromeBytes, w)
+	}
 }
 
 func create(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +211,6 @@ func getResults(ctx appengine.Context, terms []string, by string, results []Item
 
 func init() {
 	http.DefaultServeMux.Handle("/", http.HandlerFunc(handle))
-	http.HandleFunc("/test", handleTest)
 	http.HandleFunc("/create", create)
 	http.HandleFunc("/search", search)
 }
