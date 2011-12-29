@@ -90,7 +90,7 @@ var (
 // -----------------------------------------------------------------------------
 
 var liveChannel = make(chan []byte, 100)
-var livequeryTimeout int64
+var livequeryTimeout time.Duration
 
 func handleLiveMessages() {
 	for message := range liveChannel {
@@ -299,7 +299,7 @@ type Frontend struct {
 	redirectURL     string
 	staticCache     string
 	staticFiles     map[string]*StaticFile
-	staticMaxAge    int64
+	staticMaxAge    time.Duration
 	upstreamAddr    string
 	upstreamHost    string
 	upstreamTLS     bool
@@ -362,7 +362,7 @@ func (frontend *Frontend) ServeHTTP(conn http.ResponseWriter, req *http.Request)
 
 	// Handle requests for any files exposed within the static directory.
 	if staticFile, ok := frontend.staticFiles[reqPath]; ok {
-		expires := time.SecondsToUTC(time.Seconds() + frontend.staticMaxAge)
+		expires := time.Now().Add(frontend.staticMaxAge)
 		headers.Set("Expires", expires.Format(http.TimeFormat))
 		headers.Set("Cache-Control", frontend.staticCache)
 		headers.Set("Etag", staticFile.etag)
@@ -724,12 +724,12 @@ func getErrorInfo(directory, filename string) ([]byte, string) {
 	if err != nil {
 		runtime.StandardError(err)
 	}
-	buffer := make([]byte, info.Size)
+	buffer := make([]byte, info.Size())
 	_, err = file.Read(buffer[:])
 	if err != nil && err != io.EOF {
 		runtime.StandardError(err)
 	}
-	return buffer, fmt.Sprintf("%d", info.Size)
+	return buffer, fmt.Sprintf("%d", info.Size())
 }
 
 // The ``StaticFile`` type holds the data needed to serve a static file via the
@@ -757,12 +757,12 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 			break
 		}
 		for _, item := range items {
-			name := item.Name
+			name := item.Name()
 			key := fmt.Sprintf("%s/%s", root, name)
-			if item.IsDirectory() {
+			if item.IsDir() {
 				getFiles(filepath.Join(directory, name), mapping, key)
 			} else {
-				content := make([]byte, item.Size)
+				content := make([]byte, item.Size())
 				file, err := os.Open(filepath.Join(directory, name))
 				if err != nil {
 					runtime.StandardError(err)
@@ -779,7 +779,7 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 				hash.Write(content)
 				buffer := &bytes.Buffer{}
 				encoder := base64.NewEncoder(base64.URLEncoding, buffer)
-				encoder.Write(hash.Sum())
+				encoder.Write(hash.Sum(nil))
 				encoder.Close()
 				mapping[key] = &StaticFile{
 					content:  content,
@@ -794,7 +794,7 @@ func getFiles(directory string, mapping map[string]*StaticFile, root string) {
 
 // The ``initFrontend`` utility function abstracts away the various checks and
 // steps involved in setting up and running a new HTTPS Frontend.
-func initFrontend(status, host string, port int, officialHost, validAddress, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticCache string, staticFiles map[string]*StaticFile, staticMaxAge int64) *Frontend {
+func initFrontend(status, host string, port int, officialHost, validAddress, cert, key, cometPrefix, websocketPrefix, instanceDirectory, upstreamHost string, upstreamPort int, upstreamTLS, maintenanceMode, liveMode bool, staticCache string, staticFiles map[string]*StaticFile, staticMaxAge time.Duration) *Frontend {
 
 	var err error
 
@@ -811,7 +811,7 @@ func initFrontend(status, host string, port int, officialHost, validAddress, cer
 	tlsConfig := &tls.Config{
 		NextProtos: []string{"http/1.1"},
 		Rand:       rand.Reader,
-		Time:       time.Seconds,
+		Time:       time.Now,
 	}
 
 	// Load the certificate and private key into the TLS config.
@@ -1148,7 +1148,7 @@ func main() {
 	staticPath := runtime.JoinPath(instanceDirectory, *staticDirectory)
 	dirInfo, err := os.Stat(staticPath)
 	if err == nil {
-		if !dirInfo.IsDirectory() {
+		if !dirInfo.IsDir() {
 			runtime.Error("Static path %q is not a directory", staticPath)
 		}
 	} else {
@@ -1161,13 +1161,13 @@ func main() {
 
 	// Pre-format the Cache-Control header for static files.
 	staticCache := fmt.Sprintf("public, max-age=%d", *staticMaxAge)
-	staticMaxAge64 := int64(*staticMaxAge)
+	staticMaxAge64 := time.Duration(*staticMaxAge)
 
 	// Exit if the directory containing the 50x.html files isn't present.
 	errorPath := runtime.JoinPath(instanceDirectory, *errorDirectory)
 	dirInfo, err = os.Stat(errorPath)
 	if err == nil {
-		if !dirInfo.IsDirectory() {
+		if !dirInfo.IsDir() {
 			runtime.Error("Error path %q is not a directory", errorPath)
 		}
 	} else {
@@ -1226,7 +1226,7 @@ func main() {
 		_ = *livequeryPort
 		_ = *cookieName
 		_ = *leaseExpiry
-		livequeryTimeout = (int64(*livequeryExpiry) / 2) * 1000000000
+		livequeryTimeout = (time.Duration(*livequeryExpiry) / 2) * 1000000000
 	}
 
 	// Create a container for the Frontend instances.
