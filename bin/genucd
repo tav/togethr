@@ -1,0 +1,253 @@
+#! /usr/bin/env python
+
+# Public Domain (-) 2010-2011 The Togethr Authors.
+# See the Togethr UNLICENSE file for details.
+
+"""
+========================
+Javascript UCD Generator
+========================
+
+This script generates a ``ucd.js`` file for Togethr from version 6.0.0 of the
+Unicode Character Database (UCD). It exports the following functionality::
+
+  .isCurrency(rune) -> bool
+  .isDigit(rune) -> bool
+  .isIdent(rune) -> bool
+  .isLetter(rune) -> bool
+  .isSeparator(rune) -> bool
+  .isSpace(rune) -> bool
+
+  .getNormDigits(string) -> string
+
+"""
+
+from __future__ import with_statement
+from os.path import abspath, dirname, join
+
+import sys
+
+if not len(sys.argv[1:]) >= 1:
+    print "Usage: genucd <path-to-unicodedata-file>"
+    sys.exit()
+
+ident_extra = [[ord(char)] for char in '-_']
+separator_extra = [[ord(char)] for char in u'\r\n\u2028\u2029']
+
+py_range = range
+unused = set()
+
+currency_table = []
+digit_table = []
+letter_table = []
+space_table = []
+tables = [[], letter_table, digit_table, space_table, currency_table]
+
+def save(type, range, tables=tables):
+    if not range:
+        return range
+    table = tables[type]
+    _range = []
+    for cp in range:
+        if _range:
+            if cp == (_range[-1] + 1):
+                if len(_range) == 1:
+                    _range.append(cp)
+                else:
+                    _range[1] = cp
+            else:
+                table.append(_range)
+                _range = []
+        else:
+            _range.append(cp)
+    if _range:
+        table.append(_range)
+    return []
+
+with open(sys.argv[1], 'rb') as ucd:
+    current = None
+    range = []
+    in_range = 0
+    for line in ucd:
+        line = line.split(';')
+        codepoint = int(line[0], 16)
+        if in_range:
+            range.extend(py_range(range[-1]+1, codepoint+1))
+            in_range = 0
+            continue
+        name, category = line[1:3]
+        if category in ('Ll', 'Lm', 'Lo', 'Lt', 'Lu'):
+            if current and current != 1:
+                range = save(current, range)
+            current = 1
+        elif category == 'Nd':
+            if current and current != 2:
+                range = save(current, range)
+            current = 2
+        elif category == 'Zs':
+            if current and current != 3:
+                range = save(current, range)
+            current = 3
+        elif category == 'Sc':
+            if current and current != 4:
+                range = save(current, range)
+            current = 4
+        elif category in ('Zl', 'Zp'):
+            continue
+        else:
+            unused.add(category)
+            continue
+        range.append(codepoint)
+        if name.endswith('First>'):
+            in_range = 1
+
+def merge(*tables):
+    new = []
+    for table in tables:
+        new.extend(table)
+    new = sorted(new, key=lambda x: x[0])
+    if len(new) <= 1:
+        return new
+    prev = new[0]
+    final = []; push = final.append
+    for x in new[1:]:
+        if (x[0] - prev[-1]) == 1:
+            prev = [prev[0], x[-1]]
+        else:
+            push(prev)
+            prev = x
+            continue
+    push(prev)
+    return final
+
+print
+
+output = []; out = output.append
+
+def dump(table, out=out, max_block=12):
+    sp = '    '
+    out('    // Prioritise the ASCII check.')
+    out('    if (c < 128) {')
+    ranges = []
+    while 1:
+        if table[0][0] < 128:
+            ranges.append(table.pop(0))
+        else:
+            break
+    if ranges:
+        if len(ranges) == 1:
+            wl = wr = ''
+        else:
+            wl = '('
+            wr = ')'
+        buf = []; push = buf.append
+        for r in ranges:
+            if len(r) == 2:
+                push('(c >= %d && c <= %d)' % (r[0], r[1]))
+            else:
+                push('(c == %d)' % (r[0]))
+        out('      if %s%s%s { return true; }' % (wl, ' || '.join(buf), wr))
+    out('      return false;')
+    out('    };')
+    start = 128
+    i = 0
+    while 1:
+        ranges = table[i:i+max_block]
+        if not ranges:
+            break
+        stop = ranges[-1][-1]
+        i += max_block
+        if len(ranges) == 1:
+            out('    if (c >= %d) {' % start)
+            wl = wr = ''
+        else:
+            out('    if (c >= %d && c <= %d) {'  % (start, stop))
+            wl = '('
+            wr = ')'
+        buf = []; push = buf.append
+        for r in ranges:
+            if len(r) == 2:
+                push('(c >= %d && c <= %d)' % (r[0], r[1]))
+            else:
+                push('(c == %d)' % (r[0]))
+        out('      if %s%s%s { return true; }' % (wl, ' || '.join(buf), wr))
+        out('      return false;')
+        out('    };')
+        start = stop + 1
+
+digit_alloc = []; alloc = digit_alloc.append
+for range in digit_table:
+    i = 0
+    for n in py_range(range[0], range[1]+1):
+        alloc("d[%d] = '%d';" % (n, i))
+        if i == 9:
+            i = 0
+        else:
+            i += 1
+
+ident_table = merge(digit_table, letter_table, ident_extra)
+separator_table = merge(space_table, separator_extra)
+
+out("""// Generated by:
+//
+//     $ %s
+//
+// DO NOT EDIT
+
+define('togethr', function(exports, root) {
+
+  var d = Array(%d);
+
+  %s
+
+  exports.UCD_VERSION = "6.0.0";
+
+  exports.isCurrency = function(c) {""" % (' '.join(sys.argv), digit_table[-1][-1], '\n  '.join(digit_alloc)))
+
+dump(currency_table)
+
+out("""    return false;
+  };
+
+  exports.isDigit = function(c) {""")
+
+dump(digit_table)
+
+out("""    return false;
+  };
+
+  exports.isIdent = function(c) {""")
+
+dump(ident_table)
+
+out("""    return false;
+  };
+
+  exports.isLetter = function(c) {""")
+
+dump(letter_table)
+
+out("""    return false;
+  };
+
+  exports.isSeparator = function(c) {""")
+
+dump(separator_table)
+
+out("""    return false;
+  };
+
+  exports.isSpace = function(c) {""")
+
+dump(space_table)
+
+out("""    return false;
+  };
+
+});""")
+
+print "# Unused Categories:\n\n\t%s\n" % ' '.join(sorted(unused))
+
+ucd_file = open(join(dirname(dirname(abspath(__file__))), 'coffee', 'ucd.js'), 'wb')
+ucd_file.write('\n'.join(output))
+ucd_file.close()
