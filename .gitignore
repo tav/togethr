@@ -6,6 +6,8 @@ app/togethr/chrome.go
 bin/logo.small.png
 bin/logo.png
 
+coffee/*.js
+
 live-server/instance/log
 live-server/instance/run
 live-server/live-server
