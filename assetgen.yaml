@@ -3,37 +3,19 @@
 
 generate:
 
-- base.js:
-    source:
-      - resource/jquery/jquery.min.js
-      # text parsing
-      - %(AMPIFY_ROOT)s/third_party/jslibs/twitter/twttr.txt.js
-      # jquery plugins
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.geolocation.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/jquery/plugins/jquery.url.js
-      # backbone
-      - %(AMPIFY_ROOT)s/third_party/jslibs/underscore/underscore.js
-      - %(AMPIFY_ROOT)s/third_party/jslibs/backbone/backbone.js
-      # mobone (n.b.: strip down)
-      - third_party/mobone/_namespace.coffee
-      - third_party/mobone/event.coffee
-      - third_party/mobone/math.coffee
-      - third_party/mobone/string.coffee
-    compressed: true
-
 - client.js:
     source:
       - raw: |
-          /* Public Domain (-) 2011 The Togethr Authors.
+          /* Public Domain (-) 2011-2012 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
-      - coffee/live.coffee
+      - %(AMPIFY_ROOT)s/src/js/define.coffee
+      - coffee/ucd.js
       - coffee/main.coffee
-      - coffee/view.coffee
     
 - init.js:
     source:
       - raw: |
-          /* Public Domain (-) 2011 The Togethr Authors.
+          /* Public Domain (-) 2011-2012 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
       - coffee/init.coffee
 
@@ -47,12 +29,13 @@ generate:
 
 - qunit.js:
     source:
+      - resource/jquery/jquery.min.js
       - resource/qunit/qunit.js
 
 - site.css:
     source:
       - raw: |
-          /* Public Domain (-) 2011 The Togethr Authors.
+          /* Public Domain (-) 2011-2012 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
       - sass/site.sass
     embed.only: yes
@@ -62,14 +45,14 @@ generate:
 - test.js:
     source:
       - raw: |
-          /* Public Domain (-) 2011 The Togethr Authors.
+          /* Public Domain (-) 2011-2012 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
       - coffee/tests/test_live.coffee
 
 - update.css:
     source:
       - raw: |
-          /* Public Domain (-) 2011 The Togethr Authors.
+          /* Public Domain (-) 2011-2012 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
       - sass/update.sass
 
