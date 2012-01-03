@@ -1,4 +1,4 @@
-# Public Domain (-) 2011 The Togethr Authors.
+# Public Domain (-) 2011-2012 The Togethr Authors.
 # See the Togethr UNLICENSE file for details.
 
 ((root, doc) ->
@@ -75,7 +75,7 @@
 
   # Check if certain "modern" browser features are available. If not, prompt the
   # user to use a more recent browser.
-  if not postMessage? or not localStorage? or not FormData? or not ProgressEvent?
+  if not postMessage? or not localStorage? or not FormData? or not ProgressEvent? or not Int32Array?
 
     CSS ASSETS['update.css']
 
@@ -199,10 +199,9 @@
   body.appendChild container
 
   # Load the scripts.
-  JS "#{static}#{ASSETS['base.js']}", false, ->
-    JS "#{static}#{ASSETS['client.js']}", false, ->
-      togethr.run(container, incr)
-      finish()
+  JS "#{static}#{ASSETS['client.js']}", false, ->
+    togethr.run(container, incr)
+    finish()
 
   return
 
