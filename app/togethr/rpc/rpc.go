@@ -1,4 +1,4 @@
-// Public Domain (-) 2011 The Togethr Authors.
+// Public Domain (-) 2011-2012 The Togethr Authors.
 // See the Togethr UNLICENSE file for details.
 
 package rpc
@@ -139,8 +139,6 @@ func Handle(path string, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-
-	body = []byte(`{"header": {"user": "tav"}, "call": ["test.spam", "hello", 5]}`)
 
 	ctx = getContext()
 	if json.Unmarshal(body, ctx.req) != nil {
