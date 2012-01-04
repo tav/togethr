@@ -4,5 +4,3 @@
 define 'togethr', (exports, root) ->
 
   exports.run = (body, incr) ->
-
-    view = new togethr.view.SinglePageView el: $(body)
