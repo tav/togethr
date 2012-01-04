@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"togethr/backend"
 	"togethr/rpc"
 )
 
@@ -50,7 +51,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 			render(testChromeBytes, w)
 		default:
 			if strings.HasPrefix(path, "/.get/") {
-				rpc.HandleGet(path[6:], w, r)
+				rpc.HandleStream(path[6:], w, r)
 			} else {
 				http.NotFound(w, r)
 			}
@@ -58,9 +59,9 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	case '_':
 		switch path {
 		case "/_ah/start":
-			startBackend(w, r)
+			backend.Start(w, r)
 		case "/_ah/stop":
-			stopBackend(w, r)
+			backend.Stop(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -209,8 +210,14 @@ func getResults(ctx appengine.Context, terms []string, by string, results []Item
 	return results, nil
 }
 
+func boo(ctx *rpc.Context, name string, n int) string {
+	return fmt.Sprintf("booo: %d", n)
+}
+
 func init() {
 	http.DefaultServeMux.Handle("/", http.HandlerFunc(handle))
 	http.HandleFunc("/create", create)
 	http.HandleFunc("/search", search)
+	ns := rpc.Namespace("test")
+	ns.Register("boo", boo)
 }
