@@ -51,17 +51,16 @@ define 'togethr', (exports, root) ->
     maybe = 0
     for label in host.split '.'
       l = label.length
+      # TODO(tav): The label length check doesn't account for IDNs.
       if l is 0 or l > 63
         return 0
-      prev = -1
       for i in [0...l]
         cp = label.charCodeAt i
         if (cp >= 65 and cp <= 90) or (cp >= 97 and cp <= 122) or (cp >= 48 and cp <= 57)
           continue
         if cp is 45
-          if prev is (i-1) or i is (l-1)
+          if i is 0 or i is (l-1)
             return 0
-          prev = i
           continue
         if cp < 183
           return 0
