@@ -24,29 +24,55 @@ define 'togethr', (exports, root) ->
     return 0 if host.length is 0
 
     local = addr.substring 0, at
+    prev = -1
     for i in [0...at]
-        cp = local.charCodeAt i
-        if (cp >= 94 and cp <= 126) or (cp >= 65 and cp <= 90) or (cp >= 48 and cp <= 57) or cp is 43
-          continue
-        if cp is 46
-          if i is 0
-            return 0
-          if prev is 46 or i is (at-1)
-            return 0
-          continue
-        if cp is 33 or (cp >= 35 and cp <= 39) or cp is 42 or cp is 45 or cp is 47 or cp is 61 or cp is 63
-          continue
-        if cp > 126
+      cp = local.charCodeAt i
+      if (cp >= 94 and cp <= 126) or (cp >= 65 and cp <= 90) or (cp >= 48 and cp <= 57) or cp is 43
+        continue
+      if cp is 46
+        if prev is (i-1) or i is (at-1)
           return 0
+        prev = i
+        continue
+      if cp is 33 or (cp >= 35 and cp <= 39) or cp is 42 or cp is 45 or cp is 47 or cp is 61 or cp is 63
+        continue
+      if cp > 126
+        return 0
+      if isHost host
         return 2
-        prev = cp
+      return 0
 
-    return validateHost host
+    isHost host
 
-  exports.validateHost = validateHost = (host) ->
+  exports.isHost = isHost = (host) ->
 
-    l = host.length
-    return 0 if l > 255
+    return 0 if host.length > 255
+
+    maybe = 0
+    for label in host.split '.'
+      l = label.length
+      if l is 0 or l > 63
+        return 0
+      prev = -1
+      for i in [0...l]
+        cp = label.charCodeAt i
+        if (cp >= 65 and cp <= 90) or (cp >= 97 and cp <= 122) or (cp >= 48 and cp <= 57)
+          continue
+        if cp is 45
+          if prev is (i-1) or i is (l-1)
+            return 0
+          prev = i
+          continue
+        if cp < 183
+          return 0
+        # TODO(tav): Check codepoints against those valid in Internationalized
+        # Domain Names — [RFC 5892](http://www.ietf.org/rfc/rfc5892.txt) and
+        # [RFC 6452](http://www.ietf.org/rfc/rfc6452.txt).
+        maybe = 1
+        break
+
+    if maybe is 1
+      return 2
 
     return 1
 
