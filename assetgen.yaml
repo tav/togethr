@@ -10,8 +10,14 @@ generate:
            * See the Togethr UNLICENSE file for details. */
       - %(AMPIFY_ROOT)s/src/js/define.coffee
       - coffee/ucd.js
+      - coffee/rpc.coffee
+      - coffee/validate.coffee
       - coffee/main.coffee
     
+- gfx/*:
+    source: resource/gfx/*
+    type: binary
+
 - init.js:
     source:
       - raw: |
@@ -19,9 +25,10 @@ generate:
            * See the Togethr UNLICENSE file for details. */
       - coffee/init.coffee
 
-- gfx/*:
-    source: resource/gfx/*
-    type: binary
+- loader.css:
+    source:
+      - sass/loader.sass
+    compressed: true
 
 - qunit.css:
     source:
@@ -38,8 +45,9 @@ generate:
           /* Public Domain (-) 2011-2012 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
       - sass/site.sass
+    embed.data_limit: no
     embed.only: yes
-    embed.path.root: static
+    embed.path.root: resource
     embed.url.base: /.static/
 
 - test.js:
