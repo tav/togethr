@@ -4,11 +4,11 @@
 ((root, doc) ->
 
   # Define config params.
-  analyticsHost = '.togethr.at'
-  analyticsId = 'UA-90176-30'
-  bgColor = "#252525"
-  static = '/.static/'
-  typekit = ''
+  ANALYTICS_HOST = '.togethr.at'
+  ANALYTICS_ID = 'UA-90176-30'
+  BGCOLOR = "#252525"
+  STATIC = '/.static/'
+  TYPEKIT = 'jps6bls'
 
   # Frame bust to avoid clickjacking attacks.
   if self isnt top
@@ -23,14 +23,15 @@
   CSS = (path) ->
     s = doc.createElement 'link'
     s.rel = 'stylesheet'
-    s.href = "#{static}#{path}"
+    s.href = "#{STATIC}#{path}"
     head.appendChild s
     return s
 
   # Compute variables relating to the progress indicator.
-  width = 240 # [keep this synced with the sass]
+  width = 240 # [keep this synced with the stylesheet]
   step = target = width / 10
   finished = false
+  finishReq = 3
 
   incr = ->
     if (target + step) > width
@@ -39,8 +40,12 @@
       target += step
 
   finish = ->
-    target = width
-    finished = true
+    finishReq -= 1
+    if finishReq is 0
+      target = width
+      finished = true
+    else
+      incr()
 
   # Utility function to load the JavaScript at the given `path`.
   JS = (path, async, callback) ->
@@ -67,24 +72,24 @@
   # Load Google Analytics.
   if doc.location.hostname isnt "localhost"
     root._gaq = [
-      ['_setAccount', analyticsId]
-      ['_setDomainName', analyticsHost]
+      ['_setAccount', ANALYTICS_ID]
+      ['_setDomainName', ANALYTICS_HOST]
       ['_trackPageview']
     ]
     JS "https://ssl.google-analytics.com/ga.js", true
 
   # Check if certain "modern" browser features are available. If not, prompt the
   # user to use a more recent browser.
-  if not postMessage? or not localStorage? or not FormData? or not ProgressEvent? or not Int32Array?
+  if not ProgressEvent? or not Int32Array? or not addEventListener? or not localStorage? or not FormData? or not postMessage?
 
     CSS ASSETS['update.css']
 
     # We can hopefully add IE and Opera to this list once IE 10 and Opera 12 are
     # officially released.
     browsers = [
-      ['chrome', 'Chrome', 'http://www.google.com/chrome', '15']
-      ['firefox', 'Firefox', 'http://getfirefox.com', '8']
-      ['safari', 'Safari', 'http://www.apple.com/safari/', '5']
+      ['chrome', 'Chrome', 'http://www.google.com/chrome', '16']
+      ['firefox', 'Firefox', 'http://getfirefox.com', '9']
+      ['safari', 'Safari', 'http://www.apple.com/safari/', '5.1']
     ]
 
     c = doc.createElement 'div'
@@ -99,7 +104,7 @@
       li = doc.createElement 'li'
       li.innerHTML = """
         <a href="#{url}" title="Upgrade to the latest #{name}" class="img">
-          <img src="#{static}#{ASSETS[img]}" alt="#{name}" />
+          <img src="#{STATIC}#{ASSETS[img]}" alt="#{name}" />
         </a>
         <div>
           <a href="#{url}" title="Upgrade to the latest #{name}">
@@ -118,7 +123,50 @@
     return
 
   # Set the body background colour to avoid overly delayed flashes.
-  body.style.backgroundColor = bgColor
+  body.style.backgroundColor = BGCOLOR
+
+  # Initialise the progress indicator.
+  twrap = doc.createElement 'div'
+  twrap.id = 'ltw'
+  text = doc.createElement 'div'
+  text.id = 'lt'
+  text.innerHTML = 'L O A D I N G '
+
+  ellip = doc.createElement 'span'
+  ellip.innerHTML = '. '
+  elstates = ['. ', '. . ', '. . .']
+  elstate = 0
+
+  wrap = doc.createElement 'div'
+  wrap.id = 'lw'
+  bar = doc.createElement 'div'
+  bar.id = 'lb'
+
+  text.appendChild ellip
+  twrap.appendChild text
+  body.appendChild twrap
+  wrap.appendChild bar
+  body.appendChild wrap
+
+  curwidth = 0
+  barStyle = bar.style
+
+  progress = ->
+    if target > curwidth
+      curwidth += 4
+      elstate += 0.05
+      ellip.innerHTML = elstates[~~(elstate % 3)]
+      barStyle.width = curwidth + 'px'
+    if curwidth < width
+      setTimeout(progress, 5)
+      return
+    if finished
+      body.removeChild(twrap)
+      body.removeChild(wrap)
+      container.style.display = 'block'
+    return
+
+  progress()
 
   # Utility function to repeatedly verify that a predicate has been satisfied
   # relating to some DOM element.
@@ -132,8 +180,7 @@
   # TODO(tav): Select the bidi stylesheet depending on session info.
   style = ASSETS['site.css']
 
-  # Load the CSS stylesheet and initialise the progress indicator once it has
-  # been loaded.
+  # Load the CSS stylesheet.
   check CSS(style),
     (elem) ->
       try
@@ -145,52 +192,7 @@
             return true
       catch err
         return false
-    , ->
-
-      twrap = doc.createElement 'div'
-      twrap.id = 'ltw'
-
-      text = doc.createElement 'div'
-      text.id = 'lt'
-      text.innerHTML = 'L O A D I N G '
-
-      ellip = doc.createElement 'span'
-      ellip.innerHTML = '. '
-      elstates = ['. ', '. . ', '. . .']
-      elstate = 0
-
-      wrap = doc.createElement 'div'
-      wrap.id = 'lw'
-
-      bar = doc.createElement 'div'
-      bar.id = 'lb'
-
-      text.appendChild ellip
-      twrap.appendChild text
-      body.appendChild twrap
-      wrap.appendChild bar
-      body.appendChild wrap
-
-      curwidth = 0
-      style = bar.style
-
-      progress = ->
-        if target > curwidth
-          curwidth += 4
-          elstate += 0.05
-          ellip.innerHTML = elstates[~~(elstate % 3)]
-          style.width = curwidth + 'px'
-        if curwidth < width
-          setTimeout(progress, 5)
-          return
-        if finished
-          body.removeChild(twrap)
-          body.removeChild(wrap)
-          container.style.display = 'block'
-        return
-
-      progress()
-      return
+    , finish
 
   # Create the root #body element.
   container = doc.createElement 'div'
@@ -198,8 +200,15 @@
   container.style.display = 'none'
   body.appendChild container
 
-  # Load the scripts.
-  JS "#{static}#{ASSETS['client.js']}", false, ->
+  # Load TypeKit.
+  JS "https://use.typekit.com/#{TYPEKIT}.js", false, ->
+    try
+      Typekit.load active: finish()
+    catch e
+    incr()
+
+  # Load the client.
+  JS "#{STATIC}#{ASSETS['client.js']}", false, ->
     togethr.run(container, incr)
     finish()
 
