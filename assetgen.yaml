@@ -12,23 +12,40 @@ generate:
       - coffee/ucd.js
       - coffee/rpc.coffee
       - coffee/validate.coffee
+      - coffee/domly.coffee
+      - coffee/notifi.js
       - coffee/main.coffee
+    uglify:
+      - --define-from-module
+      - consts
+    profile.dev:
+      uglify:
+        - --beautify
+        - --no-mangle
+        - --no-squeeze
+        - --define-from-module
+        - consts-dev
     
 - gfx/*:
     source: resource/gfx/*
     type: binary
 
+- init.css:
+    source:
+      - sass/init.sass
+    compressed: true
+
 - init.js:
     source:
-      - raw: |
-          /* Public Domain (-) 2011-2012 The Togethr Authors.
-           * See the Togethr UNLICENSE file for details. */
       - coffee/init.coffee
-
-- loader.css:
-    source:
-      - sass/loader.sass
     compressed: true
+    uglify:
+      - --define-from-module
+      - consts
+    profile.dev:
+      uglify:
+        - --define-from-module
+        - consts-dev
 
 - qunit.css:
     source:
@@ -45,10 +62,6 @@ generate:
           /* Public Domain (-) 2011-2012 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
       - sass/site.sass
-    embed.data_limit: no
-    embed.only: yes
-    embed.path.root: resource
-    embed.url.base: /.static/
 
 - test.js:
     source:
@@ -64,12 +77,27 @@ generate:
            * See the Togethr UNLICENSE file for details. */
       - sass/update.sass
 
+prereqs:
+
+- coffee/consts.js:
+    source: coffee/consts.coffee
+    compressed: false
+
+- coffee/consts-dev.js:
+    source: coffee/consts-dev.coffee
+    compressed: false
+
+css.embed.data_limit: no
+css.embed.only: yes
+css.embed.path.root: resource
+css.embed.url.base: /.static/
+
+env:
+  NODE_PATH.prefix: coffee
+
 output.directory: app/build
 output.hashed: true
 output.manifest: app/build/assets.json
-
-env:
-  NODE_PATH.prefix: app/build
 
 profile.dev:
   css.compressed: false
