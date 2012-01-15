@@ -22,31 +22,45 @@ define 'togethr', (exports, root) ->
     body.className = 'bg'
     container.style.display = 'block'
     $focus.focus()
-
-  loginHidden = false
+    return
 
   handleLogin = (e) ->
     e.preventDefault()
     e.stopPropagation()
-    if loginHidden
-      loginHidden = false
-      l = doc.$ 'login-table'
-      l.style.display = 'table'
-      $('#login-user').focus()
-      return
     user = doc.$ 'login-user'
     humane.error('hello world')
+    return
 
   handlePersistLogin = () ->
     if this.checked
       local['login.persist'] = '1'
     else
       local.removeItem 'login.persist'
+    return
 
-  hideLogin = () ->
-    loginHidden = true
-    l = doc.$ 'login-table'
+  handleSignup = (e) ->
+    e.preventDefault()
+    e.stopPropagation()
+    return
+
+  showPowerSignup = (e) ->
+    l = doc.$ 'signup-more-row'
     l.style.display = 'none'
+    elems = Array::slice.call doc.getElementsByClassName 'signup-hidden'
+    for elem in elems
+      elem.className = ''
+    e.preventDefault()
+    l = doc.$ 'signup-nick'
+    l.focus()
+
+  nickChanged = false
+  onSignupName = () ->
+    if !nickChanged
+      l = doc.$ 'signup-nick'
+      l.value = this.value.split(' ')[0].toLowerCase()
+
+  onSignupNick = () ->
+    nickChanged = true
 
   exports.showHomeScreen = showHomeScreen = () ->
     validated = false
@@ -74,14 +88,59 @@ define 'togethr', (exports, root) ->
           ],
           ['hr', class: 'clear']
         ],
-        ['form', id: 'signup',
+        ['form', id: 'signup', onsubmit: handleSignup,
           ['div', id: 'signup-title', 'Sign up!'],
-          ['input', id: 'signup-name', onfocus: hideLogin, placeholder: 'Full Name', tabindex: 10],
-          ['div', 'boofheosifheoifsehoifs']
-          ['input', id: 'signup-email', placeholder: 'Email', tabindex: 11],
-          ['input', id: 'signup-pass', placeholder: 'Passphrase', tabindex: 12, type: 'password'],
-          ['input', id: 'signup-nick', placeholder: 'Nickname', tabindex: 13],
-          ['input', id: 'signup-number', placeholder: 'Togethr Number (Optional)', tabindex: 14],
+          ['table', id: 'signup-table',
+            ['tr',
+              ['td', class: 'signup-label', ['label', for: 'signup-name', 'Full Name *']],
+              ['td', ['input', id: 'signup-name', onchange: onSignupName, tabindex: 11, '']],
+            ],
+            ['tr',
+              ['td', ''],
+              ['td', ['div', id: 'signup-name-i', '']],
+            ],
+            ['tr',
+              ['td', class: 'signup-label', ['label', for: 'signup-email', 'Email *']],
+              ['td', ['input', id: 'signup-email', tabindex: 12, '']],
+            ],
+            ['tr',
+              ['td', ''],
+              ['td', ['div', id: 'signup-email-i', '']],
+            ],
+            ['tr',
+              ['td', class: 'signup-label', ['label', for: 'signup-pass', 'Passphrase *']],
+              ['td', ['input', id: 'signup-pass', tabindex: 13, type: 'password', '']],
+            ],
+            ['tr',
+              ['td', ''],
+              ['td', ['div', id: 'signup-pass-i', '']],
+            ],
+            ['tr',
+              ['td', class: 'signup-label', ['label', for: 'signup-gender', 'Gender']],
+              ['td', ['select', id: 'signup-gender', tabindex: 14,
+                ['option', value: '-', ''], ['option', value: 'M', 'Male'], ['option', value: 'F', 'Female'], ['option', value: 'C', "It's complicated"]]],
+            ],
+            ['tr', id: 'signup-more-row',
+              ['td', ''],
+              ['td', ['a', href: '', id: 'signup-more', onclick: showPowerSignup, tabindex: 15, 'Show Power User Options']],
+            ],
+            ['tr', class: 'signup-hidden',
+              ['td', class: 'signup-label', ['label', for: 'signup-nick', 'Nick']],
+              ['td', ['input', id: 'signup-nick', onchange: onSignupNick, tabindex: 16, '']],
+            ],
+            ['tr', class: 'signup-hidden',
+              ['td', class: 'signup-label', ['label', for: 'signup-id', 'ID Number']],
+              ['td', ['input', id: 'signup-id', tabindex: 17, '']],
+            ],
+            ['tr',
+              ['td', ''],
+              ['td',
+                ['input', id: 'signup-terms', tabindex: 18, type: 'checkbox'],
+                ['label', id: 'signup-terms-label', for: 'signup-terms', 'I accept the togethr terms of service']],
+            ],
+          ],
+          ['input', id: 'signup-submit', tabindex: 19, type: 'submit', value: 'Join togethr!']
+          ['hr', class: 'clear']
         ],
     ]
     domly data, container
@@ -93,3 +152,5 @@ define 'togethr', (exports, root) ->
 
     if local["auth"] isnt "1"
       showHomeScreen()
+
+  return
