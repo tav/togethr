@@ -102,9 +102,6 @@ strong, em, b, i
   color: #fff
   padding: 20px 20px
 
-#login
-  width: 700px
-
 #login, #signup
   background: rgba(0, 0, 0, 0.5)
   padding: 15px 15px 12px 18px
@@ -123,7 +120,7 @@ strong, em, b, i
   font-size: 12px
   padding-left: 5px
 
-#login-submit
+#login-submit, #signup-submit
   background: transparent
   border: 0
   color: #fff
@@ -139,10 +136,8 @@ strong, em, b, i
     color: #f0f0f0
     text-decoration: underline
 
-// TODO(tav): Fix-up for the fact that table elements don't support max-width.
 #login-table
   min-width: 400px
-  max-width: 500px
   width: 100%
 
 #login-table td
@@ -158,13 +153,37 @@ strong, em, b, i
 #signup
   margin-top: 20px
 
-#signup-name, #signup-email, #signup-pass, #signup-nick, #signup-number
-  font-size: 21px
-  height: 30px
-  margin-left: 20px
+#signup-name, #signup-email, #signup-pass, #signup-gender, #signup-nick, #signup-id
+  font-size: 16px
+  height: 18px
   margin-bottom: 10px
+  width: 250px
+
+#signup-gender
+  height: 24px
+  width: 160px
+
+#signup-more
+  color: #c6c6c6
+  font-size: 12px
   padding-left: 5px
-  width: 300px
+  text-decoration: underline
+
+  &:hover
+    text-decoration: none
+
+#signup-submit
+  margin-top: 10px
+  margin-right: 0
+
+#signup-table td
+  vertical-align: top
+  line-height: 22px
+
+#signup-terms-label
+  color: #c6c6c6
+  font-size: 12px
+  padding-left: 5px
 
 #signup-title
   font-family: chunk
@@ -178,6 +197,14 @@ strong, em, b, i
 
 .bg
   background: embed("gfx/bg.png")
+
+.signup-hidden
+  display: none
+
+.signup-label
+  padding-right: 15px
+  text-align: right
+  width: 120px
 
 // Media Queries
 
