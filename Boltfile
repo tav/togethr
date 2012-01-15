@@ -41,12 +41,12 @@ def build():
     assets = {}
     data = dict(
         assets=assets,
-        init=manifest.pop('init.js'),
-        loader=read_file(join('app/build', manifest.pop('loader.css')))
+        init_css=read_file(join('app/build', manifest.pop('init.css'))),
+        init_js=read_file(join('app/build', manifest.pop('init.js')))
         )
     for k, v in manifest.items():
         data[k.replace('.', '_')] = str(v)
-        if k.startswith('qunit') or k.startswith('test'):
+        if k.startswith('qunit') or k.startswith('test') or k.endswith('/bg.png'):
             continue
         assets[str(k)] = str(v)
 
