@@ -1,93 +1,191 @@
 // Public Domain (-) 2011 The Togethr Authors.
 // See the Togethr UNLICENSE file for details.
 
+// Mixins
+
+=border-radius($radius)
+  -webkit-border-radius: $radius
+  -moz-border-radius: $radius
+  border-radius: $radius
+
+=border-radius-top-right($radius)
+  -webkit-border-top-right-radius: $radius
+  -moz-border-radius-topright: $radius
+  border-top-right-radius: $radius
+
+=border-radius-bottom-right($radius)
+  -webkit-border-bottom-right-radius: $radius
+  -moz-border-radius-bottomright: $radius
+  border-bottom-right-radius: $radius
+
+=border-radius-bottom-left($radius)
+  -webkit-border-bottom-left-radius: $radius
+  -moz-border-radius-bottomleft: $radius
+  border-bottom-left-radius: $radius
+
+=border-radius-top-left($radius)
+  -webkit-border-top-left-radius: $radius
+  -moz-border-radius-topleft: $radius
+  border-top-left-radius: $radius
+
+=border-radius-top($radius)
+  +border-radius-top-left($radius)
+  +border-radius-top-right($radius)
+
+=border-radius-right($radius)
+  +border-radius-top-right($radius)
+  +border-radius-bottom-right($radius)
+
+=border-radius-bottom($radius)
+  +border-radius-bottom-right($radius)
+  +border-radius-bottom-left($radius)
+
+=border-radius-left($radius)
+  +border-radius-top-left($radius)
+  +border-radius-bottom-left($radius)
+
+// Elements.
+
+html
+  height: 100%
+  margin: 0
+  padding: 0
+
 body
-  font: 12px "Lucida Grande", Arial, sans-serif
+  font-family: "ff-dagny-web-pro", "Lucida Grande", "Lucida Sans Unicode", "DejaVu Sans", Verdana, sans-serif
+  font-size: 18px
+  line-height: 26px
   margin: 0
   padding: 0
   width: 100%
-  overflow-x: hidden
 
-form
-  margin: 1em
+a
+  color: blue
+  text-decoration: none
 
-input, textarea
-  margin: 0.5em
-  width: 90%
-  padding: 1em
-  font: 15px/20px Monaco, "Courier New", monospace
+  &:hover
+    text-decoration: underline
 
-form.search input
-  -webkit-border-radius: 10px
-  -moz-border-radius: 10px
-  border-radius: 10px
-
-.container
+hr.clear
   background: #fff
-  padding: 1em
-  margin: auto
+  border: 0
   clear: both
+  height: 0
+  margin: 0
+  padding: 0
 
-ul.login-logout
-  list-style: none
-  margin: auto
+label
+  cursor: pointer
 
-ul.login-logout li
-  float: left
-  margin: 1em
+strong, em, b, i
+  font-family: "ff-dagny-web-pro", "Lucida Grande", "Lucida Sans", "DejaVu Sans", Verdana, sans-serif
 
-ul.login-logout
-  form
-    margin: 0em
-  input
-    margin: 0em
-    padding: 0.2em 1em
-    font: 12px/14px Monaco, "Courier New", monospace
+// IDs.
 
 #body
-  background: #eee
+  background: transparent
+  min-height: 100%
+  height: 100%
+  margin: 0 auto
+  padding: 0
+  min-width: 480px
+  width: 100%
 
-#lb
-  background-color: #1960bc
-  background: -moz-linear-gradient(top, #4892d9, #1960bc)
-  background: -webkit-gradient(linear, left top, left bottom, from(#4892d9), to(#1960bc))
-  -moz-border-radius: 20px
-  -webkit-border-radius: 20px
-  border-radius: 20px
-  -moz-box-shadow: 0 0 2px #000, inset 0 -7px 0 rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 30px rgba(63,137,205, 0.4)
-  -webkit-box-shadow: 0 0 2px #000, inset 0 -7px 0 rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 30px rgba(63,137,205, 0.4)
-  box-shadow: 0 0 2px #000, inset 0 -7px 0 rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 30px rgba(63,137,205, 0.4)
-  height: 20px
-  width: 0px
-
-#lt
+#togethr
+  font-family: chunk
+  font-size: 120px
+  line-height: 150px
   color: #fff
+  text-decoration: none
 
-#ltw
-  font-size: 20px
-  margin: 70px auto 60px auto
-  width: 180px
+#home
+  color: #fff
+  padding: 20px 20px
 
-#lw
-  background: -webkit-gradient(linear, left top, left bottom, from(#292929), to(#2e2e2e))
-  background: -moz-linear-gradient(top, #292929, #2e2e2e)
-  -moz-border-radius: 20px
-  -webkit-border-radius: 20px
-  border: 4px solid #353535
-  border: 4px solid rgba(255, 255, 255, 0.05)
-  border-radius: 20px
-  -moz-box-shadow: inset 0 2px 3.5px rgba(0, 0, 0, 0.2)
-  -webkit-box-shadow: inset 0 2px 3.5px rgba(0, 0, 0, 0.2)
-  box-shadow: inset 0 2px 3.5px rgba(0, 0, 0, 0.2)
-  height: 20px
-  margin: 0px auto
-  width: 240px
+#login
+  width: 700px
+
+#login, #signup
+  background: rgba(0, 0, 0, 0.5)
+  padding: 15px 15px 12px 18px
+  +border-radius(10px)
+
+#login-custom td
+  line-height: 12px
+  padding-top: 5px
+  vertical-align: top
+
+#login-persist
+  margin-left: -1px
+
+#login-persist-label
+  color: #c6c6c6
+  font-size: 12px
+  padding-left: 5px
+
+#login-submit
+  background: transparent
+  border: 0
+  color: #fff
+  cursor: pointer
+  font-family: chunk
+  font-size: 40px
+  float: right
+  line-height: 40px
+  margin-right: -15px
+  text-align: right
+
+  &:hover
+    color: #f0f0f0
+    text-decoration: underline
+
+// TODO(tav): Fix-up for the fact that table elements don't support max-width.
+#login-table
+  min-width: 400px
+  max-width: 500px
+  width: 100%
+
+#login-table td
+  line-height: 22px
+  padding-right: 15px
+
+#login-user, #login-pass
+  font-size: 16px
+  margin-top: 4px
+  height: 18px
+  width: 100%
+
+#signup
+  margin-top: 20px
+
+#signup-name, #signup-email, #signup-pass, #signup-nick, #signup-number
+  font-size: 21px
+  height: 30px
+  margin-left: 20px
+  margin-bottom: 10px
+  padding-left: 5px
+  width: 300px
+
+#signup-title
+  font-family: chunk
+  font-size: 40px
+  line-height: 40px
+  margin-bottom: 20px
+
+//background: #3b75d1
+
+// Classes
+
+.bg
+  background: embed("gfx/bg.png")
+
+// Media Queries
 
 @media screen and (min-width: 768px)
-  .container,
-  ul.login-logout
-    width: 80%
+  #body
+    width: 768px
 
-.strip
-  width: 100%
-  padding: 0em 1em
+// iPhone4
+// @media
+// only screen and (-webkit-min-device-pixel-ratio: 1.5),
+// only screen and (min-device-pixel-ratio: 1.5)
