@@ -4,13 +4,17 @@
 package rpc
 
 import (
+	"appengine"
 	"bytes"
 	"fmt"
 	"http"
+	"io"
 	"io/ioutil"
 	"json"
 	"reflect"
+	"strings"
 	"sync"
+	"togethr/structure"
 )
 
 var (
@@ -22,6 +26,7 @@ var (
 type Header map[string]interface{}
 
 type Context struct {
+	App        appengine.Context
 	Header     Header
 	RespHeader Header
 	buf        *bytes.Buffer
@@ -67,6 +72,7 @@ func freeContext(ctx *Context) {
 }
 
 type service struct {
+	anon   bool
 	args   []reflect.Type
 	in     int
 	meth   reflect.Value
@@ -74,6 +80,7 @@ type service struct {
 }
 
 func (s *service) Anon() *service {
+	s.anon = true
 	return s
 }
 
@@ -97,9 +104,6 @@ var (
 
 func Error(format string, a ...interface{}) {
 	panic(fmt.Errorf(format, a...))
-}
-
-func HandleStream(path string, w http.ResponseWriter, r *http.Request) {
 }
 
 func Handle(path string, w http.ResponseWriter, r *http.Request) {
@@ -183,6 +187,7 @@ func Handle(path string, w http.ResponseWriter, r *http.Request) {
 		args[i+1] = rv
 	}
 
+	ctx.App = appengine.NewContext(r)
 	ctx.Header = ctx.req.Header
 	ctx.RespHeader = make(Header)
 
@@ -202,7 +207,113 @@ func Handle(path string, w http.ResponseWriter, r *http.Request) {
 
 }
 
-var services = map[string]*service{}
+var doneOK = []byte{'d', 'o', 'n', 'e', '.'}
+
+func HandleStream(path string, w http.ResponseWriter, r *http.Request) {
+
+	call := strings.Split(path, "/")
+	name := call[0]
+	sr := streamServices.Lookup(name)
+
+	if sr == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	var (
+		ctx  *Context
+		resp []byte
+		sent bool
+	)
+
+	defer func() {
+		if ctx != nil {
+			freeContext(ctx)
+		}
+		if !sent {
+			if e := recover(); e != nil {
+				if redir, yes := e.(redirect); yes {
+					http.Redirect(w, r, string(redir), 302)
+					return
+				}
+				http.Error(w, fmt.Sprint(e), 500)
+			} else {
+				w.Write(resp)
+			}
+		}
+	}()
+
+	if r.Method != "GET" {
+		http.Error(w, fmt.Sprintf("bad request: required GET, received %s", r.Method), 405)
+		sent = true
+		return
+	}
+
+	s := sr.(*service)
+	diff := s.in + 1 - len(call)
+
+	if diff < 0 {
+		http.Error(w, fmt.Sprintf("bad request: too many arguments for %s", name), 400)
+		sent = true
+		return
+	}
+
+	for diff > 0 {
+		call = append(call, "")
+		diff -= 1
+	}
+
+	ctx = getContext()
+	args := make([]reflect.Value, s.in+1)
+	for i, param := range call {
+		if i == 0 {
+			continue
+		}
+		args[i] = reflect.ValueOf(param)
+	}
+
+	ctx.App = appengine.NewContext(r)
+	ctx.Header = nil
+	ctx.RespHeader = nil
+
+	args[0] = reflect.ValueOf(ctx)
+	rargs := s.meth.Call(args)
+
+	if len(rargs) == 0 {
+		resp = doneOK
+	} else {
+		var (
+			ct string
+			v  interface{}
+		)
+		if len(rargs) == 2 {
+			ct = rargs[0].String()
+			v = rargs[1].Interface()
+		} else {
+			ct = "text/plain; charset=utf-8"
+			v = rargs[0].Interface()
+		}
+		if reader, ok := v.(io.ReadCloser); ok {
+			resp, _ = ioutil.ReadAll(reader)
+			reader.Close()
+		} else if reader, ok := v.(io.Reader); ok {
+			resp, _ = ioutil.ReadAll(reader)
+		} else if stream, ok := v.([]byte); ok {
+			resp = stream
+		} else if stream, ok := v.(string); ok {
+			resp = []byte(stream)
+		} else {
+			panic("unsupported response type: " + reflect.TypeOf(v).Kind().String())
+		}
+		w.Header().Set("Content-Type", ct)
+	}
+
+}
+
+var (
+	services       = map[string]*service{}
+	streamServices = structure.NewPrefixTree()
+)
 
 func register(name string, v interface{}, stream bool) *service {
 	rv := reflect.ValueOf(v)
@@ -224,7 +335,11 @@ func register(name string, v interface{}, stream bool) *service {
 		in:     in,
 		stream: stream,
 	}
-	services[name] = s
+	if stream {
+		streamServices.Insert(name, s)
+	} else {
+		services[name] = s
+	}
 	return s
 }
 
