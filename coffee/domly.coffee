@@ -39,11 +39,12 @@ define 'togethr', (exports, root) ->
               continue
             if !elem.__evi
               elem.__evi = evid++
+            type = k.slice 2
             if events[elem.__evi]
-              events[elem.__evi].push [v, false]
+              events[elem.__evi].push [type, v, false]
             else
-              events[elem.__evi] = [[v, false]]
-            elem.addEventListener k.slice(2), v, false
+              events[elem.__evi] = [[type, v, false]]
+            elem.addEventListener type, v, false
           else
             elem[propFix[k] or k] = v
         start = 2
@@ -59,6 +60,23 @@ define 'togethr', (exports, root) ->
     frag = doc.createDocumentFragment()
     buildDOM data, frag
     target.appendChild frag
+    return
+
+  purgeDOM = (elem) ->
+    evi = elem.__evi
+    if evi
+      for [type, func, capture] in events[evi]
+        elem.removeEventListener type, func, capture
+      delete events[evi]
+    children = elem.childNodes
+    if children
+      for child in children
+        purgeDOM child
+    return
+
+  exports.rmtree = (parent, elem) ->
+    parent.removeChild elem
+    purgeDOM elem
     return
 
   return
