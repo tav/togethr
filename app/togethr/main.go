@@ -5,7 +5,6 @@ package togethr
 
 import (
 	"http"
-	"strings"
 	"togethr/backend"
 	"togethr/rpc"
 )
@@ -31,11 +30,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		case "/.test":
 			render(testChromeBytes, w)
 		default:
-			if strings.HasPrefix(path, "/.get/") {
-				rpc.HandleStream(path[6:], w, r)
-			} else {
-				http.NotFound(w, r)
-			}
+			rpc.HandleStream(path[2:], w, r)
 		}
 	case '_':
 		switch path {
