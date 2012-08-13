@@ -8,7 +8,7 @@ generate:
       - raw: |
           /* Public Domain (-) 2011-2012 The Togethr Authors.
            * See the Togethr UNLICENSE file for details. */
-      - %(AMPIFY_ROOT)s/src/js/define.coffee
+      - %(AMPIFY_ROOT)s/src/coffee/define.coffee
       - coffee/ucd.js
       - coffee/rpc.coffee
       - coffee/validate.coffee
