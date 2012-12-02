@@ -24,4 +24,4 @@ Enjoy, tav <<tav@espians.com>>
 
 
 [irc://irc.freenode.net/esp]: irc://irc.freenode.net/esp
-[togethr]: https://togethr.at
+[togethr]: http://togethr.at
